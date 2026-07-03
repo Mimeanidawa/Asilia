@@ -1,3 +1,38 @@
-node_modules/
+# Secrets
 .env
+backend/.env
+
+# Node / API
+node_modules/
+backend/node_modules/
 *.log
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+**/build/
+coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# IDE / OS
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+*.swp
+
+# Legacy duplicate backend copy (API lives at repo root)
+backend/
+
+# Local artifacts
+dawa-asili.zip
+*.log
+flutter_*.log

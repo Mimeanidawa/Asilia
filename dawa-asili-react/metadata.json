@@ -1,0 +1,6 @@
+{
+  "name": "Dawa Asili",
+  "description": "Your trusted natural healing assistant and herbal remedy guide. Consult experts, view herbal health tips, and find natural treatments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

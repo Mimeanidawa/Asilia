@@ -1,23 +1,35 @@
-# Asilia API
+# Asilia (Dawa Asili)
 
-Node.js backend for **Dawa Asili** — carousels, content posts, Darasa Huru lessons, user auth, Mwalimu chat, and push notifications.
+Monorepo for **Dawa Asili** — natural medicine learning platform in Kiswahili.
 
-## Setup
+| Path | Description |
+|------|-------------|
+| `src/` | Node.js API (Express + PostgreSQL) |
+| `lib/` | User Flutter app |
+| `administrator/` | Admin Flutter app |
+
+## API (backend)
 
 ```bash
 cp .env.example .env
-# Edit DATABASE_URL, JWT_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
-
 npm install
-npm run seed   # init DB schema + clear demo content
-npm start      # http://localhost:3001
+npm run seed
+npm start
 ```
 
-## Deploy
+Deploy via Railway (`railway.toml`). Default admin: `mimeanidawa@gmail.com`.
 
-Configured for [Railway](https://railway.app) via `railway.toml`. Set `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, and optional `FIREBASE_SERVICE_ACCOUNT`.
+## User app
 
-## Default admin
+```bash
+flutter pub get
+flutter run
+```
 
-- Email: `mimeanidawa@gmail.com` (or `ADMIN_EMAIL` in `.env`)
-- Password: set via `ADMIN_PASSWORD` in `.env`
+## Admin app
+
+```bash
+cd administrator
+flutter pub get
+flutter run
+```

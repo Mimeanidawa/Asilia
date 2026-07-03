@@ -1,0 +1,29 @@
+name: asilia
+description: "Dawa Asili - Elimu ya dawa za asili kutoka mizizi, miti na matunda."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  provider: ^6.1.2
+  shared_preferences: ^2.3.3
+  cached_network_image: ^3.4.1
+  google_fonts: ^6.2.1
+  google_generative_ai: ^0.4.6
+  http: ^1.2.2
+  firebase_core: ^3.12.1
+  firebase_messaging: ^15.2.4
+  flutter_animate: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
