@@ -1,0 +1,14 @@
+# Monorepo: deploy Node API only (ignore Flutter pubspec at repo root).
+providers = ["node"]
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "npm start"
