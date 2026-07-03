@@ -4,6 +4,14 @@ const { Pool } = pg;
 
 let pool = null;
 
+function useSsl(connectionString) {
+  if (!connectionString) return false;
+  const local =
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1');
+  return !local;
+}
+
 export function getPool() {
   if (!pool) {
     const connectionString = process.env.DATABASE_URL;
@@ -12,9 +20,7 @@ export function getPool() {
     }
     pool = new Pool({
       connectionString,
-      ssl: process.env.NODE_ENV === 'production'
-        ? { rejectUnauthorized: false }
-        : false,
+      ssl: useSsl(connectionString) ? { rejectUnauthorized: false } : false,
     });
   }
   return pool;

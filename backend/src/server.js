@@ -24,6 +24,7 @@ app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     service: 'asilia-api',
+    db: process.env.DATABASE_URL ? 'configured' : 'missing',
     timestamp: new Date().toISOString(),
   });
 });
@@ -41,19 +42,32 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-async function start() {
+async function bootstrap() {
   if (!process.env.JWT_SECRET) {
-    console.error('JWT_SECRET environment variable is required');
-    process.exit(1);
+    console.warn('JWT_SECRET is not set — auth will not work until configured');
   }
 
-  await initDb();
-  await ensureDefaultAdmin();
-  initFirebase();
+  if (!process.env.DATABASE_URL) {
+    console.warn('DATABASE_URL is not set — link PostgreSQL in Railway');
+    return;
+  }
 
-  app.listen(PORT, () => {
+  try {
+    await initDb();
+    await ensureDefaultAdmin();
+    initFirebase();
+    console.log('Database schema and admin ready');
+  } catch (err) {
+    console.error('Database bootstrap failed:', err.message);
+  }
+}
+
+async function start() {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Asilia API running on port ${PORT}`);
   });
+
+  await bootstrap();
 }
 
 start().catch((err) => {
