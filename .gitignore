@@ -29,10 +29,6 @@ coverage/
 .DS_Store
 *.swp
 
-# Legacy duplicate backend copy (API lives at repo root)
-backend/
-
 # Local artifacts
 dawa-asili.zip
-*.log
 flutter_*.log
