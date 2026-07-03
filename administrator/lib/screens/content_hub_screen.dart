@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import 'post_editor_screen.dart';
 
 class ContentHubScreen extends StatefulWidget {
   const ContentHubScreen({super.key});
@@ -227,86 +228,26 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
   }
 
   Future<void> _showPostForm({Map<String, dynamic>? existing}) async {
-    final titleCtrl = TextEditingController(text: existing?['title'] as String? ?? '');
-    final subCtrl = TextEditingController(text: existing?['subtitle'] as String? ?? '');
-    final excerptCtrl = TextEditingController(text: existing?['excerpt'] as String? ?? '');
-    final contentCtrl = TextEditingController(text: existing?['content'] as String? ?? '');
-    final imgCtrl = TextEditingController(text: existing?['imageUrl'] as String? ?? '');
-    final priceCtrl = TextEditingController(text: '${existing?['price'] ?? 2000}');
-    var category = existing?['category'] as String? ?? (_categories[_section]?.first ?? '');
-    var isPremium = existing?['isPremium'] as bool? ?? false;
-    var isPublished = existing?['isPublished'] as bool? ?? true;
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AdminColors.surface,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Makala Mpya', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
-              const SizedBox(height: 16),
-              if (_categories[_section] != null)
-                DropdownButtonFormField<String>(
-                  value: category,
-                  dropdownColor: AdminColors.surface,
-                  decoration: const InputDecoration(labelText: 'Kategoria'),
-                  items: _categories[_section]!.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (v) => setSheet(() => category = v!),
-                ),
-              _field(titleCtrl, 'Kichwa'),
-              _field(subCtrl, 'Maneno ya chini'),
-              _field(excerptCtrl, 'Muhtasari'),
-              _field(contentCtrl, 'Maudhui kamili', maxLines: 6),
-              _field(imgCtrl, 'URL ya Picha'),
-              _field(priceCtrl, 'Bei (TZS)', keyboard: TextInputType.number),
-              SwitchListTile(
-                title: Text('Premium', style: GoogleFonts.inter(color: AdminColors.textPrimary)),
-                value: isPremium,
-                activeColor: AdminColors.emerald,
-                onChanged: (v) => setSheet(() => isPremium = v),
-              ),
-              SwitchListTile(
-                title: Text('Chapisha', style: GoogleFonts.inter(color: AdminColors.textPrimary)),
-                value: isPublished,
-                activeColor: AdminColors.emerald,
-                onChanged: (v) => setSheet(() => isPublished = v),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () async {
-                  final body = {
-                    'section': _section,
-                    'category': category,
-                    'title': titleCtrl.text,
-                    'subtitle': subCtrl.text,
-                    'excerpt': excerptCtrl.text,
-                    'content': contentCtrl.text,
-                    'imageUrl': imgCtrl.text,
-                    'price': int.tryParse(priceCtrl.text) ?? 2000,
-                    'isPremium': isPremium,
-                    'isPublished': isPublished,
-                  };
-                  final svc = context.read<AdminProvider>().contentService;
-                  if (existing != null) {
-                    await svc.updatePost(existing['id'] as String, body);
-                  } else {
-                    await svc.createPost(body);
-                  }
-                  Navigator.pop(ctx);
-                  _load();
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: AdminColors.emerald, minimumSize: const Size(double.infinity, 48)),
-                child: const Text('Hifadhi'),
-              ),
-            ],
-          ),
+    final categories = _categories[_section] ?? ['general'];
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PostEditorScreen(
+          section: _section,
+          categories: categories,
+          existing: existing,
         ),
       ),
     );
+    if (result == null || !mounted) return;
+
+    final svc = context.read<AdminProvider>().contentService;
+    if (existing != null) {
+      await svc.updatePost(existing['id'] as String, result);
+    } else {
+      await svc.createPost(result);
+    }
+    _load();
   }
 
   Widget _field(TextEditingController c, String label, {int maxLines = 1, TextInputType keyboard = TextInputType.text}) {

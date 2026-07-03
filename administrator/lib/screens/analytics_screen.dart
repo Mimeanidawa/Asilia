@@ -102,7 +102,7 @@ class AnalyticsScreen extends StatelessWidget {
                   ],
                   child: BarChartCard(
                     title: 'Monthly Revenue',
-                    subtitle: 'USD revenue per month',
+                    subtitle: 'Mapato kwa TZS kila mwezi',
                     data: provider.revenueData,
                     color: AdminColors.amber,
                   ),

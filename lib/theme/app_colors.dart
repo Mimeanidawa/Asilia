@@ -10,7 +10,9 @@ class AppColors {
   static const emerald700 = Color(0xFF047857);
   static const emerald800 = Color(0xFF065F46);
   static const emerald900 = Color(0xFF064E3B);
+  static const gray200 = Color(0xFFE5E7EB);
   static const gray400 = Color(0xFF9CA3AF);
+  static const emerald400 = Color(0xFF34D399);
   static const gray500 = Color(0xFF6B7280);
   static const gray600 = Color(0xFF4B5563);
   static const orange50 = Color(0xFFFFF7ED);

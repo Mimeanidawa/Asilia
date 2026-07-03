@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/admin_models.dart';
 import '../theme/admin_colors.dart';
+import '../utils/tzs_format.dart';
 
 class LineChartCard extends StatelessWidget {
   const LineChartCard({
@@ -22,6 +23,10 @@ class LineChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (data.isEmpty) {
+      return _ChartEmptyCard(title: title, subtitle: subtitle, color: color);
+    }
+
     final spots = data
         .asMap()
         .entries
@@ -143,8 +148,8 @@ class LineChartCard extends StatelessWidget {
                     getTooltipItems: (touchedSpots) {
                       return touchedSpots.map((spot) {
                         final val = spot.y;
-                        final formatted = valuePrefix == '\$'
-                            ? '\$${val.toStringAsFixed(0)}'
+                        final formatted = valuePrefix == 'TZS'
+                            ? TzsFormat.chart(val)
                             : val.toInt().toString();
                         return LineTooltipItem(
                           formatted,
@@ -197,6 +202,10 @@ class BarChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (data.isEmpty) {
+      return _ChartEmptyCard(title: title, subtitle: subtitle, color: color);
+    }
+
     final maxY = data.map((d) => d.value).reduce((a, b) => a > b ? a : b);
 
     return Container(
@@ -278,7 +287,7 @@ class BarChartCard extends StatelessWidget {
                     getTooltipColor: (_) => AdminColors.surface,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
-                        '\$${rod.toY.toStringAsFixed(0)}',
+                        TzsFormat.chart(rod.toY),
                         GoogleFonts.inter(
                           color: color,
                           fontWeight: FontWeight.w700,
@@ -312,6 +321,14 @@ class DonutChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = premium + free;
+    if (total == 0) {
+      return _ChartEmptyCard(
+        title: title,
+        subtitle: 'No user data yet',
+        color: AdminColors.emerald,
+      );
+    }
+
     final premiumPct = (premium / total * 100).toStringAsFixed(1);
     final freePct = (free / total * 100).toStringAsFixed(1);
 
@@ -383,6 +400,65 @@ class DonutChartCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChartEmptyCard extends StatelessWidget {
+  const _ChartEmptyCard({
+    required this.title,
+    this.subtitle,
+    required this.color,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AdminColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AdminColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: AdminColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (subtitle != null)
+            Text(
+              subtitle!,
+              style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12),
+            ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 140,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.show_chart_rounded, color: color.withOpacity(0.4), size: 32),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No data yet',
+                    style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

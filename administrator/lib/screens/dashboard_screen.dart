@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../utils/tzs_format.dart';
 import '../widgets/stat_card.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -16,7 +17,6 @@ class DashboardScreen extends StatelessWidget {
     final provider = context.watch<AdminProvider>();
     final stats = provider.stats;
     final fmt = NumberFormat.compact();
-    final currency = NumberFormat.compact(locale: 'en_US');
 
     return Scaffold(
       backgroundColor: AdminColors.bg,
@@ -80,7 +80,7 @@ class DashboardScreen extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.4,
+                  childAspectRatio: 1.28,
                   children: [
                     StatCard(
                       label: 'Total Users',
@@ -94,7 +94,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     StatCard(
                       label: 'Monthly Revenue',
-                      value: '\$${currency.format(stats.monthlyRevenue)}',
+                      value: TzsFormat.compact(stats.monthlyRevenue),
                       icon: Icons.attach_money_rounded,
                       gradient: AdminColors.amberGradient,
                       glowColor: AdminColors.amber,
@@ -139,7 +139,7 @@ class DashboardScreen extends StatelessWidget {
                     Expanded(
                       child: MiniStatCard(
                         label: 'Total Revenue',
-                        value: '\$${currency.format(stats.totalRevenue)}',
+                        value: TzsFormat.compact(stats.totalRevenue),
                         icon: Icons.account_balance_wallet_rounded,
                         color: AdminColors.amber,
                         delay: const Duration(milliseconds: 380),

@@ -9,6 +9,7 @@ import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/rich_content_view.dart';
 
 class ContentDetailScreen extends StatefulWidget {
   const ContentDetailScreen({super.key});
@@ -130,14 +131,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                       else if (post.isPremium && !canRead)
                         _premiumPrompt(context, post)
                       else
-                        Text(
-                          post.content,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.gray600,
-                            height: 1.7,
-                          ),
-                        ).animate().fadeIn(delay: 200.ms),
+                        RichContentView(content: post.content).animate().fadeIn(delay: 200.ms),
                     ],
                   ),
                 ),
