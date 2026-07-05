@@ -9,6 +9,8 @@ import '../services/mwalimu_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../services/payment_service.dart';
+import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 
 class AskExpertScreen extends StatefulWidget {
@@ -92,9 +94,24 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Funga')),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              context.read<UserService>().purchasePremium();
+              final mwalimu = context.read<MwalimuService>();
+              final result = await showSonicPesaPayment(
+                context,
+                type: PaymentType.premium,
+                title: 'Premium — Dawa Asili',
+                subtitle: 'Uliza Mwalimu bila kikomo kwa siku 30',
+                amount: mwalimu.settings.premiumPrice,
+              );
+              if (result == SonicPesaPaymentResult.success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Premium imeamilishwa!'),
+                    backgroundColor: AppColors.forest,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.forest),
             child: const Text('Lipia Premium'),

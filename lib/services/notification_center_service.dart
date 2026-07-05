@@ -1,9 +1,8 @@
-import 'dart:convert';
+import 'package:flutter/material.dart';
 
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import '../models/content_models.dart';
 import '../models/models.dart';
+import 'notification_store.dart';
 
 class NotificationCenterService extends ChangeNotifier {
   List<AppNotification> _items = [];
@@ -14,28 +13,17 @@ class NotificationCenterService extends ChangeNotifier {
   bool get isLoaded => _loaded;
 
   Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('da_notifications');
-    if (raw != null) {
-      _items = (jsonDecode(raw) as List)
-          .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
-          .toList();
-    } else {
-      _items = _defaultNotifications();
-      await _persist();
-    }
+    _items = await NotificationStore.readAll();
+    _items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     _loaded = true;
     notifyListeners();
   }
 
-  List<AppNotification> _defaultNotifications() => [];
-
   Future<void> add(AppNotification notification) async {
-    final duplicate = _items.any((n) => n.id == notification.id);
-    if (duplicate) return;
+    if (_items.any((n) => n.id == notification.id)) return;
 
-    _items = [notification, ..._items].take(50).toList();
-    await _persist();
+    _items = [notification, ..._items].take(NotificationStore.maxItems).toList();
+    await NotificationStore.writeAll(_items);
     notifyListeners();
   }
 
@@ -46,47 +34,81 @@ class NotificationCenterService extends ChangeNotifier {
     String? contentId,
     String? type,
   }) async {
-    final resolvedType = type ??
-        (contentId != null
-            ? 'article'
-            : lessonId != null
-                ? 'lesson'
-                : 'general');
-
-    await add(AppNotification(
-      id: 'push-${DateTime.now().millisecondsSinceEpoch}',
+    await NotificationStore.appendFromPush(
       title: title,
       body: body,
-      timestamp: DateTime.now(),
       lessonId: lessonId,
       contentId: contentId,
-      type: resolvedType,
-    ));
+      type: type,
+    );
+    await load();
+  }
+
+  /// Adds published posts and lessons that are not already in the center.
+  Future<void> syncFromCatalog({
+    required List<ContentPost> posts,
+    required List<DailyLesson> lessons,
+  }) async {
+    var changed = false;
+    final existingContentIds = _items.map((n) => n.contentId).whereType<String>().toSet();
+    final existingLessonIds = _items.map((n) => n.lessonId).whereType<String>().toSet();
+
+    final additions = <AppNotification>[];
+
+    for (final post in posts) {
+      if (existingContentIds.contains(post.id)) continue;
+      additions.add(AppNotification(
+        id: 'content-${post.id}',
+        title: 'Makala Mpya — Dawa Asili',
+        body: post.title,
+        timestamp: DateTime.now(),
+        contentId: post.id,
+        type: 'article',
+      ));
+      existingContentIds.add(post.id);
+      changed = true;
+    }
+
+    for (final lesson in lessons.where((l) => l.isPublished)) {
+      if (existingLessonIds.contains(lesson.id)) continue;
+      additions.add(AppNotification(
+        id: 'lesson-${lesson.id}',
+        title: 'Darasa Huru — Somo Jipya!',
+        body: lesson.title,
+        timestamp: lesson.publishedAt,
+        lessonId: lesson.id,
+        type: 'lesson',
+      ));
+      existingLessonIds.add(lesson.id);
+      changed = true;
+    }
+
+    if (!changed) return;
+
+    _items = [...additions, ..._items]
+        .take(NotificationStore.maxItems)
+        .toList()
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    await NotificationStore.writeAll(_items);
+    notifyListeners();
   }
 
   Future<void> markRead(String id) async {
     _items = _items.map((n) => n.id == id ? n.copyWith(isRead: true) : n).toList();
-    await _persist();
+    await NotificationStore.writeAll(_items);
     notifyListeners();
   }
 
   Future<void> markAllRead() async {
     _items = _items.map((n) => n.copyWith(isRead: true)).toList();
-    await _persist();
+    await NotificationStore.writeAll(_items);
     notifyListeners();
   }
 
   Future<void> clearAll() async {
     _items = [];
-    await _persist();
+    await NotificationStore.writeAll(_items);
     notifyListeners();
-  }
-
-  Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'da_notifications',
-      jsonEncode(_items.map((n) => n.toJson()).toList()),
-    );
   }
 }

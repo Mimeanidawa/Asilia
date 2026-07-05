@@ -1,12 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:video_player/video_player.dart';
 
 import '../models/content_blocks.dart';
 import '../theme/app_colors.dart';
 import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
+import 'embedded_video_player.dart';
+import 'fullscreen_image_viewer.dart';
 
 class RichContentView extends StatelessWidget {
   const RichContentView({super.key, required this.content});
@@ -43,7 +44,21 @@ class _BlockWidget extends StatelessWidget {
       ContentBlockType.tag => _TagBlock(name: block.text, caption: block.caption),
       ContentBlockType.heading => _Heading(text: block.text, level: block.level, accent: block.accent),
       ContentBlockType.image => _ImageBlock(url: block.url, caption: block.caption),
-      ContentBlockType.video => _VideoBlock(url: block.url, caption: block.caption),
+      ContentBlockType.video => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            EmbeddedVideoPlayer(url: block.url, caption: block.caption),
+            if (block.caption.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  block.caption,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: AppColors.gray400, fontStyle: FontStyle.italic),
+                ),
+              ),
+          ],
+        ),
       ContentBlockType.audio => _AudioBlock(url: block.url, title: block.title),
       ContentBlockType.quote => _QuoteBlock(text: block.text),
       ContentBlockType.callout => _CalloutBlock(text: block.text, title: block.title, variant: block.accent),
@@ -181,25 +196,51 @@ class _ImageBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            placeholder: (_, __) => Container(
-              height: 200,
-              color: AppColors.emerald50,
-              child: const Center(
-                child: CircularProgressIndicator(color: AppColors.forest, strokeWidth: 2),
-              ),
-            ),
-            errorWidget: (_, __, ___) => Container(
-              height: 160,
-              decoration: BoxDecoration(
-                color: AppColors.emerald50,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(Icons.broken_image_outlined, color: AppColors.gray400, size: 40),
+        GestureDetector(
+          onTap: () => openFullscreenImage(context, url, caption: caption),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                CachedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    height: 200,
+                    color: AppColors.emerald50,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: AppColors.forest, strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    height: 160,
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald50,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.broken_image_outlined, color: AppColors.gray400, size: 40),
+                  ),
+                ),
+                Positioned(
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.zoom_out_map_rounded, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
+                        Text('Panua', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -208,129 +249,6 @@ class _ImageBlock extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               caption,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.gray400, fontStyle: FontStyle.italic),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _VideoBlock extends StatefulWidget {
-  const _VideoBlock({required this.url, required this.caption});
-
-  final String url;
-  final String caption;
-
-  @override
-  State<_VideoBlock> createState() => _VideoBlockState();
-}
-
-class _VideoBlockState extends State<_VideoBlock> {
-  VideoPlayerController? _controller;
-  bool _ready = false;
-  bool _error = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _init();
-  }
-
-  Future<void> _init() async {
-    if (widget.url.isEmpty) return;
-    try {
-      final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
-      await c.initialize();
-      if (mounted) {
-        setState(() {
-          _controller = c;
-          _ready = true;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _error = true);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.url.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: AspectRatio(
-            aspectRatio: _ready && _controller != null ? _controller!.value.aspectRatio : 16 / 9,
-            child: _error
-                ? Container(
-                    color: AppColors.forest,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 36),
-                        const SizedBox(height: 8),
-                        Text('Video haipatikani', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
-                      ],
-                    ),
-                  )
-                : !_ready
-                    ? Container(
-                        color: AppColors.forest,
-                        child: const Center(
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        ),
-                      )
-                    : Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          VideoPlayer(_controller!),
-                          if (!_controller!.value.isPlaying)
-                            GestureDetector(
-                              onTap: () => setState(() => _controller!.play()),
-                              child: Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.55),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
-                              ),
-                            ),
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: VideoProgressIndicator(
-                              _controller!,
-                              allowScrubbing: true,
-                              colors: const VideoProgressColors(
-                                playedColor: AppColors.emerald400,
-                                bufferedColor: Colors.white24,
-                                backgroundColor: Colors.white12,
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-          ),
-        ),
-        if (widget.caption.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              widget.caption,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: AppColors.gray400, fontStyle: FontStyle.italic),
             ),

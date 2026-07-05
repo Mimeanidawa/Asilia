@@ -6,6 +6,7 @@ import '../models/content_blocks.dart';
 import '../theme/admin_colors.dart';
 import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
+import '../widgets/embedded_video_player.dart';
 import '../widgets/stable_text_field.dart';
 
 class PostEditorScreen extends StatefulWidget {
@@ -244,17 +245,34 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                     onChanged: (v) => setState(() => _category = v!),
                   ),
                   const SizedBox(height: 12),
-                  TextField(controller: _titleCtrl, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Kichwa cha makala *')),
+                  TextField(
+                    controller: _titleCtrl,
+                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                    decoration: _inputDeco('Kichwa cha makala *', hint: 'Mfano: Faida za Moringa'),
+                  ),
                   const SizedBox(height: 12),
-                  TextField(controller: _subtitleCtrl, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Maneno ya chini')),
+                  TextField(
+                    controller: _subtitleCtrl,
+                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                    decoration: _inputDeco('Maneno ya chini', hint: 'Mfano: Matumizi ya kila siku'),
+                  ),
                   const SizedBox(height: 12),
-                  TextField(controller: _excerptCtrl, maxLines: 2, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Muhtasari (hiari)')),
+                  TextField(
+                    controller: _excerptCtrl,
+                    maxLines: 2,
+                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                    decoration: _inputDeco('Muhtasari (hiari)', hint: 'Muhtasari mfupi wa makala...'),
+                  ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _coverCtrl,
                     onChanged: (_) => setState(() {}),
+                    keyboardType: TextInputType.url,
                     style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                    decoration: _inputDeco('URL ya picha ya jalada'),
+                    decoration: _inputDeco(
+                      'URL ya picha ya jalada',
+                      hint: 'https://mfano.com/picha.jpg',
+                    ),
                   ),
                   if (_coverCtrl.text.trim().isNotEmpty) ...[
                     const SizedBox(height: 10),
@@ -270,7 +288,12 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  TextField(controller: _priceCtrl, keyboardType: TextInputType.number, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Bei (TZS)')),
+                  TextField(
+                    controller: _priceCtrl,
+                    keyboardType: TextInputType.number,
+                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                    decoration: _inputDeco('Bei (TZS)', hint: '2000'),
+                  ),
                   _ToggleRow(
                     title: 'Premium',
                     value: _isPremium,
@@ -419,8 +442,10 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     );
   }
 
-  InputDecoration _inputDeco(String label) => InputDecoration(
+  InputDecoration _inputDeco(String label, {String? hint}) => InputDecoration(
         labelText: label,
+        hintText: hint,
+        hintStyle: GoogleFonts.inter(color: AdminColors.textDim.withValues(alpha: 0.7), fontSize: 13),
         labelStyle: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
         filled: true,
         fillColor: AdminColors.bg,
@@ -690,38 +715,64 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
             StableTextField(
               value: b.url,
               onChanged: (v) => _emit(b.copyWith(url: v)),
-              hint: 'URL ya ${b.type == ContentBlockType.image ? 'picha' : 'video'}',
+              hint: b.type == ContentBlockType.image
+                  ? 'https://mfano.com/picha.jpg'
+                  : 'https://youtube.com/watch?v=... au https://mfano.com/video.mp4',
+              keyboardType: TextInputType.url,
               decoration: _bareDeco(),
             ),
             const SizedBox(height: 8),
-            StableTextField(value: b.caption, onChanged: (v) => _emit(b.copyWith(caption: v)), hint: 'Maelezo (hiari)', decoration: _bareDeco()),
+            StableTextField(
+              value: b.caption,
+              onChanged: (v) => _emit(b.copyWith(caption: v)),
+              hint: 'Maelezo ya picha/video (hiari)',
+              decoration: _bareDeco(),
+            ),
             if (b.type == ContentBlockType.image && b.url.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(imageUrl: b.url.trim(), height: 160, width: double.infinity, fit: BoxFit.cover),
+                child: CachedNetworkImage(
+                  imageUrl: b.url.trim(),
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    height: 160,
+                    color: AdminColors.card,
+                    child: const Center(child: CircularProgressIndicator(color: AdminColors.emerald, strokeWidth: 2)),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    height: 100,
+                    alignment: Alignment.center,
+                    color: AdminColors.card,
+                    child: Text('Picha haipatikani', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
+                  ),
+                ),
               ),
             ],
             if (b.type == ContentBlockType.video && b.url.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
-              Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [AdminColors.forest, AdminColors.forest.withValues(alpha: 0.7)]),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Center(
-                  child: Icon(Icons.play_circle_filled_rounded, color: Colors.white.withValues(alpha: 0.9), size: 48),
-                ),
-              ),
+              EmbeddedVideoPlayer(url: b.url.trim()),
             ],
           ],
         ),
       ContentBlockType.audio => Column(
           children: [
-            StableTextField(value: b.url, onChanged: (v) => _emit(b.copyWith(url: v)), hint: 'URL ya sauti (mp3, m4a...)', decoration: _bareDeco()),
+            StableTextField(
+              value: b.url,
+              onChanged: (v) => _emit(b.copyWith(url: v)),
+              hint: 'https://mfano.com/sauti.mp3',
+              keyboardType: TextInputType.url,
+              decoration: _bareDeco(),
+            ),
             const SizedBox(height: 8),
-            StableTextField(value: b.title, onChanged: (v) => _emit(b.copyWith(title: v)), hint: 'Jina la sauti', decoration: _bareDeco()),
+            StableTextField(
+              value: b.title,
+              onChanged: (v) => _emit(b.copyWith(title: v)),
+              hint: 'Jina la sauti (mfano: Maelezo ya daktari)',
+              decoration: _bareDeco(),
+            ),
           ],
         ),
       ContentBlockType.quote => Container(
@@ -1080,10 +1131,15 @@ class _PreviewCard extends StatelessWidget {
               Padding(padding: const EdgeInsets.only(top: 6), child: Text(b.caption, style: GoogleFonts.inter(fontSize: 11, color: AdminColors.textDim, fontStyle: FontStyle.italic))),
           ],
         ),
-      ContentBlockType.video => Container(
-          height: 160,
-          decoration: BoxDecoration(color: const Color(0xFF1B4332), borderRadius: BorderRadius.circular(12)),
-          child: Center(child: Icon(Icons.play_circle_outline, color: Colors.white.withValues(alpha: 0.8), size: 48)),
+      ContentBlockType.video when b.url.isNotEmpty => Column(
+          children: [
+            EmbeddedVideoPlayer(url: b.url),
+            if (b.caption.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(b.caption, style: GoogleFonts.inter(fontSize: 11, color: AdminColors.textDim, fontStyle: FontStyle.italic)),
+              ),
+          ],
         ),
       ContentBlockType.audio => Container(
           padding: const EdgeInsets.all(14),

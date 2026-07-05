@@ -10,8 +10,12 @@ import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../utils/tzs_format.dart';
+import '../services/payment_service.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/rich_content_view.dart';
+import '../widgets/fullscreen_image_viewer.dart';
 
 class ContentDetailScreen extends StatefulWidget {
   const ContentDetailScreen({super.key});
@@ -57,8 +61,25 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
       context.read<AppProvider>().navigate(AppScreen.auth);
       return;
     }
-    final ok = await user.purchaseContent(_post!.id);
-    if (ok && mounted) await _load();
+    final post = _post!;
+    final result = await showSonicPesaPayment(
+      context,
+      type: PaymentType.content,
+      title: post.title,
+      subtitle: 'Makala ya Premium — ufunguo wa milele kwa makala hii',
+      amount: post.price,
+      contentId: post.id,
+    );
+    if (result == SonicPesaPaymentResult.success && mounted) {
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Malipo yamekamilika! Sasa unaweza kusoma makala kamili.'),
+          backgroundColor: AppColors.forest,
+        ),
+      );
+    }
   }
 
   @override
@@ -99,11 +120,14 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               padding: const EdgeInsets.only(bottom: 32),
               children: [
                 if (post.imageUrl.isNotEmpty)
-                  CachedNetworkImage(
-                    imageUrl: post.imageUrl,
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: () => openFullscreenImage(context, post.imageUrl, caption: post.title),
+                    child: CachedNetworkImage(
+                      imageUrl: post.imageUrl,
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ).animate().fadeIn(),
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -215,33 +239,78 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.star_rounded, color: AppColors.amber, size: 36),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.amber.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.star_rounded, color: AppColors.amber, size: 28),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Makala ya Premium',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.forest),
+                    ),
+                    Text(
+                      'Lipia mara moja, soma milele',
+                      style: TextStyle(fontSize: 11, color: AppColors.gray500, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           Text(
             post.excerpt,
             style: TextStyle(fontSize: 13, color: AppColors.gray600, height: 1.5),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Makala hii ni Premium',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.forest),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.emerald50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.payments_rounded, color: AppColors.emerald800, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Bei: ${TzsFormat.full(post.price)}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.forest),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _purchase,
+            icon: const Icon(Icons.lock_open_rounded, size: 18),
+            label: Text('Fungua kwa ${TzsFormat.full(post.price)}', style: const TextStyle(fontWeight: FontWeight.w900)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.forest,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Lipia TZS ${post.price} ili kusoma makala kamili',
-            style: TextStyle(fontSize: 12, color: AppColors.gray500),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _purchase,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.amber,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            child: Text('Lipia TZS ${post.price}', style: const TextStyle(fontWeight: FontWeight.w900)),
+            'Malipo salama kupitia SonicPesa • M-Pesa, Tigo, Airtel, HaloPesa',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 10, color: AppColors.gray400, fontWeight: FontWeight.w600),
           ),
         ],
       ),

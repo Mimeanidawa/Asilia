@@ -5,31 +5,33 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db.js';
 import { requireUser } from '../middleware/userAuth.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { normalizePhone, phoneLookupVariants, userStatus } from '../utils/phone.js';
 
 const router = Router();
 
 function rowToUser(row) {
   return {
-    id: row.id,
+    id: String(row.id),
     fullName: row.full_name,
     phone: row.phone,
     email: row.email,
     authProvider: row.auth_provider,
     isPremium: row.is_premium,
-    premiumUntil: row.premium_until,
-    messageCount: row.message_count,
+    premiumUntil: row.premium_until instanceof Date ? row.premium_until.toISOString() : row.premium_until,
+    messageCount: Number(row.message_count || 0),
     status: row.status || 'active',
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
+    updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
   };
 }
 
 function rowToAdminUser(row) {
+  const ids = row.purchased_content_ids || [];
   return {
     ...rowToUser(row),
     purchaseCount: Number(row.purchase_count || 0),
     totalSpent: Number(row.total_spent || 0),
-    purchasedContentIds: row.purchased_content_ids || [],
+    purchasedContentIds: ids.filter((id) => id != null).map(String),
   };
 }
 
@@ -75,9 +77,10 @@ router.post('/signup', async (req, res) => {
     }
 
     if (phone) {
+      const variants = phoneLookupVariants(phone);
       const { rows: existingPhone } = await db.query(
-        'SELECT id FROM users WHERE phone = $1',
-        [phone.trim()],
+        'SELECT id FROM users WHERE phone = ANY($1::text[]) LIMIT 1',
+        [variants],
       );
       if (existingPhone.length) {
         return res.status(409).json({ error: 'Nambari ya simu tayari imesajiliwa' });
@@ -94,7 +97,7 @@ router.post('/signup', async (req, res) => {
       [
         userId,
         fullName.trim(),
-        phone?.trim() || null,
+        phone?.trim() ? (normalizePhone(phone) || phone.trim()) : null,
         email?.trim().toLowerCase() || null,
         passwordHash,
         provider,
@@ -124,9 +127,10 @@ router.post('/login', async (req, res) => {
         [email.trim().toLowerCase()],
       ));
     } else if (phone) {
+      const variants = phoneLookupVariants(phone);
       ({ rows } = await db.query(
-        'SELECT * FROM users WHERE phone = $1',
-        [phone.trim()],
+        'SELECT * FROM users WHERE phone = ANY($1::text[]) LIMIT 1',
+        [variants],
       ));
     } else {
       return res.status(400).json({ error: 'Barua pepe au simu inahitajika' });
@@ -137,10 +141,11 @@ router.post('/login', async (req, res) => {
     }
 
     const user = rows[0];
-    if (user.status === 'banned') {
+    const status = userStatus(user);
+    if (status === 'banned') {
       return res.status(403).json({ error: 'Akaunti imefungiwa' });
     }
-    if (user.status === 'suspended') {
+    if (status === 'suspended') {
       return res.status(403).json({ error: 'Akaunti imesimamishwa' });
     }
     if (user.password_hash) {
@@ -164,13 +169,22 @@ router.get('/me', requireUser, async (req, res) => {
     const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.user.sub]);
     if (!rows.length) return res.status(404).json({ error: 'Mtumiaji haipatikani' });
 
+    const user = rows[0];
+    const status = userStatus(user);
+    if (status === 'banned') {
+      return res.status(403).json({ error: 'Akaunti imefungiwa', status: 'banned' });
+    }
+    if (status === 'suspended') {
+      return res.status(403).json({ error: 'Akaunti imesimamishwa', status: 'suspended' });
+    }
+
     const { rows: purchases } = await db.query(
       'SELECT content_id FROM user_purchases WHERE user_id = $1',
       [req.user.sub],
     );
 
     res.json({
-      user: rowToUser(rows[0]),
+      user: rowToUser(user),
       purchasedContentIds: purchases.map((p) => p.content_id),
     });
   } catch (err) {
@@ -179,57 +193,10 @@ router.get('/me', requireUser, async (req, res) => {
 });
 
 router.post('/purchase', requireUser, async (req, res) => {
-  try {
-    const { contentId, type } = req.body;
-    const db = getPool();
-    const userId = req.user.sub;
-
-    if (type === 'premium') {
-      const { rows: settings } = await db.query(
-        "SELECT value FROM app_settings WHERE key = 'premium_price'",
-      );
-      const price = parseInt(settings[0]?.value || '15000', 10);
-
-      await db.query(
-        `UPDATE users SET is_premium = TRUE,
-         premium_until = NOW() + INTERVAL '30 days', updated_at = NOW()
-         WHERE id = $1`,
-        [userId],
-      );
-
-      return res.json({ ok: true, type: 'premium', amount: price });
-    }
-
-    if (!contentId) {
-      return res.status(400).json({ error: 'Maudhui yanahitajika' });
-    }
-
-    const { rows: posts } = await db.query(
-      'SELECT price, is_premium FROM content_posts WHERE id = $1',
-      [contentId],
-    );
-    if (!posts.length) return res.status(404).json({ error: 'Maudhui hayapatikani' });
-
-    const amount = posts[0].price || 2000;
-
-    const { rows: existing } = await db.query(
-      'SELECT id FROM user_purchases WHERE user_id = $1 AND content_id = $2',
-      [userId, contentId],
-    );
-    if (existing.length) {
-      return res.json({ ok: true, alreadyPurchased: true });
-    }
-
-    await db.query(
-      'INSERT INTO user_purchases (id, user_id, content_id, amount) VALUES ($1,$2,$3,$4)',
-      [uuidv4(), userId, contentId, amount],
-    );
-
-    res.json({ ok: true, contentId, amount });
-  } catch (err) {
-    console.error('POST /users/purchase:', err);
-    res.status(500).json({ error: 'Imeshindwa kulipa' });
-  }
+  res.status(410).json({
+    error: 'Tumia malipo ya SonicPesa. Fungua makala na bonyeza Lipia.',
+    code: 'use_sonicpesa',
+  });
 });
 
 router.get('/admin/all', requireAdmin, async (_req, res) => {
@@ -283,7 +250,7 @@ router.patch('/admin/:id/status', requireAdmin, async (req, res) => {
     const db = getPool();
     await db.query(
       'UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1',
-      [req.params.id, status],
+      [req.params.id, String(status).trim().toLowerCase()],
     );
     const { rows } = await db.query(`
       SELECT u.*,

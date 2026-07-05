@@ -9,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../config/app_config.dart';
 import '../firebase_options.dart';
 import 'api_client.dart';
+import 'notification_store.dart';
 
 typedef NotificationTapHandler = void Function({
   String? lessonId,
@@ -31,7 +32,14 @@ const _androidChannelName = 'Dawa Asili Arifa';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (!AppConfig.hasFirebase) return;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint('Background FCM: ${message.notification?.title}');
+  await NotificationStore.appendFromPush(
+    title: message.notification?.title ?? message.data['title'] as String? ?? 'Arifa mpya',
+    body: message.notification?.body ?? message.data['body'] as String? ?? '',
+    lessonId: message.data['lessonId'] as String?,
+    contentId: message.data['contentId'] as String?,
+    type: message.data['type'] as String?,
+  );
+  debugPrint('Background FCM stored: ${message.notification?.title}');
 }
 
 class NotificationService {
@@ -108,9 +116,9 @@ class NotificationService {
         try {
           final data = jsonDecode(payload) as Map<String, dynamic>;
           _dispatchTap(
-            lessonId: data['lessonId'] as String?,
-            contentId: data['contentId'] as String?,
-            type: data['type'] as String?,
+            lessonId: _dataString(data, 'lessonId'),
+            contentId: _dataString(data, 'contentId'),
+            type: _dataString(data, 'type'),
           );
         } catch (_) {}
       },
@@ -207,10 +215,17 @@ class NotificationService {
   void _handleMessage(RemoteMessage message) {
     _storePush(message);
     _dispatchTap(
-      lessonId: message.data['lessonId'] as String?,
-      contentId: message.data['contentId'] as String?,
-      type: message.data['type'] as String?,
+      lessonId: _dataString(message.data, 'lessonId'),
+      contentId: _dataString(message.data, 'contentId'),
+      type: _dataString(message.data, 'type'),
     );
+  }
+
+  String? _dataString(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
   }
 
   void _dispatchTap({
@@ -232,9 +247,9 @@ class NotificationService {
         message.notification?.title ?? message.data['title'] as String? ?? 'Arifa mpya';
     final body =
         message.notification?.body ?? message.data['body'] as String? ?? '';
-    final lessonId = message.data['lessonId'] as String?;
-    final contentId = message.data['contentId'] as String?;
-    final type = message.data['type'] as String?;
+    final lessonId = _dataString(message.data, 'lessonId');
+    final contentId = _dataString(message.data, 'contentId');
+    final type = _dataString(message.data, 'type');
     if (title.isEmpty && body.isEmpty) return;
     onPushReceived!(
       title: title,

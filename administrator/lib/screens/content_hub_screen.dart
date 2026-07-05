@@ -47,8 +47,25 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
     try {
       _carousels = await provider.contentService.fetchCarousels();
       _posts = await provider.contentService.fetchPosts(section: _section);
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        _showMessage('Imeshindwa kupakia maudhui: ${_errorText(e)}', isError: true);
+      }
+    }
     if (mounted) setState(() => _loading = false);
+  }
+
+  String _errorText(Object e) => e.toString().replaceFirst('Exception: ', '');
+
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: GoogleFonts.inter(color: Colors.white)),
+        backgroundColor: isError ? Colors.redAccent : AdminColors.forest,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -147,8 +164,12 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                   selected: sel,
                   onSelected: (_) async {
                     setState(() => _section = s.$1);
-                    _posts = await context.read<AdminProvider>().contentService.fetchPosts(section: _section);
-                    setState(() {});
+                    try {
+                      _posts = await context.read<AdminProvider>().contentService.fetchPosts(section: _section);
+                    } catch (e) {
+                      if (mounted) _showMessage('Imeshindwa kupakia makala: ${_errorText(e)}', isError: true);
+                    }
+                    if (mounted) setState(() {});
                   },
                   selectedColor: AdminColors.emerald.withOpacity(0.2),
                   checkmarkColor: AdminColors.emerald,
@@ -213,21 +234,47 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
           children: [
             Text('Carousel (Kiswahili)', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 16)),
             const SizedBox(height: 16),
-            _field(titleCtrl, 'Kichwa'),
-            _field(subCtrl, 'Maneno ya chini'),
-            _field(imgCtrl, 'URL ya Picha'),
+            _field(titleCtrl, 'Kichwa', hint: 'Mfano: Tiba ya Asili'),
+            _field(subCtrl, 'Maneno ya chini', hint: 'Maelezo mafupi ya carousel'),
+            _field(imgCtrl, 'URL ya Picha', keyboard: TextInputType.url, hint: 'https://mfano.com/picha.jpg'),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
-                final body = {'title': titleCtrl.text, 'subtitle': subCtrl.text, 'imageUrl': imgCtrl.text, 'isPublished': true};
-                final svc = context.read<AdminProvider>().contentService;
-                if (existing != null) {
-                  await svc.updateCarousel(existing['id'] as String, body);
-                } else {
-                  await svc.createCarousel(body);
+                final messenger = ScaffoldMessenger.of(ctx);
+                final nav = Navigator.of(ctx);
+                try {
+                  final body = {
+                    'title': titleCtrl.text.trim(),
+                    'subtitle': subCtrl.text.trim(),
+                    'imageUrl': imgCtrl.text.trim(),
+                    'isPublished': true,
+                  };
+                  if (body['title'] == '') {
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Kichwa kinahitajika', style: GoogleFonts.inter(color: Colors.white)),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+                  final svc = context.read<AdminProvider>().contentService;
+                  if (existing != null) {
+                    await svc.updateCarousel(existing['id'] as String, body);
+                  } else {
+                    await svc.createCarousel(body);
+                  }
+                  nav.pop();
+                  await _load();
+                  if (mounted) _showMessage('Carousel imehifadhiwa');
+                } catch (e) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Imeshindwa kuhifadhi: ${_errorText(e)}', style: GoogleFonts.inter(color: Colors.white)),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
                 }
-                Navigator.pop(ctx);
-                _load();
               },
               style: ElevatedButton.styleFrom(backgroundColor: AdminColors.emerald, minimumSize: const Size(double.infinity, 48)),
               child: const Text('Hifadhi'),
@@ -252,16 +299,22 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
     );
     if (result == null || !mounted) return;
 
-    final svc = context.read<AdminProvider>().contentService;
-    if (existing != null) {
-      await svc.updatePost(existing['id'] as String, result);
-    } else {
-      await svc.createPost(result);
+    try {
+      final svc = context.read<AdminProvider>().contentService;
+      if (existing != null) {
+        await svc.updatePost(existing['id'] as String, result);
+        _showMessage('Makala imesasishwa');
+      } else {
+        await svc.createPost(result);
+        _showMessage('Makala imehifadhiwa');
+      }
+      await _load();
+    } catch (e) {
+      _showMessage('Imeshindwa kuhifadhi makala: ${_errorText(e)}', isError: true);
     }
-    _load();
   }
 
-  Widget _field(TextEditingController c, String label, {int maxLines = 1, TextInputType keyboard = TextInputType.text}) {
+  Widget _field(TextEditingController c, String label, {int maxLines = 1, TextInputType keyboard = TextInputType.text, String? hint}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
@@ -269,23 +322,42 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
         maxLines: maxLines,
         keyboardType: keyboard,
         style: GoogleFonts.inter(color: AdminColors.textPrimary),
-        decoration: InputDecoration(labelText: label, labelStyle: GoogleFonts.inter(color: AdminColors.textDim)),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          labelStyle: GoogleFonts.inter(color: AdminColors.textDim),
+          hintStyle: GoogleFonts.inter(color: AdminColors.textDim.withValues(alpha: 0.7), fontSize: 12),
+        ),
       ),
     );
   }
 
   Future<void> _deleteCarousel(String id) async {
-    await context.read<AdminProvider>().contentService.deleteCarousel(id);
-    _load();
+    try {
+      await context.read<AdminProvider>().contentService.deleteCarousel(id);
+      await _load();
+      _showMessage('Carousel imefutwa');
+    } catch (e) {
+      _showMessage('Imeshindwa kufuta: ${_errorText(e)}', isError: true);
+    }
   }
 
   Future<void> _deletePost(String id) async {
-    await context.read<AdminProvider>().contentService.deletePost(id);
-    _load();
+    try {
+      await context.read<AdminProvider>().contentService.deletePost(id);
+      await _load();
+      _showMessage('Makala imefutwa');
+    } catch (e) {
+      _showMessage('Imeshindwa kufuta: ${_errorText(e)}', isError: true);
+    }
   }
 
   Future<void> _togglePublish(String id) async {
-    await context.read<AdminProvider>().contentService.togglePublishPost(id);
-    _load();
+    try {
+      await context.read<AdminProvider>().contentService.togglePublishPost(id);
+      await _load();
+    } catch (e) {
+      _showMessage('Imeshindwa kubadilisha hali: ${_errorText(e)}', isError: true);
+    }
   }
 }

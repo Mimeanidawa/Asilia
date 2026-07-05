@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'layout/app_scaffold.dart';
@@ -104,6 +105,15 @@ class _AsiliaAppState extends State<AsiliaApp> {
     await _mwalimuService.loadSettings();
     await _contentService.load(userToken: _userService.token);
     await _appProvider.init();
+    await _notificationCenter.syncFromCatalog(
+      posts: [
+        ..._contentService.dodosoPosts,
+        ..._contentService.chaguaMadaPosts,
+        ..._contentService.vyakulaMatundaPosts,
+        ..._contentService.jifunzePosts,
+      ],
+      lessons: _lessonService.publishedLessons,
+    );
 
     if (mounted) setState(() => _ready = true);
   }
@@ -139,6 +149,7 @@ class _AppShell extends StatefulWidget {
 
 class _AppShellState extends State<_AppShell> {
   Timer? _autoRefreshTimer;
+  DateTime? _lastBackPress;
 
   @override
   void initState() {
@@ -180,11 +191,11 @@ class _AppShellState extends State<_AppShell> {
       case AppScreen.profile:
         screen = const ProfileScreen(key: ValueKey('profile-screen'));
       case AppScreen.darasaHuru:
-        screen = const DarasaHuruScreen();
+        screen = DarasaHuruScreen(key: ValueKey(app.selectedLessonId));
       case AppScreen.contentList:
         screen = const ContentListScreen();
       case AppScreen.contentDetail:
-        screen = const ContentDetailScreen();
+        screen = ContentDetailScreen(key: ValueKey(app.selectedContentId));
       case AppScreen.auth:
         screen = const AuthScreen();
       case AppScreen.notifications:
@@ -194,9 +205,42 @@ class _AppShellState extends State<_AppShell> {
     final hideNav = app.activeScreen == AppScreen.herbDetails ||
         app.activeScreen == AppScreen.auth;
 
-    return AppScaffold(
-      showBottomNav: !hideNav,
-      child: screen,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPress(context, app);
+      },
+      child: AppScaffold(
+        showBottomNav: !hideNav,
+        child: screen,
+      ),
     );
+  }
+
+  void _handleBackPress(BuildContext context, AppProvider app) {
+    if (!app.isAtHome) {
+      app.goBack();
+      return;
+    }
+
+    final now = DateTime.now();
+    if (_lastBackPress == null || now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
+      _lastBackPress = now;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Bonyeza tena kurudi nyuma ili kufunga programu',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.black87,
+        ),
+      );
+      return;
+    }
+
+    SystemNavigator.pop();
   }
 }

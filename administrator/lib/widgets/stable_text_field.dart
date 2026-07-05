@@ -74,6 +74,29 @@ class _StableTextFieldState extends State<StableTextField> {
   @override
   Widget build(BuildContext context) {
     final baseStyle = widget.style ?? GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14, height: 1.5);
+    final defaultDeco = InputDecoration(
+      hintText: widget.hint,
+      hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
+      filled: true,
+      fillColor: AdminColors.bg,
+      contentPadding: const EdgeInsets.all(12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AdminColors.cardBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AdminColors.cardBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: AdminColors.emerald, width: 1.5),
+      ),
+    );
+    final decoration = (widget.decoration ?? defaultDeco).copyWith(
+      hintText: widget.hint ?? widget.decoration?.hintText,
+      hintStyle: widget.decoration?.hintStyle ?? GoogleFonts.inter(color: AdminColors.textDim),
+    );
     return TextField(
       controller: _controller,
       focusNode: _focusNode,
@@ -81,26 +104,7 @@ class _StableTextFieldState extends State<StableTextField> {
       minLines: widget.minLines,
       keyboardType: widget.keyboardType,
       style: baseStyle,
-      decoration: widget.decoration ??
-          InputDecoration(
-            hintText: widget.hint,
-            hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
-            filled: true,
-            fillColor: AdminColors.bg,
-            contentPadding: const EdgeInsets.all(12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AdminColors.cardBorder),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AdminColors.cardBorder),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: AdminColors.emerald, width: 1.5),
-            ),
-          ),
+      decoration: decoration,
     );
   }
 }

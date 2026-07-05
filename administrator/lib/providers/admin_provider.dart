@@ -253,30 +253,43 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateUserStatus(String userId, UserStatus status) async {
-    final statusStr = status.name;
+  Future<String?> updateUserStatus(String userId, UserStatus status) async {
     try {
-      final data = await _contentService.updateUserStatus(userId, statusStr);
-      final updated = AdminDataMapper.userFromJson(data['user'] as Map<String, dynamic>);
+      final data = await _contentService.updateUserStatus(userId, status.name);
+      final userJson = data['user'];
+      if (userJson is! Map<String, dynamic>) {
+        return 'Jibu la seva si sahihi';
+      }
+      final updated = AdminDataMapper.userFromJson(userJson);
       final idx = _users.indexWhere((u) => u.id == userId);
       if (idx != -1) {
         _users[idx] = updated;
         notifyListeners();
       }
-    } catch (_) {}
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
   }
 
-  Future<void> updateUserPlan(String userId, UserPlan plan) async {
+  Future<String?> updateUserPlan(String userId, UserPlan plan) async {
     try {
       final data = await _contentService.updateUserPremium(userId, plan == UserPlan.premium);
-      final updated = AdminDataMapper.userFromJson(data['user'] as Map<String, dynamic>);
+      final userJson = data['user'];
+      if (userJson is! Map<String, dynamic>) {
+        return 'Jibu la seva si sahihi';
+      }
+      final updated = AdminDataMapper.userFromJson(userJson);
       final idx = _users.indexWhere((u) => u.id == userId);
       if (idx != -1) {
         _users[idx] = updated;
         await _loadDashboardData();
         notifyListeners();
       }
-    } catch (_) {}
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
   }
 
   void addNotification(AdminNotification notification) {

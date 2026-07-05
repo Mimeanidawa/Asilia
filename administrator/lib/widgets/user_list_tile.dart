@@ -34,7 +34,7 @@ class UserListTile extends StatelessWidget {
                   radius: 22,
                   backgroundColor: AdminColors.forestLight,
                   child: Text(
-                    user.name.substring(0, 1).toUpperCase(),
+                    (user.name.isNotEmpty ? user.name[0] : '?').toUpperCase(),
                     style: GoogleFonts.inter(
                       color: AdminColors.emerald,
                       fontWeight: FontWeight.w700,

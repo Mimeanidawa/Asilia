@@ -316,7 +316,7 @@ class UserDetailScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          user.name.substring(0, 1).toUpperCase(),
+                          (user.name.isNotEmpty ? user.name[0] : '?').toUpperCase(),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 28,
@@ -435,30 +435,24 @@ class UserDetailScreen extends StatelessWidget {
                       label: 'Upgrade to Premium',
                       icon: Icons.star_rounded,
                       color: AdminColors.amber,
-                      onTap: () async {
-                        await provider.updateUserPlan(user.id, UserPlan.premium);
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            _snackBar('${user.name} upgraded to Premium'),
-                          );
-                        }
-                      },
+                      onTap: () => _runUserAction(
+                        context,
+                        provider,
+                        () => provider.updateUserPlan(user.id, UserPlan.premium),
+                        successMessage: '${user.name} upgraded to Premium',
+                      ),
                     )
                   else
                     _ActionButton(
                       label: 'Downgrade to Free',
                       icon: Icons.person_rounded,
                       color: AdminColors.blue,
-                      onTap: () async {
-                        await provider.updateUserPlan(user.id, UserPlan.free);
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            _snackBar('${user.name} downgraded to Free'),
-                          );
-                        }
-                      },
+                      onTap: () => _runUserAction(
+                        context,
+                        provider,
+                        () => provider.updateUserPlan(user.id, UserPlan.free),
+                        successMessage: '${user.name} downgraded to Free',
+                      ),
                     ),
                   const SizedBox(height: 8),
                   if (user.status == UserStatus.active)
@@ -466,30 +460,36 @@ class UserDetailScreen extends StatelessWidget {
                       label: 'Suspend Account',
                       icon: Icons.pause_circle_outline_rounded,
                       color: AdminColors.warning,
-                      onTap: () async {
-                        await provider.updateUserStatus(user.id, UserStatus.suspended);
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            _snackBar('${user.name} suspended'),
-                          );
-                        }
-                      },
+                      onTap: () => _runUserAction(
+                        context,
+                        provider,
+                        () => provider.updateUserStatus(user.id, UserStatus.suspended),
+                        successMessage: '${user.name} suspended',
+                      ),
                     )
                   else if (user.status == UserStatus.suspended)
                     _ActionButton(
                       label: 'Reactivate Account',
                       icon: Icons.play_circle_outline_rounded,
                       color: AdminColors.success,
-                      onTap: () async {
-                        await provider.updateUserStatus(user.id, UserStatus.active);
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            _snackBar('${user.name} reactivated'),
-                          );
-                        }
-                      },
+                      onTap: () => _runUserAction(
+                        context,
+                        provider,
+                        () => provider.updateUserStatus(user.id, UserStatus.active),
+                        successMessage: '${user.name} reactivated',
+                      ),
+                    )
+                  else if (user.status == UserStatus.banned)
+                    _ActionButton(
+                      label: 'Unban User',
+                      icon: Icons.check_circle_outline_rounded,
+                      color: AdminColors.success,
+                      onTap: () => _runUserAction(
+                        context,
+                        provider,
+                        () => provider.updateUserStatus(user.id, UserStatus.active),
+                        successMessage: '${user.name} has been unbanned',
+                      ),
                     ),
                   const SizedBox(height: 8),
                   if (user.status != UserStatus.banned)
@@ -530,12 +530,16 @@ class UserDetailScreen extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AdminColors.error, foregroundColor: Colors.white),
             onPressed: () async {
-              await provider.updateUserStatus(user.id, UserStatus.banned);
-              if (context.mounted) {
-                Navigator.pop(context);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(_snackBar('${user.name} has been banned'));
+              final messenger = ScaffoldMessenger.of(context);
+              final nav = Navigator.of(context);
+              final error = await provider.updateUserStatus(user.id, UserStatus.banned);
+              nav.pop();
+              if (error != null) {
+                messenger.showSnackBar(_snackBar(error, isError: true));
+                return;
               }
+              nav.pop();
+              messenger.showSnackBar(_snackBar('${user.name} has been banned'));
             },
             child: Text('Ban', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
           ),
@@ -544,9 +548,27 @@ class UserDetailScreen extends StatelessWidget {
     );
   }
 
-  SnackBar _snackBar(String msg) => SnackBar(
+  Future<void> _runUserAction(
+    BuildContext context,
+    AdminProvider provider,
+    Future<String?> Function() action, {
+    required String successMessage,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    final error = await action();
+    if (!context.mounted) return;
+    nav.pop();
+    if (error != null) {
+      messenger.showSnackBar(_snackBar(error, isError: true));
+      return;
+    }
+    messenger.showSnackBar(_snackBar(successMessage));
+  }
+
+  SnackBar _snackBar(String msg, {bool isError = false}) => SnackBar(
         content: Text(msg, style: GoogleFonts.inter(color: Colors.white)),
-        backgroundColor: AdminColors.forest,
+        backgroundColor: isError ? AdminColors.error : AdminColors.forest,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       );

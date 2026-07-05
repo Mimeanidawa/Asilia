@@ -11,6 +11,9 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../widgets/herb_image.dart';
+import '../services/payment_service.dart';
+import '../utils/tzs_format.dart';
+import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 
 class LearnScreen extends StatefulWidget {
@@ -68,9 +71,17 @@ class _LearnScreenState extends State<LearnScreen> {
             context.read<AppProvider>().navigate(AppScreen.auth);
             return;
           }
-          final ok = await user.purchaseContent(_activePost!.id);
-          if (ok && mounted) {
-            final full = await content.fetchPost(_activePost!.id, userToken: user.token);
+          final post = _activePost!;
+          final result = await showSonicPesaPayment(
+            context,
+            type: PaymentType.content,
+            title: post.title,
+            subtitle: 'Makala ya Premium — Jifunze',
+            amount: post.price,
+            contentId: post.id,
+          );
+          if (result == SonicPesaPaymentResult.success && mounted) {
+            final full = await content.fetchPost(post.id, userToken: user.token);
             if (full != null) setState(() => _activePost = full);
           }
         },
@@ -366,7 +377,7 @@ class _ArticleReader extends StatelessWidget {
   final UserService user;
   final VoidCallback onClose;
   final Future<void> Function() onRefresh;
-  final VoidCallback onPurchase;
+  final Future<void> Function() onPurchase;
 
   @override
   Widget build(BuildContext context) {
@@ -413,14 +424,41 @@ class _ArticleReader extends StatelessWidget {
                 else ...[
                   Text(post.excerpt, style: TextStyle(fontSize: 14, color: AppColors.gray600, height: 1.7)),
                   const SizedBox(height: 24),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: onPurchase,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.amber,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                      ),
-                      child: Text('Lipia TZS ${post.price}', style: const TextStyle(fontWeight: FontWeight.w900)),
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.lock_rounded, color: AppColors.forest, size: 32),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Makala ya Premium',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.forest),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          TzsFormat.full(post.price),
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.amber),
+                        ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: onPurchase,
+                            icon: const Icon(Icons.payments_rounded, size: 18),
+                            label: const Text('Lipa kwa SonicPesa', style: TextStyle(fontWeight: FontWeight.w900)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.forest,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

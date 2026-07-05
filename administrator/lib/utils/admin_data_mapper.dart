@@ -3,35 +3,50 @@ import '../models/admin_models.dart';
 class AdminDataMapper {
   AdminDataMapper._();
 
-  static AdminUser userFromJson(Map<String, dynamic> json) {
-    final statusStr = json['status'] as String? ?? 'active';
-    UserStatus status;
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value is String && value.isNotEmpty) return DateTime.parse(value);
+    if (value is DateTime) return value;
+    return DateTime.now();
+  }
+
+  static UserStatus _parseStatus(String? statusStr) {
     switch (statusStr) {
       case 'suspended':
-        status = UserStatus.suspended;
+        return UserStatus.suspended;
       case 'banned':
-        status = UserStatus.banned;
+        return UserStatus.banned;
       default:
-        status = UserStatus.active;
+        return UserStatus.active;
     }
+  }
 
+  static AdminUser userFromJson(Map<String, dynamic> json) {
     return AdminUser(
-      id: json['id'] as String,
-      name: json['fullName'] as String? ?? '—',
+      id: json['id']?.toString() ?? '',
+      name: (json['fullName'] as String?)?.trim().isNotEmpty == true
+          ? (json['fullName'] as String).trim()
+          : '—',
       email: json['email'] as String?,
       phone: json['phone'] as String?,
       authProvider: json['authProvider'] as String? ?? 'phone',
       plan: json['isPremium'] == true ? UserPlan.premium : UserPlan.free,
-      status: status,
-      joinedAt: DateTime.parse(json['createdAt'] as String),
-      lastActiveAt: DateTime.parse(json['updatedAt'] as String? ?? json['createdAt'] as String),
-      messageCount: json['messageCount'] as int? ?? 0,
-      purchaseCount: json['purchaseCount'] as int? ?? 0,
-      totalSpent: json['totalSpent'] as int? ?? 0,
-      premiumUntil: json['premiumUntil'] != null
-          ? DateTime.parse(json['premiumUntil'] as String)
-          : null,
-      purchasedContentIds: List<String>.from(json['purchasedContentIds'] as List? ?? []),
+      status: _parseStatus(json['status'] as String?),
+      joinedAt: _parseDate(json['createdAt']),
+      lastActiveAt: _parseDate(json['updatedAt'] ?? json['createdAt']),
+      messageCount: _asInt(json['messageCount']),
+      purchaseCount: _asInt(json['purchaseCount']),
+      totalSpent: _asInt(json['totalSpent']),
+      premiumUntil: json['premiumUntil'] != null ? _parseDate(json['premiumUntil']) : null,
+      purchasedContentIds: (json['purchasedContentIds'] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 

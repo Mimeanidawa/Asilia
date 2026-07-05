@@ -42,9 +42,13 @@ class AppProvider extends ChangeNotifier {
   void openFromNotification({String? lessonId, String? contentId, String? type}) {
     if (type == 'message') {
       navigate(AppScreen.askExpert);
-    } else if (contentId != null) {
+      return;
+    }
+    if (contentId != null && contentId.isNotEmpty) {
       openContentFromNotification(contentId);
-    } else if (lessonId != null) {
+      return;
+    }
+    if (lessonId != null && lessonId.isNotEmpty) {
       openLessonFromNotification(lessonId);
     }
   }
@@ -140,6 +144,9 @@ class AppProvider extends ChangeNotifier {
     screenHistory.add(screen);
     notifyListeners();
   }
+
+  bool get isAtHome =>
+      activeScreen == AppScreen.home && screenHistory.length == 1;
 
   void goBack() {
     if (screenHistory.length > 1) {

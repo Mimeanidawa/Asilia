@@ -6,6 +6,9 @@ import '../providers/app_provider.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../services/mwalimu_service.dart';
+import '../services/payment_service.dart';
+import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -86,7 +89,25 @@ class ProfileScreen extends StatelessWidget {
                                 const _MembershipBadge()
                               else
                                 GestureDetector(
-                                  onTap: () => userService.purchasePremium(),
+                                  onTap: () async {
+                                    final mwalimu = context.read<MwalimuService>();
+                                    final price = mwalimu.settings.premiumPrice;
+                                    final result = await showSonicPesaPayment(
+                                      context,
+                                      type: PaymentType.premium,
+                                      title: 'Premium — Dawa Asili',
+                                      subtitle: 'Maswali bila kikomo kwa Mwalimu + makala za Premium',
+                                      amount: price,
+                                    );
+                                    if (result == SonicPesaPaymentResult.success && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Premium imeamilishwa kwa siku 30!'),
+                                          backgroundColor: AppColors.forest,
+                                        ),
+                                      );
+                                    }
+                                  },
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                     decoration: BoxDecoration(

@@ -6,6 +6,7 @@ import '../providers/app_provider.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/phone_format.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -26,6 +27,9 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<UserService>().clearError();
+    });
   }
 
   @override
@@ -42,7 +46,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     final userService = context.read<UserService>();
     final ok = await userService.signup(
       fullName: _nameController.text,
-      phone: _isGmail ? null : _phoneController.text,
+      phone: _isGmail ? null : formatPhoneForApi(_phoneController.text),
       email: _isGmail ? _emailController.text : null,
       password: _isGmail ? _passwordController.text : null,
       authProvider: _isGmail ? 'gmail' : 'phone',
@@ -56,8 +60,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   Future<void> _login() async {
     final userService = context.read<UserService>();
     final ok = await userService.login(
-      email: _isGmail ? _emailController.text : null,
-      phone: _isGmail ? null : _phoneController.text,
+      email: _isGmail ? _emailController.text.trim() : null,
+      phone: _isGmail ? null : formatPhoneForApi(_phoneController.text),
       password: _isGmail ? _passwordController.text : null,
     );
     if (ok && mounted) {

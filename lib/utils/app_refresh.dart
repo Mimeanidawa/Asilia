@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/mwalimu_service.dart';
+import '../services/lesson_service.dart';
 import '../services/notification_center_service.dart';
 import '../services/user_service.dart';
 
@@ -41,7 +42,19 @@ class AppRefresh {
 
   static Future<void> notifications(BuildContext context) async {
     try {
-      await context.read<NotificationCenterService>().load();
+      final center = context.read<NotificationCenterService>();
+      final content = context.read<ContentService>();
+      final lessons = context.read<LessonService>();
+      await center.load();
+      await center.syncFromCatalog(
+        posts: [
+          ...content.dodosoPosts,
+          ...content.chaguaMadaPosts,
+          ...content.vyakulaMatundaPosts,
+          ...content.jifunzePosts,
+        ],
+        lessons: lessons.publishedLessons,
+      );
     } catch (_) {}
   }
 

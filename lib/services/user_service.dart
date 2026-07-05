@@ -19,6 +19,12 @@ class UserService extends ChangeNotifier {
 
   bool get isLoggedIn => token != null && user != null;
 
+  void clearError() {
+    if (error == null) return;
+    error = null;
+    notifyListeners();
+  }
+
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
     token = prefs.getString('da_user_token');
@@ -34,6 +40,11 @@ class UserService extends ChangeNotifier {
     if (token != null) {
       try {
         await refreshProfile();
+      } on ApiException catch (e) {
+        if (e.statusCode == 403) {
+          await logout();
+        }
+        error = null;
       } catch (_) {}
     }
     notifyListeners();
@@ -65,7 +76,11 @@ class UserService extends ChangeNotifier {
       );
       return true;
     } catch (e) {
-      error = e.toString().replaceAll('ApiException: ', '');
+      if (e is ApiException) {
+        error = e.message;
+      } else {
+        error = e.toString().replaceAll('ApiException: ', '');
+      }
       return false;
     } finally {
       isLoading = false;
@@ -89,10 +104,22 @@ class UserService extends ChangeNotifier {
         data['token'] as String,
         AppUser.fromJson(data['user'] as Map<String, dynamic>),
       );
-      await refreshProfile();
+      try {
+        await refreshProfile();
+      } on ApiException catch (e) {
+        if (e.statusCode == 403) {
+          error = e.message;
+          await logout();
+          return false;
+        }
+      }
       return true;
     } catch (e) {
-      error = e.toString().replaceAll('ApiException: ', '');
+      if (e is ApiException) {
+        error = e.message;
+      } else {
+        error = e.toString().replaceAll('ApiException: ', '');
+      }
       return false;
     } finally {
       isLoading = false;
@@ -102,48 +129,18 @@ class UserService extends ChangeNotifier {
 
   Future<void> refreshProfile() async {
     if (token == null) return;
-    final data = await _api.get('/api/users/me', token: token);
-    user = AppUser.fromJson(data['user'] as Map<String, dynamic>);
-    purchasedContentIds = List<String>.from(data['purchasedContentIds'] as List? ?? []);
-    await _persist();
-    notifyListeners();
-  }
-
-  Future<bool> purchaseContent(String contentId) async {
-    if (token == null) return false;
     try {
-      final data = await _api.post('/api/users/purchase', body: {
-        'contentId': contentId,
-      }, token: token);
-      if (data['ok'] == true) {
-        if (!purchasedContentIds.contains(contentId)) {
-          purchasedContentIds = [...purchasedContentIds, contentId];
-        }
-        await _persist();
-        notifyListeners();
-        return true;
+      final data = await _api.get('/api/users/me', token: token);
+      user = AppUser.fromJson(data['user'] as Map<String, dynamic>);
+      purchasedContentIds = List<String>.from(data['purchasedContentIds'] as List? ?? []);
+      await _persist();
+      notifyListeners();
+    } on ApiException catch (e) {
+      if (e.statusCode == 403) {
+        error = e.message;
+        await logout();
       }
-      return false;
-    } catch (e) {
-      error = e.toString();
-      return false;
-    }
-  }
-
-  Future<bool> purchasePremium() async {
-    if (token == null) return false;
-    try {
-      final data = await _api.post('/api/users/purchase', body: {
-        'type': 'premium',
-      }, token: token);
-      if (data['ok'] == true) {
-        await refreshProfile();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      error = e.toString();
-      return false;
+      rethrow;
     }
   }
 

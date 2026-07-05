@@ -120,6 +120,7 @@ export async function sendContentNotification(post) {
   const data = {
     type: 'article',
     contentId: post.id,
+    section: post.section ?? '',
     title,
     body,
     click_action: 'FLUTTER_NOTIFICATION_CLICK',

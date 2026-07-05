@@ -148,6 +148,28 @@ export async function initDb() {
       ON chat_conversations (user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_msg_conv
       ON chat_messages (conversation_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS payment_orders (
+      id UUID PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      content_id TEXT,
+      amount INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'TZS',
+      phone TEXT NOT NULL,
+      sonic_order_id TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      title TEXT NOT NULL DEFAULT '',
+      reference TEXT,
+      transid TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_user
+      ON payment_orders (user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_sonic
+      ON payment_orders (sonic_order_id);
   `);
 
   // Default Mwalimu (learning assistant) settings

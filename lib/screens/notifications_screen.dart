@@ -61,14 +61,18 @@ class NotificationsScreen extends StatelessWidget {
     final app = context.read<AppProvider>();
     center.markRead(n.id);
 
-    if (n.type == 'message') {
-      app.navigate(AppScreen.askExpert);
-    } else if (n.contentId != null) {
-      app.navigate(AppScreen.contentDetail, contentId: n.contentId);
-    } else if (n.lessonId != null) {
-      app.navigate(AppScreen.darasaHuru, lessonId: n.lessonId);
-    }
+    final hasTarget = n.contentId != null || n.lessonId != null || n.type == 'message';
+    if (!hasTarget) return;
+
+    app.openFromNotification(
+      lessonId: n.lessonId,
+      contentId: n.contentId,
+      type: n.type,
+    );
   }
+
+  bool _hasTarget(AppNotification n) =>
+      n.contentId != null || n.lessonId != null || n.type == 'message';
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +156,7 @@ class NotificationsScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
-                            onTap: () => _onTap(context, n),
+                            onTap: _hasTarget(n) ? () => _onTap(context, n) : null,
                             child: Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
@@ -223,6 +227,11 @@ class NotificationsScreen extends StatelessWidget {
                                       ],
                                     ),
                                   ),
+                                  if (_hasTarget(n))
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 4, top: 8),
+                                      child: Icon(Icons.chevron_right_rounded, color: AppColors.gray400, size: 20),
+                                    ),
                                 ],
                               ),
                             ),
