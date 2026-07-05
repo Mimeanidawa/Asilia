@@ -44,12 +44,14 @@ class NotificationCenterService extends ChangeNotifier {
     required String body,
     String? lessonId,
     String? contentId,
+    String? type,
   }) async {
-    final type = contentId != null
-        ? 'article'
-        : lessonId != null
-            ? 'lesson'
-            : 'general';
+    final resolvedType = type ??
+        (contentId != null
+            ? 'article'
+            : lessonId != null
+                ? 'lesson'
+                : 'general');
 
     await add(AppNotification(
       id: 'push-${DateTime.now().millisecondsSinceEpoch}',
@@ -58,7 +60,7 @@ class NotificationCenterService extends ChangeNotifier {
       timestamp: DateTime.now(),
       lessonId: lessonId,
       contentId: contentId,
-      type: type,
+      type: resolvedType,
     ));
   }
 

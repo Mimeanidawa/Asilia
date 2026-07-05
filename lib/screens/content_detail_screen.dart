@@ -9,6 +9,8 @@ import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
+import '../widgets/pull_to_refresh.dart';
 import '../widgets/rich_content_view.dart';
 
 class ContentDetailScreen extends StatefulWidget {
@@ -42,6 +44,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _refresh() async {
+    await AppRefresh.catalog(context);
+    await _load();
   }
 
   Future<void> _purchase() async {
@@ -85,7 +92,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
         children: [
           _header(app),
           Expanded(
-            child: ListView(
+            child: PullToRefresh(
+              onRefresh: _refresh,
+              child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 32),
               children: [
                 if (post.imageUrl.isNotEmpty)
@@ -136,6 +146,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   ),
                 ),
               ],
+            ),
             ),
           ),
         ],

@@ -6,6 +6,8 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
+import '../widgets/pull_to_refresh.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -30,6 +32,8 @@ class NotificationsScreen extends StatelessWidget {
         return Icons.eco_rounded;
       case 'mwalimu':
         return Icons.school_rounded;
+      case 'message':
+        return Icons.chat_bubble_rounded;
       default:
         return Icons.notifications_rounded;
     }
@@ -45,6 +49,8 @@ class NotificationsScreen extends StatelessWidget {
         return AppColors.forest;
       case 'mwalimu':
         return const Color(0xFF1E40AF);
+      case 'message':
+        return AppColors.blue900;
       default:
         return AppColors.amber;
     }
@@ -55,7 +61,9 @@ class NotificationsScreen extends StatelessWidget {
     final app = context.read<AppProvider>();
     center.markRead(n.id);
 
-    if (n.contentId != null) {
+    if (n.type == 'message') {
+      app.navigate(AppScreen.askExpert);
+    } else if (n.contentId != null) {
       app.navigate(AppScreen.contentDetail, contentId: n.contentId);
     } else if (n.lessonId != null) {
       app.navigate(AppScreen.darasaHuru, lessonId: n.lessonId);
@@ -111,21 +119,30 @@ class NotificationsScreen extends StatelessWidget {
               ),
             ),
           Expanded(
-            child: items.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+            child: PullToRefresh(
+              onRefresh: () => AppRefresh.notifications(context),
+              child: items.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                        Icon(Icons.notifications_off_outlined, size: 48, color: AppColors.gray400),
-                        const SizedBox(height: 12),
-                        Text('Hakuna arifa bado', style: TextStyle(color: AppColors.gray400, fontSize: 14)),
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.45,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.notifications_off_outlined, size: 48, color: AppColors.gray400),
+                              const SizedBox(height: 12),
+                              Text('Hakuna arifa bado', style: TextStyle(color: AppColors.gray400, fontSize: 14)),
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) {
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      itemCount: items.length,
+                      itemBuilder: (context, i) {
                       final n = items[i];
                       final color = _colorFor(n.type);
                       return Padding(
@@ -214,6 +231,7 @@ class NotificationsScreen extends StatelessWidget {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

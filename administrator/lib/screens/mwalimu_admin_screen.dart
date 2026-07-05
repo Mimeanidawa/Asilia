@@ -76,7 +76,11 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
     final limitCtrl = TextEditingController(text: '${_settings['freeMessageLimit'] ?? 5}');
     final priceCtrl = TextEditingController(text: '${_settings['premiumPrice'] ?? 15000}');
 
-    return ListView(
+    return RefreshIndicator(
+      color: AdminColors.emerald,
+      onRefresh: _load,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(20),
       children: [
         Text('Mwalimu wa Elimu', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 18)),
@@ -110,12 +114,17 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
           child: const Text('Hifadhi Mipangilio'),
         ),
       ],
+    ),
     );
   }
 
   Widget _buildChats() {
     if (_selectedConvId != null) return _buildChatDetail();
-    return ListView.builder(
+    return RefreshIndicator(
+      color: AdminColors.emerald,
+      onRefresh: _load,
+      child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _conversations.length,
       itemBuilder: (_, i) {
@@ -123,22 +132,26 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
         return Card(
           color: AdminColors.surface,
           margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AdminColors.emerald.withValues(alpha: 0.2),
-              child: Text((c['userName'] as String? ?? 'U')[0], style: const TextStyle(color: AdminColors.emerald)),
+          child: Material(
+            color: Colors.transparent,
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AdminColors.emerald.withValues(alpha: 0.2),
+                child: Text((c['userName'] as String? ?? 'U')[0], style: const TextStyle(color: AdminColors.emerald)),
+              ),
+              title: Text(c['userName'] as String? ?? '', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
+              subtitle: Text(c['lastMessage'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
+              trailing: c['isPremium'] == true ? const Icon(Icons.star, color: AdminColors.amber, size: 16) : null,
+              onTap: () async {
+                _selectedConvId = c['id'] as String;
+                _messages = await context.read<AdminProvider>().contentService.fetchMessages(_selectedConvId!);
+                setState(() {});
+              },
             ),
-            title: Text(c['userName'] as String? ?? '', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-            subtitle: Text(c['lastMessage'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
-            trailing: c['isPremium'] == true ? const Icon(Icons.star, color: AdminColors.amber, size: 16) : null,
-            onTap: () async {
-              _selectedConvId = c['id'] as String;
-              _messages = await context.read<AdminProvider>().contentService.fetchMessages(_selectedConvId!);
-              setState(() {});
-            },
           ),
         );
       },
+    ),
     );
   }
 
@@ -150,7 +163,11 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
           title: Text('Maswali ya Mwanafunzi', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
         ),
         Expanded(
-          child: ListView.builder(
+          child: RefreshIndicator(
+            color: AdminColors.emerald,
+            onRefresh: _load,
+            child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             itemCount: _messages.length,
             itemBuilder: (_, i) {
@@ -170,6 +187,7 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
                 ),
               );
             },
+          ),
           ),
         ),
         Padding(

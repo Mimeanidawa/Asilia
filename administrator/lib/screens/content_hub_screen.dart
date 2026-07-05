@@ -61,8 +61,12 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AdminColors.bg,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AdminColors.emerald,
+        onRefresh: _load,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverAppBar(
             backgroundColor: AdminColors.bg,
             pinned: true,
@@ -87,6 +91,7 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
           ),
         ],
       ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _tabs.index == 0 ? _showCarouselForm() : _showPostForm(),
         backgroundColor: AdminColors.emerald,
@@ -106,15 +111,18 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
         return Card(
           color: AdminColors.surface,
           margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            title: Text(c['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-            subtitle: Text(c['subtitle'] as String? ?? '', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showCarouselForm(existing: c)),
-                IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteCarousel(c['id'] as String)),
-              ],
+          child: Material(
+            color: Colors.transparent,
+            child: ListTile(
+              title: Text(c['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
+              subtitle: Text(c['subtitle'] as String? ?? '', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showCarouselForm(existing: c)),
+                  IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteCarousel(c['id'] as String)),
+                ],
+              ),
             ),
           ),
         ).animate().fadeIn(delay: (i * 50).ms);
@@ -160,22 +168,25 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                     return Card(
                       color: AdminColors.surface,
                       margin: const EdgeInsets.only(bottom: 10),
-                      child: ListTile(
-                        title: Text(p['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-                        subtitle: Text(
-                          '${p['category'] ?? ''} ${p['isPremium'] == true ? '• PREMIUM TZS ${p['price']}' : ''} ${p['isPublished'] == true ? '• Published' : '• Draft'}',
-                          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(p['isPublished'] == true ? Icons.visibility : Icons.visibility_off, color: AdminColors.emerald, size: 18),
-                              onPressed: () => _togglePublish(p['id'] as String),
-                            ),
-                            IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showPostForm(existing: p)),
-                            IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePost(p['id'] as String)),
-                          ],
+                      child: Material(
+                        color: Colors.transparent,
+                        child: ListTile(
+                          title: Text(p['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            '${p['category'] ?? ''} ${p['isPremium'] == true ? '• PREMIUM TZS ${p['price']}' : ''} ${p['isPublished'] == true ? '• Published' : '• Draft'}',
+                            style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(p['isPublished'] == true ? Icons.visibility : Icons.visibility_off, color: AdminColors.emerald, size: 18),
+                                onPressed: () => _togglePublish(p['id'] as String),
+                              ),
+                              IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showPostForm(existing: p)),
+                              IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePost(p['id'] as String)),
+                            ],
+                          ),
                         ),
                       ),
                     );

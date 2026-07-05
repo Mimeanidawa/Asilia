@@ -5,8 +5,10 @@ import '../data/app_data.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/pull_to_refresh.dart';
 
 class HerbDetailsScreen extends StatelessWidget {
   const HerbDetailsScreen({super.key});
@@ -42,10 +44,21 @@ class HerbDetailsScreen extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Center(
-                child: Text(
-                  'Maudhui hayapatikani',
-                  style: TextStyle(color: AppColors.gray400, fontSize: 14),
+              child: PullToRefresh(
+                onRefresh: () => AppRefresh.catalog(context),
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.45,
+                      child: Center(
+                        child: Text(
+                          'Maudhui hayapatikani',
+                          style: TextStyle(color: AppColors.gray400, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -89,7 +102,10 @@ class HerbDetailsScreen extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView(
+          child: PullToRefresh(
+            onRefresh: () => AppRefresh.catalog(context),
+            child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 24),
             children: [
               Stack(
@@ -365,6 +381,7 @@ class HerbDetailsScreen extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
         ),
         const AppBottomNav(),

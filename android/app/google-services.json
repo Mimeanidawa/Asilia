@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "934679603823",
+    "project_id": "asilia-212da",
+    "storage_bucket": "asilia-212da.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:934679603823:android:350328b5d4cdb669187b9a",
+        "android_client_info": {
+          "package_name": "com.asilia"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDogwBnsBzcEpZ4pJjSqL6efF1ngf2dvFQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

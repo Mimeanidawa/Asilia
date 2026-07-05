@@ -4,14 +4,11 @@ import 'package:flutter/foundation.dart'
 
 import 'config/app_config.dart';
 
-/// Firebase options from --dart-define flags.
-/// Run `flutterfire configure` or pass:
-///   FIREBASE_API_KEY, FIREBASE_APP_ID,
-///   FIREBASE_MESSAGING_SENDER_ID, FIREBASE_PROJECT_ID
+/// Firebase options for project asilia-212da.
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (!AppConfig.hasFirebase) {
-      throw UnsupportedError('Firebase is not configured. Set dart-define flags.');
+      throw UnsupportedError('Firebase is not configured.');
     }
 
     if (kIsWeb) return web;
@@ -33,7 +30,7 @@ class DefaultFirebaseOptions {
         messagingSenderId: AppConfig.firebaseMessagingSenderId,
         projectId: AppConfig.firebaseProjectId,
         authDomain: '${AppConfig.firebaseProjectId}.firebaseapp.com',
-        storageBucket: '${AppConfig.firebaseProjectId}.appspot.com',
+        storageBucket: AppConfig.firebaseStorageBucket,
       );
 
   static FirebaseOptions get android => FirebaseOptions(
@@ -41,7 +38,7 @@ class DefaultFirebaseOptions {
         appId: AppConfig.firebaseAppId,
         messagingSenderId: AppConfig.firebaseMessagingSenderId,
         projectId: AppConfig.firebaseProjectId,
-        storageBucket: '${AppConfig.firebaseProjectId}.appspot.com',
+        storageBucket: AppConfig.firebaseStorageBucket,
       );
 
   static FirebaseOptions get ios => FirebaseOptions(
@@ -49,7 +46,7 @@ class DefaultFirebaseOptions {
         appId: AppConfig.firebaseAppId,
         messagingSenderId: AppConfig.firebaseMessagingSenderId,
         projectId: AppConfig.firebaseProjectId,
-        storageBucket: '${AppConfig.firebaseProjectId}.appspot.com',
-        iosBundleId: 'com.example.asilia',
+        storageBucket: AppConfig.firebaseStorageBucket,
+        iosBundleId: 'com.asilia',
       );
 }

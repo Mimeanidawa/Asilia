@@ -81,17 +81,24 @@ class UserListTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    user.email,
+                    user.displayContact,
                     style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.flag_rounded, size: 10, color: AdminColors.textDim),
+                      const Icon(Icons.chat_bubble_outline_rounded, size: 10, color: AdminColors.textDim),
                       const SizedBox(width: 3),
                       Text(
-                        user.country,
+                        '${user.messageCount} msgs',
+                        style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 10),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.shopping_bag_outlined, size: 10, color: AdminColors.textDim),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${user.purchaseCount} buys',
                         style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 10),
                       ),
                       const SizedBox(width: 8),

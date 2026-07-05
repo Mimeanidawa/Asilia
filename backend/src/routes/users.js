@@ -18,7 +18,18 @@ function rowToUser(row) {
     isPremium: row.is_premium,
     premiumUntil: row.premium_until,
     messageCount: row.message_count,
+    status: row.status || 'active',
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function rowToAdminUser(row) {
+  return {
+    ...rowToUser(row),
+    purchaseCount: Number(row.purchase_count || 0),
+    totalSpent: Number(row.total_spent || 0),
+    purchasedContentIds: row.purchased_content_ids || [],
   };
 }
 
@@ -126,10 +137,19 @@ router.post('/login', async (req, res) => {
     }
 
     const user = rows[0];
+    if (user.status === 'banned') {
+      return res.status(403).json({ error: 'Akaunti imefungiwa' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Akaunti imesimamishwa' });
+    }
     if (user.password_hash) {
       const valid = await bcrypt.compare(password || '', user.password_hash);
       if (!valid) return res.status(401).json({ error: 'Nenosiri si sahihi' });
     }
+
+    await db.query('UPDATE users SET updated_at = NOW() WHERE id = $1', [user.id]);
+    user.updated_at = new Date();
 
     const token = signUserToken(user);
     res.json({ user: rowToUser(user), token });
@@ -215,10 +235,15 @@ router.post('/purchase', requireUser, async (req, res) => {
 router.get('/admin/all', requireAdmin, async (_req, res) => {
   try {
     const db = getPool();
-    const { rows } = await db.query(
-      'SELECT * FROM users ORDER BY created_at DESC',
-    );
-    res.json({ users: rows.map(rowToUser) });
+    const { rows } = await db.query(`
+      SELECT u.*,
+        (SELECT COUNT(*)::int FROM user_purchases WHERE user_id = u.id) AS purchase_count,
+        (SELECT COALESCE(SUM(amount), 0)::int FROM user_purchases WHERE user_id = u.id) AS total_spent,
+        (SELECT COALESCE(array_agg(content_id), '{}') FROM user_purchases WHERE user_id = u.id) AS purchased_content_ids
+      FROM users u
+      ORDER BY u.created_at DESC
+    `);
+    res.json({ users: rows.map(rowToAdminUser) });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kupata watumiaji' });
   }
@@ -234,9 +259,41 @@ router.patch('/admin/:id/premium', requireAdmin, async (req, res) => {
        updated_at = NOW() WHERE id = $1`,
       [req.params.id, !!isPremium],
     );
-    const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    const { rows } = await db.query(`
+      SELECT u.*,
+        (SELECT COUNT(*)::int FROM user_purchases WHERE user_id = u.id) AS purchase_count,
+        (SELECT COALESCE(SUM(amount), 0)::int FROM user_purchases WHERE user_id = u.id) AS total_spent,
+        (SELECT COALESCE(array_agg(content_id), '{}') FROM user_purchases WHERE user_id = u.id) AS purchased_content_ids
+      FROM users u WHERE u.id = $1
+    `, [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Mtumiaji haipatikani' });
-    res.json({ user: rowToUser(rows[0]) });
+    res.json({ user: rowToAdminUser(rows[0]) });
+  } catch (err) {
+    res.status(500).json({ error: 'Imeshindwa kusasisha' });
+  }
+});
+
+router.patch('/admin/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['active', 'suspended', 'banned'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: 'Hali si sahihi' });
+    }
+    const db = getPool();
+    await db.query(
+      'UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1',
+      [req.params.id, status],
+    );
+    const { rows } = await db.query(`
+      SELECT u.*,
+        (SELECT COUNT(*)::int FROM user_purchases WHERE user_id = u.id) AS purchase_count,
+        (SELECT COALESCE(SUM(amount), 0)::int FROM user_purchases WHERE user_id = u.id) AS total_spent,
+        (SELECT COALESCE(array_agg(content_id), '{}') FROM user_purchases WHERE user_id = u.id) AS purchased_content_ids
+      FROM users u WHERE u.id = $1
+    `, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Mtumiaji haipatikani' });
+    res.json({ user: rowToAdminUser(rows[0]) });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kusasisha' });
   }

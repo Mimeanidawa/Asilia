@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/content_blocks.dart';
 import '../theme/admin_colors.dart';
+import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
+import '../widgets/stable_text_field.dart';
 
 class PostEditorScreen extends StatefulWidget {
   const PostEditorScreen({
@@ -34,7 +36,8 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   bool _isPremium = false;
   bool _isPublished = true;
   bool _preview = false;
-  bool _metaExpanded = true;
+  bool _metaExpanded = false;
+  bool _titleValid = false;
 
   @override
   void initState() {
@@ -48,14 +51,22 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     _priceCtrl.text = '${e?['price'] ?? 2000}';
     _isPremium = e?['isPremium'] as bool? ?? false;
     _isPublished = e?['isPublished'] as bool? ?? true;
+    _titleValid = _titleCtrl.text.trim().isNotEmpty;
+    _titleCtrl.addListener(_onTitleChanged);
     _blocks = RichContentBody.parse(e?['content'] as String? ?? '').blocks;
     if (_blocks.isEmpty) {
       _blocks = [ContentBlock.paragraph('')];
     }
   }
 
+  void _onTitleChanged() {
+    final valid = _titleCtrl.text.trim().isNotEmpty;
+    if (valid != _titleValid) setState(() => _titleValid = valid);
+  }
+
   @override
   void dispose() {
+    _titleCtrl.removeListener(_onTitleChanged);
     _titleCtrl.dispose();
     _subtitleCtrl.dispose();
     _excerptCtrl.dispose();
@@ -89,44 +100,27 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   bool _blockHasContent(ContentBlock b) {
     return switch (b.type) {
       ContentBlockType.divider => true,
-      ContentBlockType.paragraph || ContentBlockType.quote || ContentBlockType.heading => b.text.trim().isNotEmpty,
+      ContentBlockType.paragraph ||
+      ContentBlockType.quote ||
+      ContentBlockType.callout ||
+      ContentBlockType.heading =>
+        b.text.trim().isNotEmpty,
       ContentBlockType.tag => b.text.trim().isNotEmpty,
       ContentBlockType.image || ContentBlockType.video || ContentBlockType.audio => b.url.trim().isNotEmpty,
       ContentBlockType.list => b.items.any((i) => i.trim().isNotEmpty),
     };
   }
 
-  void _insertBlockAfter(int index, ContentBlockType type) {
-    setState(() {
-      _blocks.insert(
-        index + 1,
-        switch (type) {
-          ContentBlockType.image => const ContentBlock(type: ContentBlockType.image),
-          ContentBlockType.tag => ContentBlock.tag(''),
-          _ => ContentBlock.paragraph(''),
-        },
-      );
-    });
+  void _insertBlockAfter(int index, ContentBlock block) {
+    setState(() => _blocks.insert(index + 1, block));
   }
 
-  void _addBlock(ContentBlockType type) {
-    setState(() {
-      _blocks.add(switch (type) {
-        ContentBlockType.heading => ContentBlock.heading('', level: 2),
-        ContentBlockType.tag => ContentBlock.tag(''),
-        ContentBlockType.image => const ContentBlock(type: ContentBlockType.image),
-        ContentBlockType.video => const ContentBlock(type: ContentBlockType.video),
-        ContentBlockType.audio => const ContentBlock(type: ContentBlockType.audio),
-        ContentBlockType.quote => const ContentBlock(type: ContentBlockType.quote),
-        ContentBlockType.divider => const ContentBlock(type: ContentBlockType.divider),
-        ContentBlockType.list => const ContentBlock(type: ContentBlockType.list, items: ['']),
-        _ => ContentBlock.paragraph(''),
-      });
-    });
+  void _addBlock(ContentBlock block) {
+    setState(() => _blocks.add(block));
   }
 
   void _updateBlock(int index, ContentBlock block) {
-    setState(() => _blocks[index] = block);
+    _blocks[index] = block;
   }
 
   void _removeBlock(int index) {
@@ -170,7 +164,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           ),
           const SizedBox(width: 8),
           FilledButton(
-            onPressed: _titleCtrl.text.trim().isEmpty ? null : () => Navigator.pop(context, buildPayload()),
+            onPressed: _titleValid ? () => Navigator.pop(context, buildPayload()) : null,
             style: FilledButton.styleFrom(
               backgroundColor: AdminColors.emerald,
               disabledBackgroundColor: AdminColors.cardBorder,
@@ -189,7 +183,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               children: [
                 _buildMetaSection(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 if (_preview)
                   _PreviewCard(
                     title: _titleCtrl.text,
@@ -217,19 +211,22 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       ),
       child: Column(
         children: [
-          InkWell(
-            onTap: () => setState(() => _metaExpanded = !_metaExpanded),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  const Icon(Icons.tune_rounded, color: AdminColors.emerald, size: 18),
-                  const SizedBox(width: 10),
-                  Text('Maelezo ya Makala', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
-                  const Spacer(),
-                  Icon(_metaExpanded ? Icons.expand_less : Icons.expand_more, color: AdminColors.textDim),
-                ],
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => setState(() => _metaExpanded = !_metaExpanded),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tune_rounded, color: AdminColors.emerald, size: 18),
+                    const SizedBox(width: 10),
+                    Text('Maelezo ya Makala', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    Icon(_metaExpanded ? Icons.expand_less : Icons.expand_more, color: AdminColors.textDim),
+                  ],
+                ),
               ),
             ),
           ),
@@ -247,13 +244,18 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                     onChanged: (v) => setState(() => _category = v!),
                   ),
                   const SizedBox(height: 12),
-                  _textField(_titleCtrl, 'Kichwa cha makala *'),
+                  TextField(controller: _titleCtrl, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Kichwa cha makala *')),
                   const SizedBox(height: 12),
-                  _textField(_subtitleCtrl, 'Maneno ya chini'),
+                  TextField(controller: _subtitleCtrl, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Maneno ya chini')),
                   const SizedBox(height: 12),
-                  _textField(_excerptCtrl, 'Muhtasari (hiari — utajazwa kiotomatiki)'),
+                  TextField(controller: _excerptCtrl, maxLines: 2, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Muhtasari (hiari)')),
                   const SizedBox(height: 12),
-                  _textField(_coverCtrl, 'URL ya picha ya jalada'),
+                  TextField(
+                    controller: _coverCtrl,
+                    onChanged: (_) => setState(() {}),
+                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                    decoration: _inputDeco('URL ya picha ya jalada'),
+                  ),
                   if (_coverCtrl.text.trim().isNotEmpty) ...[
                     const SizedBox(height: 10),
                     ClipRRect(
@@ -268,19 +270,15 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                     ),
                   ],
                   const SizedBox(height: 12),
-                  _textField(_priceCtrl, 'Bei (TZS)', keyboard: TextInputType.number),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Premium', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14)),
+                  TextField(controller: _priceCtrl, keyboardType: TextInputType.number, style: GoogleFonts.inter(color: AdminColors.textPrimary), decoration: _inputDeco('Bei (TZS)')),
+                  _ToggleRow(
+                    title: 'Premium',
                     value: _isPremium,
-                    activeColor: AdminColors.emerald,
                     onChanged: (v) => setState(() => _isPremium = v),
                   ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Chapisha mara moja', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14)),
+                  _ToggleRow(
+                    title: 'Chapisha mara moja',
                     value: _isPublished,
-                    activeColor: AdminColors.emerald,
                     onChanged: (v) => setState(() => _isPublished = v),
                   ),
                 ],
@@ -296,6 +294,16 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(
+          'Maudhui ya Makala',
+          style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Ongeza aya, vichwa vya rangi, picha, video na ujumbe — buruta kupanga upya',
+          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
+        ),
+        const SizedBox(height: 14),
         _threadInsertBar(-1),
         ReorderableListView.builder(
           shrinkWrap: true,
@@ -304,13 +312,14 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           onReorder: _moveBlock,
           itemCount: _blocks.length,
           itemBuilder: (ctx, i) {
+            final block = _blocks[i];
             return Column(
-              key: ValueKey('thread-$i-${_blocks[i].type.name}-${_blocks[i].text.hashCode}'),
+              key: ValueKey(block.id),
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _BlockEditorCard(
                   index: i,
-                  block: _blocks[i],
+                  block: block,
                   onChanged: (b) => _updateBlock(i, b),
                   onDelete: () => _removeBlock(i),
                 ),
@@ -325,15 +334,19 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
 
   Widget _threadInsertBar(int afterIndex) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 6,
+        runSpacing: 4,
         children: [
-          _insertBtn(Icons.image_outlined, 'Picha', () => _insertBlockAfter(afterIndex, ContentBlockType.image)),
-          const SizedBox(width: 6),
-          _insertBtn(Icons.notes_outlined, 'Maandishi', () => _insertBlockAfter(afterIndex, ContentBlockType.paragraph)),
-          const SizedBox(width: 6),
-          _insertBtn(Icons.tag_rounded, 'Lebo #', () => _insertBlockAfter(afterIndex, ContentBlockType.tag)),
+          _insertBtn(Icons.notes_outlined, 'Aya', () => _insertBlockAfter(afterIndex, ContentBlock.paragraph(''))),
+          _insertBtn(Icons.title_rounded, 'Kichwa', () => _insertBlockAfter(afterIndex, ContentBlock.heading('', level: 2))),
+          _insertBtn(Icons.chat_bubble_outline_rounded, 'Ujumbe', () => _insertBlockAfter(afterIndex, ContentBlock.callout(''))),
+          _insertBtn(Icons.image_outlined, 'Picha', () => _insertBlockAfter(afterIndex, ContentBlock(type: ContentBlockType.image))),
+          _insertBtn(Icons.videocam_outlined, 'Video', () => _insertBlockAfter(afterIndex, ContentBlock(type: ContentBlockType.video))),
+          _insertBtn(Icons.list_rounded, 'Orodha', () => _insertBlockAfter(afterIndex, ContentBlock.list())),
+          _insertBtn(Icons.tag_rounded, 'Lebo', () => _insertBlockAfter(afterIndex, ContentBlock.tag(''))),
         ],
       ),
     );
@@ -346,16 +359,16 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          border: Border.all(color: AdminColors.cardBorder, style: BorderStyle.solid),
+          border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.25)),
           borderRadius: BorderRadius.circular(20),
-          color: AdminColors.bg,
+          color: AdminColors.emeraldGlow.withValues(alpha: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: AdminColors.emerald),
+            Icon(icon, size: 13, color: AdminColors.emerald),
             const SizedBox(width: 4),
-            Text(label, style: GoogleFonts.inter(fontSize: 10, color: AdminColors.textDim, fontWeight: FontWeight.w600)),
+            Text(label, style: GoogleFonts.inter(fontSize: 10, color: AdminColors.emerald, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -363,16 +376,18 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   }
 
   Widget _buildAddToolbar() {
-    const items = [
-      (ContentBlockType.paragraph, Icons.notes_rounded, 'Aya'),
-      (ContentBlockType.tag, Icons.tag_rounded, 'Lebo #'),
-      (ContentBlockType.heading, Icons.title_rounded, 'Kichwa'),
-      (ContentBlockType.image, Icons.image_rounded, 'Picha'),
-      (ContentBlockType.video, Icons.videocam_rounded, 'Video'),
-      (ContentBlockType.audio, Icons.mic_rounded, 'Sauti'),
-      (ContentBlockType.quote, Icons.format_quote_rounded, 'Nukuu'),
-      (ContentBlockType.list, Icons.list_rounded, 'Orodha'),
-      (ContentBlockType.divider, Icons.horizontal_rule_rounded, 'Mstari'),
+    final items = [
+      (ContentBlock.paragraph(''), Icons.notes_rounded, 'Aya'),
+      (ContentBlock.heading('', level: 1), Icons.looks_one_rounded, 'H1'),
+      (ContentBlock.heading('', level: 2), Icons.title_rounded, 'H2'),
+      (ContentBlock.callout(''), Icons.chat_bubble_outline_rounded, 'Ujumbe'),
+      (ContentBlock(type: ContentBlockType.image), Icons.image_rounded, 'Picha'),
+      (ContentBlock(type: ContentBlockType.video), Icons.videocam_rounded, 'Video'),
+      (ContentBlock(type: ContentBlockType.audio), Icons.mic_rounded, 'Sauti'),
+      (ContentBlock.tag(''), Icons.tag_rounded, 'Lebo'),
+      (ContentBlock(type: ContentBlockType.quote), Icons.format_quote_rounded, 'Nukuu'),
+      (ContentBlock.list(), Icons.list_rounded, 'Orodha'),
+      (ContentBlock(type: ContentBlockType.divider), Icons.horizontal_rule_rounded, 'Mstari'),
     ];
 
     return Container(
@@ -393,7 +408,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                   avatar: Icon(item.$2, size: 16, color: AdminColors.emerald),
                   label: Text(item.$3, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
                   backgroundColor: AdminColors.emeraldGlow,
-                  side: BorderSide(color: AdminColors.emerald.withOpacity(0.3)),
+                  side: BorderSide(color: AdminColors.emerald.withValues(alpha: 0.3)),
                   onPressed: () => _addBlock(item.$1),
                 ),
               );
@@ -413,22 +428,53 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminColors.cardBorder)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminColors.emerald)),
       );
+}
 
-  Widget _textField(TextEditingController c, String label, {TextInputType keyboard = TextInputType.text, int maxLines = 1}) {
-    return TextField(
-      controller: c,
-      maxLines: maxLines,
-      keyboardType: keyboard,
-      onChanged: (_) => setState(() {}),
-      style: GoogleFonts.inter(color: AdminColors.textPrimary),
-      decoration: _inputDeco(label),
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.title,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
+                ],
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: AdminColors.emerald.withValues(alpha: 0.45),
+            activeThumbColor: AdminColors.emerald,
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _BlockEditorCard extends StatefulWidget {
   const _BlockEditorCard({
-    super.key,
     required this.index,
     required this.block,
     required this.onChanged,
@@ -456,7 +502,9 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
   @override
   void didUpdateWidget(covariant _BlockEditorCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.block != widget.block) _block = widget.block;
+    if (oldWidget.block.id != widget.block.id) {
+      _block = widget.block;
+    }
   }
 
   void _emit(ContentBlock next) {
@@ -466,19 +514,22 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
 
   @override
   Widget build(BuildContext context) {
+    final b = _block;
     return Container(
-      key: widget.key,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AdminColors.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AdminColors.cardBorder),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 4, 0),
+            padding: const EdgeInsets.fromLTRB(10, 8, 4, 0),
             child: Row(
               children: [
                 ReorderableDragStartListener(
@@ -486,9 +537,9 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
                   child: const Icon(Icons.drag_indicator_rounded, color: AdminColors.textDim, size: 20),
                 ),
                 const SizedBox(width: 6),
-                Icon(_iconFor(_block.type), size: 16, color: AdminColors.emerald),
+                Icon(_iconFor(b.type), size: 15, color: AdminColors.emerald),
                 const SizedBox(width: 6),
-                Text(_labelFor(_block.type), style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11, fontWeight: FontWeight.w600)),
+                Text(_labelFor(b.type), style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.delete_outline_rounded, color: AdminColors.error, size: 18),
@@ -500,41 +551,42 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
-            child: _buildFields(context),
+            child: _buildFields(b),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFields(BuildContext context) {
-    return switch (_block.type) {
+  Widget _buildFields(ContentBlock b) {
+    return switch (b.type) {
       ContentBlockType.paragraph => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _area(
-              _block.text,
-              'Andika aya... (anza na #mmea kuweka lebo ya rangi)',
-              (v) => _emit(_block.copyWith(text: v)),
+            StableTextField(
+              value: b.text,
+              onChanged: (v) => _emit(b.copyWith(text: v)),
+              hint: 'Andika aya yako hapa...',
+              maxLines: 8,
+              minLines: 3,
+              style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 15, height: 1.75),
+              decoration: _bareDeco(),
             ),
-            if (ContentBlock.parseHashtagLine(_block.text) != null)
+            if (ContentBlock.parseHashtagLine(b.text) != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: _TagPreviewChip(tag: ContentBlock.parseHashtagLine(_block.text)!),
+                child: _TagPreviewChip(tag: ContentBlock.parseHashtagLine(b.text)!),
               ),
           ],
         ),
       ContentBlockType.tag => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _field(_block.text, 'Jina la lebo (bila #)', (v) => _emit(_block.copyWith(text: v))),
+            StableTextField(value: b.text, onChanged: (v) => _emit(b.copyWith(text: v)), hint: 'Jina la lebo (bila #)', decoration: _bareDeco()),
             const SizedBox(height: 8),
-            _field(_block.caption, 'Maelezo (hiari)', (v) => _emit(_block.copyWith(caption: v))),
-            if (_block.text.trim().isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: _TagPreviewChip(tag: _block),
-              ),
+            StableTextField(value: b.caption, onChanged: (v) => _emit(b.copyWith(caption: v)), hint: 'Maelezo (hiari)', decoration: _bareDeco()),
+            if (b.text.trim().isNotEmpty)
+              Padding(padding: const EdgeInsets.only(top: 10), child: _TagPreviewChip(tag: b)),
           ],
         ),
       ContentBlockType.heading => Column(
@@ -542,91 +594,267 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
           children: [
             Row(
               children: [
-                _levelChip('H1', 1, _block.level),
+                _levelChip('H1', 1, b.level, b),
                 const SizedBox(width: 6),
-                _levelChip('H2', 2, _block.level),
+                _levelChip('H2', 2, b.level, b),
                 const SizedBox(width: 6),
-                _levelChip('H3', 3, _block.level),
+                _levelChip('H3', 3, b.level, b),
               ],
             ),
             const SizedBox(height: 10),
-            _area(_block.text, 'Kichwa...', (v) => _emit(_block.copyWith(text: v)), style: _headingStyle(_block.level)),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: BlockAccentStyle.accents.map((a) => _accentDot(a, b)).toList(),
+            ),
+            const SizedBox(height: 10),
+            StableTextField(
+              key: ValueKey('heading-${b.id}-${b.accent}-${b.level}'),
+              value: b.text,
+              onChanged: (v) => _emit(b.copyWith(text: v)),
+              hint: 'Andika kichwa...',
+              maxLines: 2,
+              style: _headingStyle(b.level, b.accent),
+              decoration: _bareDeco(borderColor: BlockAccentStyle.colorFor(b.accent)),
+            ),
+          ],
+        ),
+      ContentBlockType.callout => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: BlockAccentStyle.calloutVariants.map((v) => _calloutChip(v.$1, v.$2, v.$3, b)).toList(),
+            ),
+            const SizedBox(height: 10),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              key: ValueKey('callout-${b.id}-${b.accent}'),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: BlockAccentStyle.backgroundFor(b.accent),
+                borderRadius: BorderRadius.circular(12),
+                border: Border(left: BorderSide(color: BlockAccentStyle.colorFor(BlockAccentStyle.variantColorKey(b.accent)), width: 4)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(BlockAccentStyle.iconForCallout(b.accent), size: 16, color: BlockAccentStyle.colorFor(BlockAccentStyle.variantColorKey(b.accent))),
+                      const SizedBox(width: 6),
+                      Text(
+                        BlockAccentStyle.labelForCallout(b.accent),
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: BlockAccentStyle.colorFor(BlockAccentStyle.variantColorKey(b.accent)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  StableTextField(
+                    value: b.title,
+                    onChanged: (v) => _emit(b.copyWith(title: v)),
+                    hint: 'Kichwa cha ujumbe (hiari)',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14, color: AdminColors.textPrimary),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      hintStyle: TextStyle(color: AdminColors.textDim),
+                    ),
+                  ),
+                  StableTextField(
+                    value: b.text,
+                    onChanged: (v) => _emit(b.copyWith(text: v)),
+                    hint: 'Andika ujumbe wako hapa...',
+                    maxLines: 5,
+                    minLines: 2,
+                    style: GoogleFonts.inter(fontSize: 14, height: 1.6, color: AdminColors.textPrimary),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      hintStyle: TextStyle(color: AdminColors.textDim),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ContentBlockType.image || ContentBlockType.video => Column(
           children: [
-            _field(_block.url, 'URL ya ${_block.type == ContentBlockType.image ? 'picha' : 'video'}', (v) => _emit(_block.copyWith(url: v))),
+            StableTextField(
+              value: b.url,
+              onChanged: (v) => _emit(b.copyWith(url: v)),
+              hint: 'URL ya ${b.type == ContentBlockType.image ? 'picha' : 'video'}',
+              decoration: _bareDeco(),
+            ),
             const SizedBox(height: 8),
-            _field(_block.caption, 'Maelezo (hiari)', (v) => _emit(_block.copyWith(caption: v))),
-            if (_block.type == ContentBlockType.image && _block.url.trim().isNotEmpty) ...[
+            StableTextField(value: b.caption, onChanged: (v) => _emit(b.copyWith(caption: v)), hint: 'Maelezo (hiari)', decoration: _bareDeco()),
+            if (b.type == ContentBlockType.image && b.url.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(imageUrl: _block.url.trim(), height: 140, width: double.infinity, fit: BoxFit.cover),
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(imageUrl: b.url.trim(), height: 160, width: double.infinity, fit: BoxFit.cover),
+              ),
+            ],
+            if (b.type == ContentBlockType.video && b.url.trim().isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [AdminColors.forest, AdminColors.forest.withValues(alpha: 0.7)]),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Icon(Icons.play_circle_filled_rounded, color: Colors.white.withValues(alpha: 0.9), size: 48),
+                ),
               ),
             ],
           ],
         ),
       ContentBlockType.audio => Column(
           children: [
-            _field(_block.url, 'URL ya sauti (mp3, m4a...)', (v) => _emit(_block.copyWith(url: v))),
+            StableTextField(value: b.url, onChanged: (v) => _emit(b.copyWith(url: v)), hint: 'URL ya sauti (mp3, m4a...)', decoration: _bareDeco()),
             const SizedBox(height: 8),
-            _field(_block.title, 'Jina la sauti', (v) => _emit(_block.copyWith(title: v))),
+            StableTextField(value: b.title, onChanged: (v) => _emit(b.copyWith(title: v)), hint: 'Jina la sauti', decoration: _bareDeco()),
           ],
         ),
-      ContentBlockType.quote => _area(_block.text, 'Nukuu...', (v) => _emit(_block.copyWith(text: v)), maxLines: 3),
+      ContentBlockType.quote => Container(
+          padding: const EdgeInsets.only(left: 12),
+          decoration: const BoxDecoration(
+            border: Border(left: BorderSide(color: AdminColors.emerald, width: 3)),
+          ),
+          child: StableTextField(
+            value: b.text,
+            onChanged: (v) => _emit(b.copyWith(text: v)),
+            hint: 'Nukuu...',
+            maxLines: 4,
+            style: GoogleFonts.inter(fontStyle: FontStyle.italic, fontSize: 14, height: 1.6, color: AdminColors.textSecondary),
+            decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(8), hintStyle: TextStyle(color: AdminColors.textDim)),
+          ),
+        ),
       ContentBlockType.divider => Container(
-          height: 40,
+          height: 32,
           alignment: Alignment.center,
-          child: Container(height: 1, color: AdminColors.cardBorder),
+          child: Container(height: 2, decoration: BoxDecoration(gradient: AdminColors.emeraldGradient, borderRadius: BorderRadius.circular(1))),
         ),
       ContentBlockType.list => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                _listStyleChip('• Nukta', 'bullet', _block.listStyle),
+                _listStyleChip('• Nukta', 'bullet', b.listStyle, b),
                 const SizedBox(width: 8),
-                _listStyleChip('1. Namba', 'numbered', _block.listStyle),
+                _listStyleChip('1. Namba', 'numbered', b.listStyle, b),
               ],
             ),
-            const SizedBox(height: 10),
-            ..._block.items.asMap().entries.map((e) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _field(e.value, 'Kipengele ${e.key + 1}', (v) {
-                        final items = List<String>.from(_block.items);
-                        items[e.key] = v;
-                        _emit(_block.copyWith(items: items));
-                      }),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
+              decoration: BoxDecoration(
+                color: AdminColors.emeraldGlow.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                children: [
+                  ...b.items.asMap().entries.map((e) {
+                    return Padding(
+                      key: ValueKey('list-item-${b.id}-${e.key}'),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            margin: const EdgeInsets.only(top: 6),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AdminColors.emerald.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              b.listStyle == 'numbered' ? '${e.key + 1}' : '•',
+                              style: GoogleFonts.inter(
+                                color: AdminColors.emerald,
+                                fontWeight: FontWeight.w800,
+                                fontSize: b.listStyle == 'numbered' ? 12 : 16,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: StableTextField(
+                              value: e.value,
+                              onChanged: (v) {
+                                final items = List<String>.from(b.items);
+                                items[e.key] = v;
+                                _emit(b.copyWith(items: items));
+                              },
+                              hint: 'Andika kipengele ${e.key + 1}...',
+                              maxLines: 3,
+                              minLines: 1,
+                              decoration: _bareDeco(),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded, color: AdminColors.textDim, size: 18),
+                            onPressed: b.items.length <= 1
+                                ? null
+                                : () {
+                                    final items = List<String>.from(b.items)..removeAt(e.key);
+                                    _emit(b.copyWith(items: items));
+                                  },
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => _emit(b.copyWith(items: [...b.items, ''])),
+                      icon: const Icon(Icons.add_circle_outline_rounded, size: 18, color: AdminColors.emerald),
+                      label: Text('Ongeza kipengele', style: GoogleFonts.inter(color: AdminColors.emerald, fontSize: 12, fontWeight: FontWeight.w600)),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.remove_circle_outline, color: AdminColors.error, size: 18),
-                      onPressed: () {
-                        final items = List<String>.from(_block.items)..removeAt(e.key);
-                        _emit(_block.copyWith(items: items.isEmpty ? [''] : items));
-                      },
-                    ),
-                  ],
-                ),
-              );
-            }),
-            TextButton.icon(
-              onPressed: () => _emit(_block.copyWith(items: [..._block.items, ''])),
-              icon: const Icon(Icons.add, size: 16, color: AdminColors.emerald),
-              label: Text('Ongeza kipengele', style: GoogleFonts.inter(color: AdminColors.emerald, fontSize: 12)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
     };
   }
 
-  Widget _levelChip(String label, int level, int current) {
+  InputDecoration _bareDeco({Color? borderColor}) => InputDecoration(
+        filled: true,
+        fillColor: AdminColors.bg,
+        contentPadding: const EdgeInsets.all(12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor ?? AdminColors.cardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor ?? AdminColors.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: borderColor ?? AdminColors.emerald, width: 1.5),
+        ),
+      );
+
+  Widget _levelChip(String label, int level, int current, ContentBlock b) {
     final sel = current == level;
     return GestureDetector(
-      onTap: () => _emit(_block.copyWith(level: level)),
+      onTap: () => _emit(b.copyWith(level: level)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -639,10 +867,56 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
     );
   }
 
-  Widget _listStyleChip(String label, String style, String current) {
+  Widget _accentDot(String accent, ContentBlock b) {
+    final sel = b.accent == accent;
+    final color = BlockAccentStyle.colorFor(accent);
+    return GestureDetector(
+      onTap: () => _emit(b.copyWith(accent: accent)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: sel ? 34 : 28,
+        height: sel ? 34 : 28,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: sel ? Colors.white : AdminColors.cardBorder, width: sel ? 3 : 1),
+          boxShadow: sel
+              ? [BoxShadow(color: color.withValues(alpha: 0.55), blurRadius: 10, spreadRadius: 1)]
+              : null,
+        ),
+        child: sel ? const Icon(Icons.check_rounded, color: Colors.white, size: 16) : null,
+      ),
+    );
+  }
+
+  Widget _calloutChip(String variant, String label, IconData icon, ContentBlock b) {
+    final sel = b.accent == variant;
+    final color = BlockAccentStyle.colorFor(BlockAccentStyle.variantColorKey(variant));
+    return GestureDetector(
+      onTap: () => _emit(b.copyWith(accent: variant)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: sel ? color.withValues(alpha: 0.15) : AdminColors.bg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: sel ? color : AdminColors.cardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: sel ? color : AdminColors.textDim),
+            const SizedBox(width: 4),
+            Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: sel ? color : AdminColors.textDim)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _listStyleChip(String label, String style, String current, ContentBlock b) {
     final sel = current == style;
     return GestureDetector(
-      onTap: () => _emit(_block.copyWith(listStyle: style)),
+      onTap: () => _emit(b.copyWith(listStyle: style)),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -655,48 +929,12 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
     );
   }
 
-  Widget _field(String value, String hint, ValueChanged<String> onChanged) {
-    return TextField(
-      key: ValueKey('$hint-$value'),
-      controller: TextEditingController(text: value),
-      onChanged: onChanged,
-      style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 13),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
-        filled: true,
-        fillColor: AdminColors.bg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AdminColors.cardBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AdminColors.cardBorder)),
-      ),
-    );
-  }
-
-  Widget _area(String value, String hint, ValueChanged<String> onChanged, {int maxLines = 5, TextStyle? style}) {
-    return TextField(
-      key: ValueKey('$hint-$value-$maxLines'),
-      controller: TextEditingController(text: value),
-      onChanged: onChanged,
-      maxLines: maxLines,
-      style: style ?? GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14, height: 1.5),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
-        filled: true,
-        fillColor: AdminColors.bg,
-        contentPadding: const EdgeInsets.all(12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AdminColors.cardBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AdminColors.cardBorder)),
-      ),
-    );
-  }
-
-  TextStyle _headingStyle(int level) {
+  TextStyle _headingStyle(int level, String accent) {
+    final color = BlockAccentStyle.colorFor(accent);
     return switch (level) {
-      1 => GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AdminColors.textPrimary),
-      2 => GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: AdminColors.textPrimary),
-      _ => GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: AdminColors.emerald),
+      1 => GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: color, height: 1.2),
+      2 => GoogleFonts.inter(fontSize: 19, fontWeight: FontWeight.w800, color: color, height: 1.25),
+      _ => GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: color, height: 1.3),
     };
   }
 
@@ -708,6 +946,7 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
         ContentBlockType.video => Icons.videocam_rounded,
         ContentBlockType.audio => Icons.mic_rounded,
         ContentBlockType.quote => Icons.format_quote_rounded,
+        ContentBlockType.callout => Icons.chat_bubble_outline_rounded,
         ContentBlockType.list => Icons.list_rounded,
         ContentBlockType.divider => Icons.horizontal_rule_rounded,
       };
@@ -720,6 +959,7 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
         ContentBlockType.video => 'Video',
         ContentBlockType.audio => 'Sauti',
         ContentBlockType.quote => 'Nukuu',
+        ContentBlockType.callout => 'Ujumbe',
         ContentBlockType.list => 'Orodha',
         ContentBlockType.divider => 'Mstari',
       };
@@ -727,7 +967,6 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
 
 class _TagPreviewChip extends StatelessWidget {
   const _TagPreviewChip({required this.tag});
-
   final ContentBlock tag;
 
   @override
@@ -743,33 +982,28 @@ class _TagPreviewChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: color.withValues(alpha: 0.4)),
           ),
-          child: Text(
-            '#$label',
-            style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w800, fontSize: 13),
-          ),
+          child: Text('#$label', style: GoogleFonts.inter(color: color, fontWeight: FontWeight.w800, fontSize: 13)),
         ),
         if (tag.caption.isNotEmpty) ...[
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              tag.caption,
-              style: GoogleFonts.inter(color: AdminColors.textSecondary, fontSize: 12),
-            ),
-          ),
+          Expanded(child: Text(tag.caption, style: GoogleFonts.inter(color: AdminColors.textSecondary, fontSize: 12))),
         ],
       ],
     );
   }
 }
 
-class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({
-    required this.title,
-    required this.subtitle,
-    required this.coverUrl,
-    required this.blocks,
-  });
+TextStyle _previewHeadingStyle(int level, String accent) {
+  final color = BlockAccentStyle.colorFor(accent);
+  return switch (level) {
+    1 => GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: color, height: 1.2),
+    2 => GoogleFonts.inter(fontSize: 19, fontWeight: FontWeight.w800, color: color, height: 1.25),
+    _ => GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: color, height: 1.3),
+  };
+}
 
+class _PreviewCard extends StatelessWidget {
+  const _PreviewCard({required this.title, required this.subtitle, required this.coverUrl, required this.blocks});
   final String title;
   final String subtitle;
   final String coverUrl;
@@ -800,67 +1034,65 @@ class _PreviewCard extends StatelessWidget {
             Text(subtitle, style: GoogleFonts.inter(fontSize: 13, color: AdminColors.textDim)),
           ],
           const SizedBox(height: 20),
-          ...blocks.where((b) {
-            return switch (b.type) {
-              ContentBlockType.divider => true,
-              ContentBlockType.paragraph || ContentBlockType.quote || ContentBlockType.heading => b.text.trim().isNotEmpty,
-              ContentBlockType.tag => b.text.trim().isNotEmpty,
-              ContentBlockType.image || ContentBlockType.video || ContentBlockType.audio => b.url.trim().isNotEmpty,
-              ContentBlockType.list => b.items.any((i) => i.trim().isNotEmpty),
-            };
-          }).map((b) => Padding(padding: const EdgeInsets.only(bottom: 14), child: _previewBlock(b))),
+          ...blocks.where(_hasContent).map((b) => Padding(padding: const EdgeInsets.only(bottom: 14), child: _previewBlock(b))),
         ],
       ),
     );
   }
+
+  bool _hasContent(ContentBlock b) => switch (b.type) {
+        ContentBlockType.divider => true,
+        ContentBlockType.paragraph || ContentBlockType.quote || ContentBlockType.callout || ContentBlockType.heading => b.text.trim().isNotEmpty,
+        ContentBlockType.tag => b.text.trim().isNotEmpty,
+        ContentBlockType.image || ContentBlockType.video || ContentBlockType.audio => b.url.trim().isNotEmpty,
+        ContentBlockType.list => b.items.any((i) => i.trim().isNotEmpty),
+      };
 
   Widget _previewBlock(ContentBlock b) {
     return switch (b.type) {
       ContentBlockType.paragraph => () {
           final tag = ContentBlock.parseHashtagLine(b.text);
           if (tag != null) return _TagPreviewChip(tag: tag);
-          return Text(b.text, style: GoogleFonts.inter(fontSize: 14, height: 1.7, color: const Color(0xFF4B5563)));
+          return Text(b.text, style: GoogleFonts.inter(fontSize: 14, height: 1.75, color: const Color(0xFF4B5563)));
         }(),
       ContentBlockType.tag => _TagPreviewChip(tag: b),
-      ContentBlockType.heading => Text(
-          b.text,
-          style: switch (b.level) {
-            1 => GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: const Color(0xFF1B4332)),
-            2 => GoogleFonts.inter(fontSize: 19, fontWeight: FontWeight.w800, color: const Color(0xFF1B4332)),
-            _ => GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AdminColors.emerald),
-          },
+      ContentBlockType.heading => Text(b.text, style: _previewHeadingStyle(b.level, b.accent)),
+      ContentBlockType.callout => Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: BlockAccentStyle.backgroundFor(b.accent),
+            borderRadius: BorderRadius.circular(12),
+            border: Border(left: BorderSide(color: BlockAccentStyle.colorFor(BlockAccentStyle.variantColorKey(b.accent)), width: 4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (b.title.isNotEmpty) Text(b.title, style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 14)),
+              if (b.title.isNotEmpty) const SizedBox(height: 6),
+              Text(b.text, style: GoogleFonts.inter(fontSize: 14, height: 1.6)),
+            ],
+          ),
         ),
       ContentBlockType.image when b.url.isNotEmpty => Column(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(imageUrl: b.url, fit: BoxFit.cover),
-            ),
+            ClipRRect(borderRadius: BorderRadius.circular(12), child: CachedNetworkImage(imageUrl: b.url, fit: BoxFit.cover)),
             if (b.caption.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(b.caption, style: GoogleFonts.inter(fontSize: 11, color: AdminColors.textDim, fontStyle: FontStyle.italic)),
-              ),
+              Padding(padding: const EdgeInsets.only(top: 6), child: Text(b.caption, style: GoogleFonts.inter(fontSize: 11, color: AdminColors.textDim, fontStyle: FontStyle.italic))),
           ],
         ),
       ContentBlockType.video => Container(
           height: 160,
           decoration: BoxDecoration(color: const Color(0xFF1B4332), borderRadius: BorderRadius.circular(12)),
-          child: Center(child: Icon(Icons.play_circle_outline, color: Colors.white.withOpacity(0.8), size: 48)),
+          child: Center(child: Icon(Icons.play_circle_outline, color: Colors.white.withValues(alpha: 0.8), size: 48)),
         ),
       ContentBlockType.audio => Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AdminColors.emeraldGlow,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.graphic_eq_rounded, color: AdminColors.emerald),
-              const SizedBox(width: 10),
-              Expanded(child: Text(b.title.isNotEmpty ? b.title : 'Sauti', style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
-            ],
-          ),
+          decoration: BoxDecoration(color: AdminColors.emeraldGlow, borderRadius: BorderRadius.circular(12)),
+          child: Row(children: [
+            const Icon(Icons.graphic_eq_rounded, color: AdminColors.emerald),
+            const SizedBox(width: 10),
+            Expanded(child: Text(b.title.isNotEmpty ? b.title : 'Sauti', style: GoogleFonts.inter(fontWeight: FontWeight.w600))),
+          ]),
         ),
       ContentBlockType.quote => Container(
           padding: const EdgeInsets.all(14),
@@ -872,19 +1104,67 @@ class _PreviewCard extends StatelessWidget {
           child: Text(b.text, style: GoogleFonts.inter(fontStyle: FontStyle.italic, color: const Color(0xFF1B4332))),
         ),
       ContentBlockType.divider => const Divider(),
-      ContentBlockType.list => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: b.items.where((i) => i.trim().isNotEmpty).toList().asMap().entries.map((e) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                b.listStyle == 'numbered' ? '${e.key + 1}. ${e.value}' : '• ${e.value}',
-                style: GoogleFonts.inter(fontSize: 14, height: 1.5),
-              ),
-            );
-          }).toList(),
-        ),
+      ContentBlockType.list => _ListPreview(items: b.items, listStyle: b.listStyle),
       _ => const SizedBox.shrink(),
     };
+  }
+}
+
+class _ListPreview extends StatelessWidget {
+  const _ListPreview({required this.items, required this.listStyle});
+
+  final List<String> items;
+  final String listStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = items.where((i) => i.trim().isNotEmpty).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+      decoration: BoxDecoration(
+        color: AdminColors.emeraldGlow.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: visible.asMap().entries.map((e) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AdminColors.emerald.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Text(
+                    listStyle == 'numbered' ? '${e.key + 1}' : '•',
+                    style: GoogleFonts.inter(
+                      color: AdminColors.emerald,
+                      fontWeight: FontWeight.w800,
+                      fontSize: listStyle == 'numbered' ? 12 : 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    e.value,
+                    style: GoogleFonts.inter(fontSize: 14, height: 1.55, color: const Color(0xFF4B5563)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }

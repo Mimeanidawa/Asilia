@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db.js';
 import { requireUser } from '../middleware/userAuth.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { sendMwalimuReplyNotification } from '../services/firebase.js';
 
 const router = Router();
 
@@ -237,6 +238,22 @@ router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => 
       [req.params.id],
     );
 
+    const { rows: convRows } = await db.query(
+      'SELECT user_id FROM chat_conversations WHERE id = $1',
+      [req.params.id],
+    );
+    const userId = convRows[0]?.user_id;
+
+    let notification = null;
+    if (userId) {
+      try {
+        notification = await sendMwalimuReplyNotification({
+          userId,
+          preview: content.trim(),
+        });
+      } catch (_) {}
+    }
+
     res.status(201).json({
       message: {
         id: msgId,
@@ -244,6 +261,7 @@ router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => 
         content: content.trim(),
         createdAt: new Date().toISOString(),
       },
+      notification,
     });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kutuma jibu' });

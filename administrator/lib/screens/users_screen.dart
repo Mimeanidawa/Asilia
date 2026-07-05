@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../utils/tzs_format.dart';
 import '../widgets/user_list_tile.dart';
 
 class UsersScreen extends StatelessWidget {
@@ -18,8 +19,12 @@ class UsersScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AdminColors.bg,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AdminColors.emerald,
+        onRefresh: provider.refreshData,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverAppBar(
             backgroundColor: AdminColors.bg,
             pinned: true,
@@ -87,7 +92,7 @@ class UsersScreen extends StatelessWidget {
                   onChanged: provider.setUserSearch,
                   style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14),
                   decoration: const InputDecoration(
-                    hintText: 'Search users by name or email...',
+                    hintText: 'Search by name, email, or phone...',
                     prefixIcon: Icon(Icons.search_rounded, color: AdminColors.textDim, size: 18),
                   ),
                 ),
@@ -132,6 +137,7 @@ class UsersScreen extends StatelessWidget {
                   ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -195,9 +201,9 @@ class _FilterSheet extends StatelessWidget {
           Wrap(
             spacing: 8,
             children: [
-              _FilterChip(label: 'All', selected: provider.filteredUsers.length == 12, onTap: () => provider.setUserPlanFilter(null)),
-              _FilterChip(label: 'Premium', selected: false, onTap: () => provider.setUserPlanFilter(UserPlan.premium)),
-              _FilterChip(label: 'Free', selected: false, onTap: () => provider.setUserPlanFilter(UserPlan.free)),
+              _FilterChip(label: 'All', selected: provider.userPlanFilter == null, onTap: () => provider.setUserPlanFilter(null)),
+              _FilterChip(label: 'Premium', selected: provider.userPlanFilter == UserPlan.premium, onTap: () => provider.setUserPlanFilter(UserPlan.premium)),
+              _FilterChip(label: 'Free', selected: provider.userPlanFilter == UserPlan.free, onTap: () => provider.setUserPlanFilter(UserPlan.free)),
             ],
           ),
           const SizedBox(height: 16),
@@ -206,9 +212,9 @@ class _FilterSheet extends StatelessWidget {
           Wrap(
             spacing: 8,
             children: [
-              _FilterChip(label: 'Active', selected: false, onTap: () => provider.setUserStatusFilter(UserStatus.active)),
-              _FilterChip(label: 'Suspended', selected: false, onTap: () => provider.setUserStatusFilter(UserStatus.suspended)),
-              _FilterChip(label: 'Banned', selected: false, onTap: () => provider.setUserStatusFilter(UserStatus.banned)),
+              _FilterChip(label: 'Active', selected: provider.userStatusFilter == UserStatus.active, onTap: () => provider.setUserStatusFilter(UserStatus.active)),
+              _FilterChip(label: 'Suspended', selected: provider.userStatusFilter == UserStatus.suspended, onTap: () => provider.setUserStatusFilter(UserStatus.suspended)),
+              _FilterChip(label: 'Banned', selected: provider.userStatusFilter == UserStatus.banned, onTap: () => provider.setUserStatusFilter(UserStatus.banned)),
             ],
           ),
           const SizedBox(height: 24),
@@ -259,6 +265,7 @@ class UserDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.read<AdminProvider>();
+    final fmt = DateFormat('MMM d, y');
     return Scaffold(
       backgroundColor: AdminColors.bg,
       appBar: AppBar(
@@ -328,7 +335,10 @@ class UserDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(user.email, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
+                    if (user.email?.isNotEmpty == true)
+                      Text(user.email!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
+                    if (user.phone?.isNotEmpty == true)
+                      Text(user.phone!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -353,15 +363,56 @@ class UserDetailScreen extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 2.0,
+                childAspectRatio: 1.8,
                 children: [
-                  _InfoCard(label: 'Sessions', value: user.sessionCount.toString(), icon: Icons.bar_chart_rounded, color: AdminColors.emerald),
-                  _InfoCard(label: 'Country', value: user.country, icon: Icons.flag_rounded, color: AdminColors.blue),
-                  _InfoCard(label: 'Joined', value: DateFormat('MMM d, y').format(user.joinedAt), icon: Icons.calendar_today_rounded, color: AdminColors.amber),
-                  _InfoCard(label: 'Last Active', value: DateFormat('MMM d').format(user.lastActiveAt), icon: Icons.access_time_rounded, color: AdminColors.purple),
+                  _InfoCard(label: 'Messages', value: user.messageCount.toString(), icon: Icons.chat_rounded, color: AdminColors.emerald),
+                  _InfoCard(label: 'Purchases', value: user.purchaseCount.toString(), icon: Icons.shopping_bag_rounded, color: AdminColors.blue),
+                  _InfoCard(label: 'Total Spent', value: TzsFormat.compact(user.totalSpent.toDouble()), icon: Icons.payments_rounded, color: AdminColors.amber),
+                  _InfoCard(label: 'Auth', value: user.authProvider, icon: Icons.login_rounded, color: AdminColors.purple),
+                  _InfoCard(label: 'Joined', value: fmt.format(user.joinedAt), icon: Icons.calendar_today_rounded, color: AdminColors.amber),
+                  _InfoCard(label: 'Last Active', value: fmt.format(user.lastActiveAt), icon: Icons.access_time_rounded, color: AdminColors.purple),
+                  if (user.premiumUntil != null)
+                    _InfoCard(label: 'Premium Until', value: fmt.format(user.premiumUntil!), icon: Icons.star_rounded, color: AdminColors.amber),
                 ],
               ),
             ),
+            if (user.purchasedContentIds.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Animate(
+                delay: const Duration(milliseconds: 150),
+                effects: const [FadeEffect(duration: Duration(milliseconds: 400))],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Purchased Content (${user.purchasedContentIds.length})',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...user.purchasedContentIds.map(
+                      (id) => Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AdminColors.card,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AdminColors.cardBorder),
+                        ),
+                        child: Text(
+                          id,
+                          style: GoogleFonts.inter(color: AdminColors.textSecondary, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             // Actions
             Animate(
@@ -384,12 +435,14 @@ class UserDetailScreen extends StatelessWidget {
                       label: 'Upgrade to Premium',
                       icon: Icons.star_rounded,
                       color: AdminColors.amber,
-                      onTap: () {
-                        provider.updateUserPlan(user.id, UserPlan.premium);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _snackBar('${user.name} upgraded to Premium'),
-                        );
+                      onTap: () async {
+                        await provider.updateUserPlan(user.id, UserPlan.premium);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            _snackBar('${user.name} upgraded to Premium'),
+                          );
+                        }
                       },
                     )
                   else
@@ -397,12 +450,14 @@ class UserDetailScreen extends StatelessWidget {
                       label: 'Downgrade to Free',
                       icon: Icons.person_rounded,
                       color: AdminColors.blue,
-                      onTap: () {
-                        provider.updateUserPlan(user.id, UserPlan.free);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _snackBar('${user.name} downgraded to Free'),
-                        );
+                      onTap: () async {
+                        await provider.updateUserPlan(user.id, UserPlan.free);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            _snackBar('${user.name} downgraded to Free'),
+                          );
+                        }
                       },
                     ),
                   const SizedBox(height: 8),
@@ -411,12 +466,14 @@ class UserDetailScreen extends StatelessWidget {
                       label: 'Suspend Account',
                       icon: Icons.pause_circle_outline_rounded,
                       color: AdminColors.warning,
-                      onTap: () {
-                        provider.updateUserStatus(user.id, UserStatus.suspended);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _snackBar('${user.name} suspended'),
-                        );
+                      onTap: () async {
+                        await provider.updateUserStatus(user.id, UserStatus.suspended);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            _snackBar('${user.name} suspended'),
+                          );
+                        }
                       },
                     )
                   else if (user.status == UserStatus.suspended)
@@ -424,12 +481,14 @@ class UserDetailScreen extends StatelessWidget {
                       label: 'Reactivate Account',
                       icon: Icons.play_circle_outline_rounded,
                       color: AdminColors.success,
-                      onTap: () {
-                        provider.updateUserStatus(user.id, UserStatus.active);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          _snackBar('${user.name} reactivated'),
-                        );
+                      onTap: () async {
+                        await provider.updateUserStatus(user.id, UserStatus.active);
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            _snackBar('${user.name} reactivated'),
+                          );
+                        }
                       },
                     ),
                   const SizedBox(height: 8),
@@ -470,11 +529,13 @@ class UserDetailScreen extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AdminColors.error, foregroundColor: Colors.white),
-            onPressed: () {
-              provider.updateUserStatus(user.id, UserStatus.banned);
-              Navigator.pop(context);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(_snackBar('${user.name} has been banned'));
+            onPressed: () async {
+              await provider.updateUserStatus(user.id, UserStatus.banned);
+              if (context.mounted) {
+                Navigator.pop(context);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(_snackBar('${user.name} has been banned'));
+              }
             },
             child: Text('Ban', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
           ),

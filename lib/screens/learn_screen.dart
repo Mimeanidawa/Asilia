@@ -9,7 +9,9 @@ import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/pull_to_refresh.dart';
 
 class LearnScreen extends StatefulWidget {
   const LearnScreen({super.key});
@@ -56,6 +58,11 @@ class _LearnScreenState extends State<LearnScreen> {
         post: _activePost!,
         user: user,
         onClose: () => setState(() => _activePost = null),
+        onRefresh: () async {
+          await AppRefresh.catalog(context);
+          final full = await content.fetchPost(_activePost!.id, userToken: user.token);
+          if (full != null && mounted) setState(() => _activePost = full);
+        },
         onPurchase: () async {
           if (!user.isLoggedIn) {
             context.read<AppProvider>().navigate(AppScreen.auth);
@@ -121,12 +128,26 @@ class _LearnScreenState extends State<LearnScreen> {
           ),
           Expanded(
             child: content.jifunzePosts.isEmpty
-                ? Center(
-                    child: content.isLoading
-                        ? const CircularProgressIndicator(color: AppColors.forest)
-                        : Text('Hakuna makala bado', style: TextStyle(color: AppColors.gray400)),
+                ? PullToRefresh(
+                    onRefresh: () => AppRefresh.catalog(context),
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.45,
+                          child: Center(
+                            child: content.isLoading
+                                ? const CircularProgressIndicator(color: AppColors.forest)
+                                : Text('Hakuna makala bado', style: TextStyle(color: AppColors.gray400)),
+                          ),
+                        ),
+                      ],
+                    ),
                   )
-                : ListView(
+                : PullToRefresh(
+                    onRefresh: () => AppRefresh.catalog(context),
+                    child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(bottom: 16),
                     children: [
                       Padding(
@@ -170,6 +191,7 @@ class _LearnScreenState extends State<LearnScreen> {
                         ),
                       ),
                     ],
+                  ),
                   ),
           ),
         ],
@@ -336,12 +358,14 @@ class _ArticleReader extends StatelessWidget {
     required this.post,
     required this.user,
     required this.onClose,
+    required this.onRefresh,
     required this.onPurchase,
   });
 
   final ContentPost post;
   final UserService user;
   final VoidCallback onClose;
+  final Future<void> Function() onRefresh;
   final VoidCallback onPurchase;
 
   @override
@@ -372,7 +396,10 @@ class _ArticleReader extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView(
+            child: PullToRefresh(
+              onRefresh: onRefresh,
+              child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
               children: [
                 if (post.imageUrl.isNotEmpty)
@@ -398,6 +425,7 @@ class _ArticleReader extends StatelessWidget {
                   ),
                 ],
               ],
+            ),
             ),
           ),
         ],

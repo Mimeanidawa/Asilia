@@ -12,38 +12,56 @@ class AdminUser {
   const AdminUser({
     required this.id,
     required this.name,
-    required this.email,
-    required this.avatarUrl,
+    this.email,
+    this.phone,
+    required this.authProvider,
     required this.plan,
     required this.status,
     required this.joinedAt,
     required this.lastActiveAt,
-    required this.sessionCount,
-    required this.country,
+    required this.messageCount,
+    required this.purchaseCount,
+    required this.totalSpent,
+    this.premiumUntil,
+    this.purchasedContentIds = const [],
   });
 
   final String id;
   final String name;
-  final String email;
-  final String avatarUrl;
+  final String? email;
+  final String? phone;
+  final String authProvider;
   final UserPlan plan;
   final UserStatus status;
   final DateTime joinedAt;
   final DateTime lastActiveAt;
-  final int sessionCount;
-  final String country;
+  final int messageCount;
+  final int purchaseCount;
+  final int totalSpent;
+  final DateTime? premiumUntil;
+  final List<String> purchasedContentIds;
+
+  String get displayContact => email?.isNotEmpty == true
+      ? email!
+      : phone?.isNotEmpty == true
+          ? phone!
+          : '—';
 
   AdminUser copyWith({UserPlan? plan, UserStatus? status}) => AdminUser(
         id: id,
         name: name,
         email: email,
-        avatarUrl: avatarUrl,
+        phone: phone,
+        authProvider: authProvider,
         plan: plan ?? this.plan,
         status: status ?? this.status,
         joinedAt: joinedAt,
         lastActiveAt: lastActiveAt,
-        sessionCount: sessionCount,
-        country: country,
+        messageCount: messageCount,
+        purchaseCount: purchaseCount,
+        totalSpent: totalSpent,
+        premiumUntil: premiumUntil,
+        purchasedContentIds: purchasedContentIds,
       );
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
+import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 
@@ -47,6 +48,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       authProvider: _isGmail ? 'gmail' : 'phone',
     );
     if (ok && mounted) {
+      await context.read<NotificationService>().linkToUser(userService.token);
       context.read<AppProvider>().goBack();
     }
   }
@@ -59,6 +61,7 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       password: _isGmail ? _passwordController.text : null,
     );
     if (ok && mounted) {
+      await context.read<NotificationService>().linkToUser(userService.token);
       context.read<AppProvider>().goBack();
     }
   }

@@ -4,16 +4,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/mock_data.dart';
 import '../models/admin_models.dart';
 import '../models/daily_lesson.dart';
+import '../services/admin_analytics_service.dart';
 import '../services/admin_lesson_service.dart';
 import '../services/admin_content_service.dart';
 import '../services/api_client.dart';
+import '../utils/admin_data_mapper.dart';
 
 enum AdminScreen { dashboard, users, analytics, notifications, content, darasaHuru, mwalimu, settings }
 
 class AdminProvider extends ChangeNotifier {
-  AdminProvider({AdminLessonService? lessonService, AdminContentService? contentService, ApiClient? apiClient})
-      : _lessonService = lessonService ?? AdminLessonService(),
+  AdminProvider({
+    AdminLessonService? lessonService,
+    AdminContentService? contentService,
+    AdminAnalyticsService? analyticsService,
+    ApiClient? apiClient,
+  })  : _lessonService = lessonService ?? AdminLessonService(),
         _contentService = contentService ?? AdminContentService(),
+        _analyticsService = analyticsService ?? AdminAnalyticsService(),
         _api = apiClient ?? ApiClient() {
     _init();
     _restoreSession();
@@ -21,11 +28,13 @@ class AdminProvider extends ChangeNotifier {
 
   final AdminLessonService _lessonService;
   final AdminContentService _contentService;
+  final AdminAnalyticsService _analyticsService;
   final ApiClient _api;
 
   AdminScreen _activeScreen = AdminScreen.dashboard;
   bool _isLoggedIn = false;
   bool _isLoading = false;
+  bool _isRefreshing = false;
   String? _authToken;
   String? _adminName;
   String? _adminEmail;
@@ -48,6 +57,7 @@ class AdminProvider extends ChangeNotifier {
   AdminScreen get activeScreen => _activeScreen;
   bool get isLoggedIn => _isLoggedIn;
   bool get isLoading => _isLoading;
+  bool get isRefreshing => _isRefreshing;
   String? get loginError => _loginError;
   String? get adminEmail => _adminEmail;
   String? get lastPushNotification => _lessonService.lastNotification;
@@ -61,13 +71,18 @@ class AdminProvider extends ChangeNotifier {
   List<DailyLesson> get lessons => _lessonService.lessons;
   bool get lessonsLoading => _lessonService.isLoading;
   AdminContentService get contentService => _contentService;
+  List<AdminUser> get users => _users;
   String get contentTabFilter => _contentTabFilter;
+  UserPlan? get userPlanFilter => _userPlanFilter;
+  UserStatus? get userStatusFilter => _userStatusFilter;
 
   List<AdminUser> get filteredUsers {
     return _users.where((u) {
-      final matchesSearch = _userSearchQuery.isEmpty ||
-          u.name.toLowerCase().contains(_userSearchQuery.toLowerCase()) ||
-          u.email.toLowerCase().contains(_userSearchQuery.toLowerCase());
+      final q = _userSearchQuery.toLowerCase();
+      final matchesSearch = q.isEmpty ||
+          u.name.toLowerCase().contains(q) ||
+          (u.email?.toLowerCase().contains(q) ?? false) ||
+          (u.phone?.contains(q) ?? false);
       final matchesPlan = _userPlanFilter == null || u.plan == _userPlanFilter;
       final matchesStatus = _userStatusFilter == null || u.status == _userStatusFilter;
       return matchesSearch && matchesPlan && matchesStatus;
@@ -93,23 +108,56 @@ class AdminProvider extends ChangeNotifier {
     _recentActivities = MockData.recentActivities;
   }
 
+  void _setAuthTokens(String? token) {
+    _authToken = token;
+    _lessonService.setToken(token);
+    _contentService.setToken(token);
+    _analyticsService.setToken(token);
+  }
+
+  Future<void> _loadDashboardData() async {
+    if (_authToken == null) return;
+
+    final dashboard = await _analyticsService.fetchDashboard();
+    _stats = AdminDataMapper.statsFromJson(dashboard['stats'] as Map<String, dynamic>);
+    _userGrowth = AdminDataMapper.metricsFromJson(dashboard['userGrowth'] as List);
+    _revenueData = AdminDataMapper.metricsFromJson(dashboard['revenueData'] as List);
+    _premiumGrowth = AdminDataMapper.metricsFromJson(dashboard['premiumGrowth'] as List);
+    _recentActivities = AdminDataMapper.activitiesFromJson(dashboard['recentActivities'] as List);
+
+    final rawUsers = await _contentService.fetchUsers();
+    _users = rawUsers.map(AdminDataMapper.userFromJson).toList();
+  }
+
+  Future<void> refreshData() async {
+    if (!_isLoggedIn || _authToken == null) return;
+    _isRefreshing = true;
+    notifyListeners();
+    try {
+      await _loadDashboardData();
+    } catch (_) {
+      // Keep existing data on refresh failure.
+    } finally {
+      _isRefreshing = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('admin_auth_token');
     if (token != null) {
-      _authToken = token;
-      _lessonService.setToken(token);
-      _contentService.setToken(token);
+      _setAuthTokens(token);
       try {
         final data = await _api.get('/api/auth/me', token: token);
         final admin = data['admin'] as Map<String, dynamic>;
         _adminName = admin['name'] as String?;
         _adminEmail = admin['email'] as String?;
         _isLoggedIn = true;
-        await _lessonService.load();
+        await Future.wait([_lessonService.load(), _loadDashboardData()]);
       } catch (_) {
         await prefs.remove('admin_auth_token');
-        _authToken = null;
+        _setAuthTokens(null);
         _isLoggedIn = false;
       }
       notifyListeners();
@@ -127,7 +175,7 @@ class AdminProvider extends ChangeNotifier {
         'password': password,
       });
 
-      _authToken = data['token'] as String;
+      _setAuthTokens(data['token'] as String);
       final admin = data['admin'] as Map<String, dynamic>;
       _adminName = admin['name'] as String?;
       _adminEmail = admin['email'] as String?;
@@ -136,9 +184,7 @@ class AdminProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('admin_auth_token', _authToken!);
 
-      _lessonService.setToken(_authToken);
-      _contentService.setToken(_authToken);
-      await _lessonService.load();
+      await Future.wait([_lessonService.load(), _loadDashboardData()]);
 
       _isLoading = false;
       notifyListeners();
@@ -157,8 +203,7 @@ class AdminProvider extends ChangeNotifier {
     _adminName = null;
     _adminEmail = null;
     _activeScreen = AdminScreen.dashboard;
-    _lessonService.setToken(null);
-    _contentService.setToken(null);
+    _setAuthTokens(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('admin_auth_token');
     notifyListeners();
@@ -166,8 +211,22 @@ class AdminProvider extends ChangeNotifier {
 
   void setScreen(AdminScreen screen) {
     _activeScreen = screen;
-    if (screen == AdminScreen.darasaHuru && _isLoggedIn) {
-      _lessonService.load();
+    if (!_isLoggedIn) {
+      notifyListeners();
+      return;
+    }
+    switch (screen) {
+      case AdminScreen.darasaHuru:
+        refreshLessons();
+      case AdminScreen.dashboard:
+      case AdminScreen.users:
+      case AdminScreen.analytics:
+      case AdminScreen.notifications:
+      case AdminScreen.settings:
+        refreshData();
+      case AdminScreen.content:
+      case AdminScreen.mwalimu:
+        break;
     }
     notifyListeners();
   }
@@ -194,20 +253,30 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateUserStatus(String userId, UserStatus status) {
-    final idx = _users.indexWhere((u) => u.id == userId);
-    if (idx != -1) {
-      _users[idx] = _users[idx].copyWith(status: status);
-      notifyListeners();
-    }
+  Future<void> updateUserStatus(String userId, UserStatus status) async {
+    final statusStr = status.name;
+    try {
+      final data = await _contentService.updateUserStatus(userId, statusStr);
+      final updated = AdminDataMapper.userFromJson(data['user'] as Map<String, dynamic>);
+      final idx = _users.indexWhere((u) => u.id == userId);
+      if (idx != -1) {
+        _users[idx] = updated;
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
-  void updateUserPlan(String userId, UserPlan plan) {
-    final idx = _users.indexWhere((u) => u.id == userId);
-    if (idx != -1) {
-      _users[idx] = _users[idx].copyWith(plan: plan);
-      notifyListeners();
-    }
+  Future<void> updateUserPlan(String userId, UserPlan plan) async {
+    try {
+      final data = await _contentService.updateUserPremium(userId, plan == UserPlan.premium);
+      final updated = AdminDataMapper.userFromJson(data['user'] as Map<String, dynamic>);
+      final idx = _users.indexWhere((u) => u.id == userId);
+      if (idx != -1) {
+        _users[idx] = updated;
+        await _loadDashboardData();
+        notifyListeners();
+      }
+    } catch (_) {}
   }
 
   void addNotification(AdminNotification notification) {

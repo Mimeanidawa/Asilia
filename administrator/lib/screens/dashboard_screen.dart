@@ -20,8 +20,12 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AdminColors.bg,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AdminColors.emerald,
+        onRefresh: provider.refreshData,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverAppBar(
             backgroundColor: AdminColors.bg,
             pinned: true,
@@ -207,12 +211,23 @@ class DashboardScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      ...provider.recentActivities.asMap().entries.map((e) {
-                        return _ActivityTile(
-                          activity: e.value,
-                          delay: Duration(milliseconds: 500 + e.key * 60),
-                        );
-                      }),
+                      if (provider.recentActivities.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'No recent activity yet',
+                              style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
+                            ),
+                          ),
+                        )
+                      else
+                        ...provider.recentActivities.asMap().entries.map((e) {
+                          return _ActivityTile(
+                            activity: e.value,
+                            delay: Duration(milliseconds: 500 + e.key * 60),
+                          );
+                        }),
                     ],
                   ),
                 ),
@@ -221,6 +236,7 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

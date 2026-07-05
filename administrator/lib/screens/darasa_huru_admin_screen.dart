@@ -18,8 +18,12 @@ class DarasaHuruAdminScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AdminColors.bg,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AdminColors.emerald,
+        onRefresh: provider.refreshLessons,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverAppBar(
             backgroundColor: AdminColors.bg,
             pinned: true,
@@ -191,6 +195,7 @@ class DarasaHuruAdminScreen extends StatelessWidget {
                   ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -764,25 +769,10 @@ class _ComposeLessonSheetState extends State<_ComposeLessonSheet> {
               ],
             ),
             const SizedBox(height: 14),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'Chapisha mara moja',
-                style: GoogleFonts.inter(
-                  color: AdminColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              subtitle: Text(
-                'Somo litaonekana kwenye app ya watumiaji',
-                style: GoogleFonts.inter(
-                  color: AdminColors.textDim,
-                  fontSize: 11,
-                ),
-              ),
+            _ToggleRow(
+              title: 'Chapisha mara moja',
+              subtitle: 'Somo litaonekana kwenye app ya watumiaji',
               value: _publishNow,
-              activeThumbColor: AdminColors.emerald,
               onChanged: (v) => setState(() => _publishNow = v),
             ),
             const SizedBox(height: 16),
@@ -848,6 +838,49 @@ class _ComposeLessonSheetState extends State<_ComposeLessonSheet> {
         maxLines: maxLines,
         style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14),
         decoration: InputDecoration(hintText: hint),
+      ),
+    );
+  }
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.title,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11)),
+                ],
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeTrackColor: AdminColors.emerald.withValues(alpha: 0.45),
+            activeThumbColor: AdminColors.emerald,
+          ),
+        ],
       ),
     );
   }

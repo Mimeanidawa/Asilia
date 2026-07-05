@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
 import '../widgets/shimmer_loading.dart';
 
@@ -54,12 +56,20 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
           Expanded(
             child: lessonService.isSyncing && lessons.isEmpty
                 ? const DarasaHuruLoadingSkeleton()
-                : lessons.isEmpty
-                ? _buildEmptyState()
-                : RefreshIndicator(
-                    color: AppColors.forest,
-                    onRefresh: () => app.refreshLessons(),
-                    child: ListView(
+                : PullToRefresh(
+                    onRefresh: () => AppRefresh.catalog(context),
+                    child: lessons.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: MediaQuery.sizeOf(context).height * 0.5,
+                                child: _buildEmptyState(),
+                              ),
+                            ],
+                          )
+                        : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(bottom: 16),
                     children: [
                       if (today != null) ...[

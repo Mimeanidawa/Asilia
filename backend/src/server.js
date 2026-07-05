@@ -10,6 +10,7 @@ import carouselsRouter from './routes/carousels.js';
 import contentRouter from './routes/content.js';
 import usersRouter from './routes/users.js';
 import chatRouter from './routes/chat.js';
+import adminRouter from './routes/admin.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -36,6 +37,7 @@ app.use('/api/carousels', carouselsRouter);
 app.use('/api/content', contentRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/chat', chatRouter);
+app.use('/api/admin', adminRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);

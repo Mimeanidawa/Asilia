@@ -1,4 +1,4 @@
-package com.example.asilia
+package com.asilia.admin
 
 import io.flutter.embedding.android.FlutterActivity
 

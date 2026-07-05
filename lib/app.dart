@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,6 +25,7 @@ import 'services/notification_center_service.dart';
 import 'services/notification_service.dart';
 import 'services/user_service.dart';
 import 'theme/app_theme.dart';
+import 'utils/app_refresh.dart';
 import 'widgets/shimmer_loading.dart';
 
 class AsiliaApp extends StatefulWidget {
@@ -70,20 +73,26 @@ class _AsiliaAppState extends State<AsiliaApp> {
 
     try {
       await _notificationService.init();
-      _notificationService.onNotificationTap = ({lessonId, contentId}) {
-        _appProvider.openFromNotification(lessonId: lessonId, contentId: contentId);
+      _notificationService.onNotificationTap = ({lessonId, contentId, type}) {
+        _appProvider.openFromNotification(
+          lessonId: lessonId,
+          contentId: contentId,
+          type: type,
+        );
       };
       _notificationService.onPushReceived = ({
         required title,
         required body,
         lessonId,
         contentId,
+        type,
       }) {
         _notificationCenter.addFromPush(
           title: title,
           body: body,
           lessonId: lessonId,
           contentId: contentId,
+          type: type,
         );
       };
     } catch (e) {
@@ -91,6 +100,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
     }
 
     await _userService.load();
+    await _notificationService.linkToUser(_userService.token);
     await _mwalimuService.loadSettings();
     await _contentService.load(userToken: _userService.token);
     await _appProvider.init();
@@ -108,6 +118,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
         ChangeNotifierProvider.value(value: _userService),
         ChangeNotifierProvider.value(value: _mwalimuService),
         ChangeNotifierProvider.value(value: _notificationCenter),
+        Provider<NotificationService>.value(value: _notificationService),
       ],
       child: MaterialApp(
         title: 'Dawa Asili',
@@ -119,8 +130,32 @@ class _AsiliaAppState extends State<AsiliaApp> {
   }
 }
 
-class _AppShell extends StatelessWidget {
+class _AppShell extends StatefulWidget {
   const _AppShell();
+
+  @override
+  State<_AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<_AppShell> {
+  Timer? _autoRefreshTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        if (!mounted) return;
+        AppRefresh.all(context);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoRefreshTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +178,7 @@ class _AppShell extends StatelessWidget {
       case AppScreen.conditions:
         screen = const ConditionsScreen();
       case AppScreen.profile:
-        screen = const ProfileScreen();
+        screen = const ProfileScreen(key: ValueKey('profile-screen'));
       case AppScreen.darasaHuru:
         screen = const DarasaHuruScreen();
       case AppScreen.contentList:

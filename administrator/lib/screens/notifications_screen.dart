@@ -17,8 +17,12 @@ class NotificationsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AdminColors.bg,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AdminColors.emerald,
+        onRefresh: provider.refreshData,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverAppBar(
             backgroundColor: AdminColors.bg,
             pinned: true,
@@ -102,6 +106,7 @@ class NotificationsScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -316,36 +321,65 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   Future<void> _send() async {
     if (_titleCtrl.text.trim().isEmpty || _bodyCtrl.text.trim().isEmpty) return;
     setState(() => _sending = true);
-    await Future.delayed(const Duration(milliseconds: 1200));
-    final targetCount = _target == NotificationTarget.all
-        ? widget.provider.stats.totalUsers
-        : _target == NotificationTarget.premium
-            ? widget.provider.stats.premiumUsers
-            : widget.provider.stats.freeUsers;
-    widget.provider.addNotification(
-      AdminNotification(
-        id: 'n${DateTime.now().millisecondsSinceEpoch}',
+
+    final target = switch (_target) {
+      NotificationTarget.all => 'all',
+      NotificationTarget.premium => 'premium',
+      NotificationTarget.free => 'free',
+    };
+
+    try {
+      final result = await widget.provider.contentService.sendBroadcast(
         title: _titleCtrl.text.trim(),
         body: _bodyCtrl.text.trim(),
-        target: _target,
-        status: NotificationStatus.sent,
-        createdAt: DateTime.now(),
-        sentCount: targetCount,
-      ),
-    );
-    if (mounted) {
+        target: target,
+      );
+      final notification = result['notification'] as Map<String, dynamic>?;
+      final sent = notification?['sent'] == true;
+      final targetCount = _target == NotificationTarget.all
+          ? widget.provider.stats.totalUsers
+          : _target == NotificationTarget.premium
+              ? widget.provider.stats.premiumUsers
+              : widget.provider.stats.freeUsers;
+
+      widget.provider.addNotification(
+        AdminNotification(
+          id: 'n${DateTime.now().millisecondsSinceEpoch}',
+          title: _titleCtrl.text.trim(),
+          body: _bodyCtrl.text.trim(),
+          target: _target,
+          status: sent ? NotificationStatus.sent : NotificationStatus.failed,
+          createdAt: DateTime.now(),
+          sentCount: sent ? targetCount : 0,
+        ),
+      );
+
+      if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Notification sent to $targetCount users',
+            sent
+                ? 'Notification sent to $targetCount users'
+                : 'Saved locally. Set FIREBASE_SERVICE_ACCOUNT on Railway for push delivery.',
             style: GoogleFonts.inter(color: Colors.white),
           ),
-          backgroundColor: AdminColors.forest,
+          backgroundColor: sent ? AdminColors.forest : AdminColors.amber,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send: $e', style: GoogleFonts.inter(color: Colors.white)),
+            backgroundColor: AdminColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 

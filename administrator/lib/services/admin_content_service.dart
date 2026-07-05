@@ -85,4 +85,26 @@ class AdminContentService {
     final data = await _api.get('/api/users/admin/all', token: _token);
     return List<Map<String, dynamic>>.from(data['users'] as List);
   }
+
+  Future<Map<String, dynamic>> updateUserPremium(String userId, bool isPremium) async {
+    return _api.patch('/api/users/admin/$userId/premium',
+        body: {'isPremium': isPremium}, token: _token);
+  }
+
+  Future<Map<String, dynamic>> updateUserStatus(String userId, String status) async {
+    return _api.patch('/api/users/admin/$userId/status',
+        body: {'status': status}, token: _token);
+  }
+
+  Future<Map<String, dynamic>> sendBroadcast({
+    required String title,
+    required String body,
+    required String target,
+  }) async {
+    return _api.post(
+      '/api/devices/broadcast',
+      body: {'title': title, 'body': body, 'target': target},
+      token: _token,
+    );
+  }
 }

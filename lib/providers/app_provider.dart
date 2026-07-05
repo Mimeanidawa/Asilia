@@ -39,8 +39,10 @@ class AppProvider extends ChangeNotifier {
     navigate(AppScreen.contentDetail, contentId: contentId);
   }
 
-  void openFromNotification({String? lessonId, String? contentId}) {
-    if (contentId != null) {
+  void openFromNotification({String? lessonId, String? contentId, String? type}) {
+    if (type == 'message') {
+      navigate(AppScreen.askExpert);
+    } else if (contentId != null) {
       openContentFromNotification(contentId);
     } else if (lessonId != null) {
       openLessonFromNotification(lessonId);

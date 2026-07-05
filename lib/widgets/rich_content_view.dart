@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 
 import '../models/content_blocks.dart';
 import '../theme/app_colors.dart';
+import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
 
 class RichContentView extends StatelessWidget {
@@ -40,11 +41,12 @@ class _BlockWidget extends StatelessWidget {
     return switch (block.type) {
       ContentBlockType.paragraph => _ParagraphBlock(text: block.text),
       ContentBlockType.tag => _TagBlock(name: block.text, caption: block.caption),
-      ContentBlockType.heading => _Heading(text: block.text, level: block.level),
+      ContentBlockType.heading => _Heading(text: block.text, level: block.level, accent: block.accent),
       ContentBlockType.image => _ImageBlock(url: block.url, caption: block.caption),
       ContentBlockType.video => _VideoBlock(url: block.url, caption: block.caption),
       ContentBlockType.audio => _AudioBlock(url: block.url, title: block.title),
       ContentBlockType.quote => _QuoteBlock(text: block.text),
+      ContentBlockType.callout => _CalloutBlock(text: block.text, title: block.title, variant: block.accent),
       ContentBlockType.divider => const Padding(
           padding: EdgeInsets.symmetric(vertical: 8),
           child: Divider(color: AppColors.gray200, thickness: 1),
@@ -128,31 +130,33 @@ class _TagBlock extends StatelessWidget {
 }
 
 class _Heading extends StatelessWidget {
-  const _Heading({required this.text, required this.level});
+  const _Heading({required this.text, required this.level, required this.accent});
 
   final String text;
   final int level;
+  final String accent;
 
   @override
   Widget build(BuildContext context) {
+    final color = BlockAccentStyle.colorFor(accent);
     final style = switch (level) {
-      1 => const TextStyle(
+      1 => TextStyle(
           fontSize: 26,
           fontWeight: FontWeight.w900,
-          color: AppColors.forest,
+          color: color,
           height: 1.25,
           letterSpacing: -0.5,
         ),
-      2 => const TextStyle(
+      2 => TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: AppColors.forest,
+          color: color,
           height: 1.3,
         ),
-      _ => const TextStyle(
+      _ => TextStyle(
           fontSize: 17,
           fontWeight: FontWeight.w700,
-          color: AppColors.emerald800,
+          color: color,
           height: 1.35,
         ),
     };
@@ -509,6 +513,57 @@ class _QuoteBlock extends StatelessWidget {
   }
 }
 
+class _CalloutBlock extends StatelessWidget {
+  const _CalloutBlock({required this.text, required this.title, required this.variant});
+
+  final String text;
+  final String title;
+  final String variant;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = BlockAccentStyle.colorFor(BlockAccentStyle.variantColorKey(variant));
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: BlockAccentStyle.backgroundFor(variant),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: BlockAccentStyle.borderFor(variant)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(BlockAccentStyle.iconForCallout(variant), color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title.isNotEmpty ? title : BlockAccentStyle.labelForCallout(variant),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  text,
+                  style: const TextStyle(fontSize: 15, color: AppColors.gray600, height: 1.65),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ListBlock extends StatelessWidget {
   const _ListBlock({required this.style, required this.items});
 
@@ -517,39 +572,57 @@ class _ListBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    final visible = items.where((i) => i.trim().isNotEmpty).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < items.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    style == 'numbered' ? '${i + 1}.' : '•',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.forest,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      decoration: BoxDecoration(
+        color: AppColors.emerald50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < visible.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == visible.length - 1 ? 0 : 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.forest.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      style == 'numbered' ? '${i + 1}' : '•',
+                      style: TextStyle(
+                        fontSize: style == 'numbered' ? 12 : 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.forest,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    items[i],
-                    style: const TextStyle(fontSize: 15, color: AppColors.gray600, height: 1.6),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        visible[i],
+                        style: const TextStyle(fontSize: 15, color: AppColors.gray600, height: 1.65),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

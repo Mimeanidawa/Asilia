@@ -8,25 +8,33 @@ enum ContentBlockType {
   video,
   audio,
   quote,
+  callout,
   divider,
   list,
 }
 
 class ContentBlock {
-  const ContentBlock({
+  ContentBlock({
+    String? id,
     required this.type,
     this.text = '',
     this.level = 2,
+    this.accent = 'emerald',
     this.url = '',
     this.caption = '',
     this.title = '',
     this.listStyle = 'bullet',
     this.items = const [],
-  });
+  }) : id = id ?? _newId();
 
+  static int _seq = 0;
+  static String _newId() => 'b${DateTime.now().microsecondsSinceEpoch}_${_seq++}';
+
+  final String id;
   final ContentBlockType type;
   final String text;
   final int level;
+  final String accent;
   final String url;
   final String caption;
   final String title;
@@ -34,9 +42,11 @@ class ContentBlock {
   final List<String> items;
 
   ContentBlock copyWith({
+    String? id,
     ContentBlockType? type,
     String? text,
     int? level,
+    String? accent,
     String? url,
     String? caption,
     String? title,
@@ -44,9 +54,11 @@ class ContentBlock {
     List<String>? items,
   }) {
     return ContentBlock(
+      id: id ?? this.id,
       type: type ?? this.type,
       text: text ?? this.text,
       level: level ?? this.level,
+      accent: accent ?? this.accent,
       url: url ?? this.url,
       caption: caption ?? this.caption,
       title: title ?? this.title,
@@ -58,12 +70,13 @@ class ContentBlock {
   Map<String, dynamic> toJson() {
     return switch (type) {
       ContentBlockType.paragraph => {'type': 'paragraph', 'text': text},
-      ContentBlockType.heading => {'type': 'heading', 'text': text, 'level': level},
+      ContentBlockType.heading => {'type': 'heading', 'text': text, 'level': level, 'accent': accent},
       ContentBlockType.tag => {'type': 'tag', 'text': text, 'caption': caption},
       ContentBlockType.image => {'type': 'image', 'url': url, 'caption': caption},
       ContentBlockType.video => {'type': 'video', 'url': url, 'caption': caption},
       ContentBlockType.audio => {'type': 'audio', 'url': url, 'title': title},
       ContentBlockType.quote => {'type': 'quote', 'text': text},
+      ContentBlockType.callout => {'type': 'callout', 'text': text, 'accent': accent, 'title': title},
       ContentBlockType.divider => {'type': 'divider'},
       ContentBlockType.list => {'type': 'list', 'style': listStyle, 'items': items},
     };
@@ -76,6 +89,7 @@ class ContentBlock {
           type: ContentBlockType.heading,
           text: json['text'] as String? ?? '',
           level: json['level'] as int? ?? 2,
+          accent: json['accent'] as String? ?? 'emerald',
         ),
       'tag' => ContentBlock(
           type: ContentBlockType.tag,
@@ -101,7 +115,13 @@ class ContentBlock {
           type: ContentBlockType.quote,
           text: json['text'] as String? ?? '',
         ),
-      'divider' => const ContentBlock(type: ContentBlockType.divider),
+      'callout' => ContentBlock(
+          type: ContentBlockType.callout,
+          text: json['text'] as String? ?? '',
+          accent: json['accent'] as String? ?? 'tip',
+          title: json['title'] as String? ?? '',
+        ),
+      'divider' => ContentBlock(type: ContentBlockType.divider),
       'list' => ContentBlock(
           type: ContentBlockType.list,
           listStyle: json['style'] as String? ?? 'bullet',
@@ -117,11 +137,17 @@ class ContentBlock {
   static ContentBlock paragraph(String text) =>
       ContentBlock(type: ContentBlockType.paragraph, text: text);
 
-  static ContentBlock heading(String text, {int level = 2}) =>
-      ContentBlock(type: ContentBlockType.heading, text: text, level: level);
+  static ContentBlock heading(String text, {int level = 2, String accent = 'emerald'}) =>
+      ContentBlock(type: ContentBlockType.heading, text: text, level: level, accent: accent);
 
   static ContentBlock tag(String name, {String caption = ''}) =>
       ContentBlock(type: ContentBlockType.tag, text: name, caption: caption);
+
+  static ContentBlock callout(String text, {String accent = 'tip', String title = ''}) =>
+      ContentBlock(type: ContentBlockType.callout, text: text, accent: accent, title: title);
+
+  static ContentBlock list({String listStyle = 'bullet', List<String>? items}) =>
+      ContentBlock(type: ContentBlockType.list, listStyle: listStyle, items: items ?? ['', '']);
 
   static ContentBlock? parseHashtagLine(String line) {
     final match = RegExp(r'^#([\w\u00C0-\u024F]+)(?:\s+(.*))?$').firstMatch(line.trim());
@@ -131,7 +157,7 @@ class ContentBlock {
 
   String get plainText {
     return switch (type) {
-      ContentBlockType.paragraph || ContentBlockType.quote => text,
+      ContentBlockType.paragraph || ContentBlockType.quote || ContentBlockType.callout => text,
       ContentBlockType.heading => text,
       ContentBlockType.tag => caption.isNotEmpty ? '#$text $caption' : '#$text',
       ContentBlockType.image || ContentBlockType.video => caption,
@@ -170,7 +196,7 @@ class RichContentBody {
       if (block.type == ContentBlockType.paragraph && block.text.trim().startsWith('#')) {
         final tag = ContentBlock.parseHashtagLine(block.text);
         if (tag != null) {
-          out.add(tag);
+          out.add(tag.copyWith(id: block.id));
           continue;
         }
       }

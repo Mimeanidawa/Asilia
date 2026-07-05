@@ -9,7 +9,6 @@ import '../models/content_models.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
-import '../services/lesson_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/api_carousel.dart';
@@ -18,6 +17,8 @@ import '../widgets/darasa_huru_card.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/learning_pathways_row.dart';
+import '../utils/app_refresh.dart';
+import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -101,7 +102,10 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         _buildHeader(context, app),
         Expanded(
-          child: ListView(
+          child: PullToRefresh(
+            onRefresh: () => AppRefresh.catalog(context),
+            child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 16),
             children: [
               _buildGreetingAndSearch(context),
@@ -122,6 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildVyakulaMatundaSection(context, app),
               ],
             ],
+          ),
           ),
         ),
       ],

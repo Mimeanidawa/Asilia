@@ -8,6 +8,8 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
+import '../widgets/pull_to_refresh.dart';
 import '../widgets/shimmer_loading.dart';
 
 class ContentListScreen extends StatelessWidget {
@@ -28,24 +30,36 @@ class ContentListScreen extends StatelessWidget {
         children: [
           _header(context, title, app),
           Expanded(
-            child: posts.isEmpty
-                ? Center(
-                    child: content.isLoading
-                        ? const CircularProgressIndicator(color: AppColors.forest)
-                        : Text('Hakuna maudhui bado', style: TextStyle(color: AppColors.gray400)),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(20),
-                    itemCount: posts.length,
-                    itemBuilder: (context, i) => _PostCard(
-                      post: posts[i],
-                      index: i,
-                      onTap: () => app.navigate(
-                        AppScreen.contentDetail,
-                        contentId: posts[i].id,
+            child: PullToRefresh(
+              onRefresh: () => AppRefresh.catalog(context),
+              child: posts.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.45,
+                          child: Center(
+                            child: content.isLoading
+                                ? const CircularProgressIndicator(color: AppColors.forest)
+                                : Text('Hakuna maudhui bado', style: TextStyle(color: AppColors.gray400)),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(20),
+                      itemCount: posts.length,
+                      itemBuilder: (context, i) => _PostCard(
+                        post: posts[i],
+                        index: i,
+                        onTap: () => app.navigate(
+                          AppScreen.contentDetail,
+                          contentId: posts[i].id,
+                        ),
                       ),
                     ),
-                  ),
+            ),
           ),
         ],
       ),

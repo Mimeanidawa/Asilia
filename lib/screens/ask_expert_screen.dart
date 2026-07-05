@@ -8,6 +8,8 @@ import '../providers/app_provider.dart';
 import '../services/mwalimu_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
+import '../widgets/pull_to_refresh.dart';
 
 class AskExpertScreen extends StatefulWidget {
   const AskExpertScreen({super.key});
@@ -52,6 +54,10 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
         );
       }
     });
+  }
+
+  Future<void> _refresh() async {
+    await AppRefresh.mwalimu(context);
   }
 
   Future<void> _send() async {
@@ -192,8 +198,11 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
             ),
           ),
           Expanded(
-            child: ListView(
+            child: PullToRefresh(
+              onRefresh: _refresh,
+              child: ListView(
               controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
               children: [
                 _Bubble(
@@ -212,6 +221,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                     child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.forest)),
                   ),
               ],
+            ),
             ),
           ),
           Container(

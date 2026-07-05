@@ -5,8 +5,10 @@ import '../data/app_data.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/app_refresh.dart';
 import '../widgets/condition_icon_widget.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/pull_to_refresh.dart';
 
 class ConditionsScreen extends StatefulWidget {
   const ConditionsScreen({super.key});
@@ -85,7 +87,10 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
               ),
             ),
             Expanded(
-              child: ListView(
+              child: PullToRefresh(
+                onRefresh: () => AppRefresh.catalog(context),
+                child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 children: [
                   Text(
@@ -188,6 +193,7 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                       ),
                     ),
                 ],
+              ),
               ),
             ),
           ],

@@ -14,8 +14,12 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AdminColors.bg,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        color: AdminColors.emerald,
+        onRefresh: provider.refreshData,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
           SliverAppBar(
             backgroundColor: AdminColors.bg,
             pinned: true,
@@ -143,64 +147,6 @@ class SettingsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Preferences section
-                Animate(
-                  delay: const Duration(milliseconds: 200),
-                  effects: const [FadeEffect(duration: Duration(milliseconds: 400))],
-                  child: _SettingsSection(
-                    title: 'Preferences',
-                    items: [
-                      _SettingsTile(
-                        icon: Icons.dark_mode_rounded,
-                        label: 'Dark Mode',
-                        trailing: 'On',
-                        color: AdminColors.textDim,
-                      ),
-                      _SettingsTile(
-                        icon: Icons.notifications_rounded,
-                        label: 'Push Alerts',
-                        trailing: 'Enabled',
-                        color: AdminColors.amber,
-                      ),
-                      _SettingsTile(
-                        icon: Icons.language_rounded,
-                        label: 'Language',
-                        trailing: 'English',
-                        color: AdminColors.blue,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Support section
-                Animate(
-                  delay: const Duration(milliseconds: 300),
-                  effects: const [FadeEffect(duration: Duration(milliseconds: 400))],
-                  child: _SettingsSection(
-                    title: 'Support',
-                    items: [
-                      _SettingsTile(
-                        icon: Icons.help_outline_rounded,
-                        label: 'Help Center',
-                        color: AdminColors.blue,
-                        showArrow: true,
-                      ),
-                      _SettingsTile(
-                        icon: Icons.privacy_tip_outlined,
-                        label: 'Privacy Policy',
-                        color: AdminColors.textDim,
-                        showArrow: true,
-                      ),
-                      _SettingsTile(
-                        icon: Icons.description_outlined,
-                        label: 'Terms of Service',
-                        color: AdminColors.textDim,
-                        showArrow: true,
-                      ),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 20),
                 // Logout
                 Animate(
@@ -234,18 +180,11 @@ class SettingsScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Footer
-                Center(
-                  child: Text(
-                    'Asilia Admin · v1.0.0 · Made with ❤️',
-                    style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                  ),
-                ),
               ]),
             ),
           ),
         ],
+      ),
       ),
     );
   }

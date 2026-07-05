@@ -57,6 +57,7 @@ export async function initDb() {
       id UUID PRIMARY KEY,
       token TEXT UNIQUE NOT NULL,
       platform TEXT NOT NULL DEFAULT 'unknown',
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -102,6 +103,7 @@ export async function initDb() {
       is_premium BOOLEAN NOT NULL DEFAULT FALSE,
       premium_until TIMESTAMPTZ,
       message_count INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'active',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -157,6 +159,18 @@ export async function initDb() {
       ('free_message_limit', '5'),
       ('premium_price', '15000')
     ON CONFLICT (key) DO NOTHING
+  `);
+
+  await db.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
+  `);
+
+  await db.query(`
+    ALTER TABLE device_tokens ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL
+  `);
+
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens (user_id)
   `);
 
   console.log('Database schema ready');
