@@ -6,6 +6,7 @@ import 'notification_store.dart';
 
 class NotificationCenterService extends ChangeNotifier {
   List<AppNotification> _items = [];
+  Set<String> _deletedIds = {};
   bool _loaded = false;
 
   List<AppNotification> get items => List.unmodifiable(_items);
@@ -14,6 +15,7 @@ class NotificationCenterService extends ChangeNotifier {
 
   Future<void> load() async {
     _items = await NotificationStore.readAll();
+    _deletedIds = await NotificationStore.readDeletedIds();
     _items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     _loaded = true;
     notifyListeners();
@@ -33,6 +35,7 @@ class NotificationCenterService extends ChangeNotifier {
     String? lessonId,
     String? contentId,
     String? type,
+    String? imageUrl,
   }) async {
     await NotificationStore.appendFromPush(
       title: title,
@@ -40,6 +43,7 @@ class NotificationCenterService extends ChangeNotifier {
       lessonId: lessonId,
       contentId: contentId,
       type: type,
+      imageUrl: imageUrl,
     );
     await load();
   }
@@ -57,12 +61,15 @@ class NotificationCenterService extends ChangeNotifier {
 
     for (final post in posts) {
       if (existingContentIds.contains(post.id)) continue;
+      final notificationId = 'content-${post.id}';
+      if (_deletedIds.contains(notificationId)) continue;
       additions.add(AppNotification(
-        id: 'content-${post.id}',
+        id: notificationId,
         title: 'Makala Mpya — Dawa Asili',
         body: post.title,
         timestamp: DateTime.now(),
         contentId: post.id,
+        imageUrl: post.imageUrl,
         type: 'article',
       ));
       existingContentIds.add(post.id);
@@ -71,12 +78,15 @@ class NotificationCenterService extends ChangeNotifier {
 
     for (final lesson in lessons.where((l) => l.isPublished)) {
       if (existingLessonIds.contains(lesson.id)) continue;
+      final notificationId = 'lesson-${lesson.id}';
+      if (_deletedIds.contains(notificationId)) continue;
       additions.add(AppNotification(
-        id: 'lesson-${lesson.id}',
+        id: notificationId,
         title: 'Darasa Huru — Somo Jipya!',
         body: lesson.title,
         timestamp: lesson.publishedAt,
         lessonId: lesson.id,
+        imageUrl: lesson.imageUrl,
         type: 'lesson',
       ));
       existingLessonIds.add(lesson.id);
@@ -106,8 +116,20 @@ class NotificationCenterService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> delete(String id) async {
+    _deletedIds.add(id);
+    _items = _items.where((n) => n.id != id).toList();
+    await NotificationStore.addDeletedIds([id]);
+    await NotificationStore.writeAll(_items);
+    notifyListeners();
+  }
+
   Future<void> clearAll() async {
+    if (_items.isEmpty) return;
+    final ids = _items.map((n) => n.id).toList();
+    _deletedIds.addAll(ids);
     _items = [];
+    await NotificationStore.addDeletedIds(ids);
     await NotificationStore.writeAll(_items);
     notifyListeners();
   }

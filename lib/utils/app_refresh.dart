@@ -19,7 +19,7 @@ class AppRefresh {
       final app = context.read<AppProvider>();
       await Future.wait([
         content.syncFromServer(userToken: user.token),
-        app.refreshLessons(),
+        app.refreshLessons(silent: true),
       ]);
     } catch (_) {}
   }

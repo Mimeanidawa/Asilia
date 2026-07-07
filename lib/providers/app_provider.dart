@@ -53,7 +53,8 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshLessons() => _lessonService.syncFromServer();
+  Future<void> refreshLessons({bool silent = false}) =>
+      _lessonService.syncFromServer(silent: silent);
 
   AppScreen activeScreen = AppScreen.home;
   final List<AppScreen> screenHistory = [AppScreen.home];

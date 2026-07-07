@@ -9,7 +9,9 @@ class NotificationStore {
   NotificationStore._();
 
   static const storageKey = 'da_notifications';
+  static const deletedKey = 'da_notifications_deleted';
   static const maxItems = 50;
+  static const maxDeletedIds = 200;
 
   static Future<List<AppNotification>> readAll() async {
     final prefs = await SharedPreferences.getInstance();
@@ -39,6 +41,7 @@ class NotificationStore {
     String? lessonId,
     String? contentId,
     String? type,
+    String? imageUrl,
   }) async {
     final items = await readAll();
     final resolvedType = type ??
@@ -68,11 +71,32 @@ class NotificationStore {
         timestamp: now,
         lessonId: lessonId,
         contentId: contentId,
+        imageUrl: imageUrl ?? '',
         type: resolvedType,
       ),
       ...items,
     ].take(maxItems).toList();
 
     await writeAll(updated);
+  }
+
+  static Future<Set<String>> readDeletedIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(deletedKey);
+    if (raw == null) return {};
+    try {
+      return (jsonDecode(raw) as List).cast<String>().toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static Future<void> addDeletedIds(Iterable<String> ids) async {
+    if (ids.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final current = await readDeletedIds();
+    current.addAll(ids);
+    final trimmed = current.take(maxDeletedIds).toList();
+    await prefs.setString(deletedKey, jsonEncode(trimmed));
   }
 }

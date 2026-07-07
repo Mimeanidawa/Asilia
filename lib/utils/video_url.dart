@@ -15,7 +15,7 @@ class ParsedVideoUrl {
 
   String? get embedUrl => switch (kind) {
         VideoSourceKind.youtube when videoId != null =>
-          'https://www.youtube-nocookie.com/embed/$videoId?playsinline=1&rel=0&modestbranding=1&autoplay=0',
+          'https://www.youtube.com/embed/$videoId?playsinline=1&rel=0&modestbranding=1&autoplay=0&controls=1&enablejsapi=1',
         VideoSourceKind.vimeo when videoId != null =>
           'https://player.vimeo.com/video/$videoId?autoplay=0',
         VideoSourceKind.dailymotion when videoId != null =>
@@ -32,6 +32,18 @@ class VideoUrlParser {
   VideoUrlParser._();
 
   static final _directExt = RegExp(r'\.(mp4|m3u8|webm|mov|mkv|avi)(\?.*)?$', caseSensitive: false);
+
+  static bool looksLikeDirectVideo(String raw) {
+    final uri = Uri.tryParse(raw.trim());
+    if (uri == null) return false;
+    if (_directExt.hasMatch(uri.path)) return true;
+    final host = uri.host.toLowerCase();
+    return host.contains('cloudfront') ||
+        host.contains('googleusercontent') ||
+        host.contains('blob.core') ||
+        host.contains('fbcdn') ||
+        host.contains('tiktokcdn');
+  }
 
   static ParsedVideoUrl parse(String raw) {
     final trimmed = raw.trim();
@@ -100,6 +112,10 @@ class VideoUrlParser {
         return id != null && id.isNotEmpty ? id.split('?').first : null;
       }
       if (path.startsWith('/shorts/')) {
+        final id = path.split('/').where((s) => s.isNotEmpty).elementAtOrNull(1);
+        return id != null && id.isNotEmpty ? id.split('?').first : null;
+      }
+      if (path.startsWith('/live/')) {
         final id = path.split('/').where((s) => s.isNotEmpty).elementAtOrNull(1);
         return id != null && id.isNotEmpty ? id.split('?').first : null;
       }

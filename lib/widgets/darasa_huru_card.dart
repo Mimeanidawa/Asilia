@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/models.dart';
+import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 import 'herb_image.dart';
 
@@ -18,6 +20,8 @@ class DarasaHuruCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authorName = context.watch<MwalimuService>().displayName;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: Material(
@@ -193,7 +197,7 @@ class DarasaHuruCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  lesson.authorName,
+                                  authorName,
                                   style: const TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,

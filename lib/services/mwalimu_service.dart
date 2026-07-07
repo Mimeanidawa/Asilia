@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/content_models.dart';
 import 'api_client.dart';
 
 class MwalimuService extends ChangeNotifier {
   MwalimuService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
+  static const _seenAdminMessageKey = 'da_mwalimu_seen_admin_message_id';
 
   final ApiClient _api;
 
@@ -15,6 +17,27 @@ class MwalimuService extends ChangeNotifier {
   bool isPremium = false;
   bool isLoading = false;
   String? error;
+  int unreadCount = 0;
+
+  bool _chatOpen = false;
+  bool _stateLoaded = false;
+  String? _lastSeenAdminMessageId;
+
+  Future<void> _loadState() async {
+    if (_stateLoaded) return;
+    final prefs = await SharedPreferences.getInstance();
+    _lastSeenAdminMessageId = prefs.getString(_seenAdminMessageKey);
+    _stateLoaded = true;
+  }
+
+  Future<void> _saveSeenAdminMessageId(String? id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null || id.isEmpty) {
+      await prefs.remove(_seenAdminMessageKey);
+      return;
+    }
+    await prefs.setString(_seenAdminMessageKey, id);
+  }
 
   Future<void> loadSettings() async {
     try {
@@ -30,6 +53,7 @@ class MwalimuService extends ChangeNotifier {
 
   Future<void> loadMessages(String? userToken) async {
     if (userToken == null) return;
+    await _loadState();
     isLoading = true;
     notifyListeners();
 
@@ -41,6 +65,7 @@ class MwalimuService extends ChangeNotifier {
       messageCount = data['messageCount'] as int? ?? 0;
       messageLimit = data['messageLimit'] as int?;
       isPremium = data['isPremium'] as bool? ?? false;
+      _recomputeUnreadFromMessages();
     } catch (e) {
       error = e.toString();
     } finally {
@@ -78,5 +103,75 @@ class MwalimuService extends ChangeNotifier {
   int get remainingMessages {
     if (isPremium || messageLimit == null) return -1;
     return (messageLimit! - messageCount).clamp(0, messageLimit!);
+  }
+
+  void setChatOpen(bool isOpen) {
+    _chatOpen = isOpen;
+    if (isOpen) {
+      markAllRead();
+    }
+  }
+
+  Future<void> markAllRead() async {
+    final latestAdminId = _latestAdminMessageId(messages);
+    unreadCount = 0;
+    _lastSeenAdminMessageId = latestAdminId;
+    await _saveSeenAdminMessageId(latestAdminId);
+    notifyListeners();
+  }
+
+  Future<void> handleIncomingAdminPush() async {
+    await _loadState();
+    if (_chatOpen) return;
+    unreadCount += 1;
+    notifyListeners();
+  }
+
+  void _recomputeUnreadFromMessages() {
+    final latestAdminId = _latestAdminMessageId(messages);
+    if (latestAdminId == null) {
+      unreadCount = 0;
+      return;
+    }
+
+    if (_lastSeenAdminMessageId == null) {
+      _lastSeenAdminMessageId = latestAdminId;
+      unreadCount = 0;
+      _saveSeenAdminMessageId(latestAdminId);
+      return;
+    }
+
+    if (_chatOpen) {
+      unreadCount = 0;
+      if (_lastSeenAdminMessageId != latestAdminId) {
+        _lastSeenAdminMessageId = latestAdminId;
+        _saveSeenAdminMessageId(latestAdminId);
+      }
+      return;
+    }
+
+    unreadCount = _countAdminMessagesAfter(_lastSeenAdminMessageId!, messages);
+  }
+
+  String? _latestAdminMessageId(List<MwalimuMessage> list) {
+    for (var i = list.length - 1; i >= 0; i--) {
+      final msg = list[i];
+      if (msg.isAdmin) return msg.id;
+    }
+    return null;
+  }
+
+  int _countAdminMessagesAfter(String seenId, List<MwalimuMessage> list) {
+    final seenIndex = list.indexWhere((m) => m.id == seenId);
+    if (seenIndex == -1) {
+      return list.where((m) => m.isAdmin).length;
+    }
+    return list.skip(seenIndex + 1).where((m) => m.isAdmin).length;
+  }
+
+  /// Admin-configured expert name — use everywhere instead of hardcoded lesson authors.
+  String get displayName {
+    final name = settings.mwalimuName.trim();
+    return name.isEmpty ? 'Mwalimu' : name;
   }
 }

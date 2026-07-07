@@ -281,7 +281,7 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  widget.type == PaymentType.premium ? '/ siku 30' : '/ mara moja',
+                  widget.type == PaymentType.premium ? '/ siku 30' : '/ makala hii',
                   style: TextStyle(fontSize: 11, color: AppColors.gray400, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -448,7 +448,7 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
           Text(
             widget.type == PaymentType.premium
                 ? 'Premium yako imeamilishwa'
-                : 'Sasa unaweza kusoma makala kamili',
+                : 'Makala imefunguliwa moja kwa moja',
             style: TextStyle(fontSize: 13, color: AppColors.gray500),
           ),
         ],

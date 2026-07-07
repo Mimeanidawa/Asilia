@@ -85,17 +85,46 @@ class _EmbeddedVideoPlayerState extends State<EmbeddedVideoPlayer> {
           });
         }
       } catch (_) {
-        if (mounted) {
-          setState(() {
-            _error = true;
-            _errorMessage = 'Video haipatikani. Angalia URL.';
-          });
-        }
+        await _initWebFallback(_parsed.directUrl!);
       }
       return;
     }
 
     final embed = _parsed.embedUrl!;
+    await _initEmbedWebView(embed);
+  }
+
+  Future<void> _initEmbedWebView(String embed) async {
+    final html = _embedHtml(embed);
+    try {
+      final web = _newWebViewController();
+      await web.loadHtmlString(html, baseUrl: 'https://www.youtube.com');
+      if (mounted) {
+        setState(() => _webController = web);
+      }
+    } catch (_) {
+      await _initWebFallback(embed);
+    }
+  }
+
+  Future<void> _initWebFallback(String url) async {
+    try {
+      final web = _newWebViewController();
+      await web.loadRequest(Uri.parse(url));
+      if (mounted) {
+        setState(() => _webController = web);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = true;
+          _errorMessage = 'Imeshindwa kupakia video.';
+        });
+      }
+    }
+  }
+
+  WebViewController _newWebViewController() {
     final web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
@@ -104,13 +133,12 @@ class _EmbeddedVideoPlayerState extends State<EmbeddedVideoPlayer> {
           onPageFinished: (_) {
             if (mounted) setState(() => _ready = true);
           },
-          onWebResourceError: (_) {
-            if (mounted) {
-              setState(() {
-                _error = true;
-                _errorMessage = 'Imeshindwa kupakia video.';
-              });
-            }
+          onWebResourceError: (error) {
+            if (!mounted || !(error.isForMainFrame ?? true)) return;
+            setState(() {
+              _error = true;
+              _errorMessage = 'Imeshindwa kupakia video.';
+            });
           },
         ),
       );
@@ -119,15 +147,31 @@ class _EmbeddedVideoPlayerState extends State<EmbeddedVideoPlayer> {
       final android = web.platform as AndroidWebViewController;
       android.setMediaPlaybackRequiresUserGesture(false);
     }
+    return web;
+  }
 
-    await web.loadRequest(Uri.parse(embed));
-
-    if (mounted) {
-      setState(() {
-        _webController = web;
-        _ready = true;
-      });
-    }
+  String _embedHtml(String embedUrl) {
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+  iframe { width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<iframe
+  src="$embedUrl"
+  allow="autoplay; encrypted-media; picture-in-picture; fullscreen; accelerometer; gyroscope"
+  allowfullscreen
+  referrerpolicy="origin">
+</iframe>
+</body>
+</html>
+''';
   }
 
   void _togglePlay() {
@@ -220,15 +264,12 @@ class _EmbeddedVideoPlayerState extends State<EmbeddedVideoPlayer> {
                           ],
                         ),
                       )
-                    : GestureDetector(
-                        onTap: _openFullscreen,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            if (_webController != null) WebViewWidget(controller: _webController!),
-                            if (!widget.fullscreen) _expandButton(),
-                          ],
-                        ),
+                    : Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (_webController != null) WebViewWidget(controller: _webController!),
+                          if (!widget.fullscreen) _expandButton(),
+                        ],
                       ),
       ),
     );

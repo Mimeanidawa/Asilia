@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../data/app_data.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../widgets/condition_icon_widget.dart';
@@ -236,6 +237,7 @@ class _ConditionSheet extends StatelessWidget {
         .map(herbById)
         .whereType<Herb>()
         .toList();
+    final expertName = context.watch<MwalimuService>().displayName;
 
     return GestureDetector(
       onTap: onClose,
@@ -403,7 +405,7 @@ class _ConditionSheet extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        'Discuss "${condition.name}" with Dr. Hassan',
+                        'Jadili "${condition.name}" na $expertName',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

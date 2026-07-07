@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../utils/video_url.dart';
+
 enum ContentBlockType {
   paragraph,
   heading,
@@ -155,6 +157,28 @@ class ContentBlock {
     return ContentBlock.tag(match.group(1)!, caption: match.group(2)?.trim() ?? '');
   }
 
+  /// Plain line that is only a video URL (YouTube, Vimeo, mp4, etc.).
+  static ContentBlock? parseMediaUrlLine(String line) {
+    var trimmed = line.trim();
+    if (trimmed.isEmpty) return null;
+
+    final markdown = RegExp(r'^\[.*?\]\((.+)\)$').firstMatch(trimmed);
+    if (markdown != null) trimmed = markdown.group(1)!.trim();
+
+    final parsed = VideoUrlParser.parse(trimmed);
+    return switch (parsed.kind) {
+      VideoSourceKind.youtube || VideoSourceKind.vimeo || VideoSourceKind.dailymotion => ContentBlock(
+          type: ContentBlockType.video,
+          url: parsed.originalUrl,
+        ),
+      VideoSourceKind.direct when VideoUrlParser.looksLikeDirectVideo(trimmed) => ContentBlock(
+          type: ContentBlockType.video,
+          url: parsed.directUrl ?? trimmed,
+        ),
+      _ => null,
+    };
+  }
+
   String get plainText {
     return switch (type) {
       ContentBlockType.paragraph || ContentBlockType.quote || ContentBlockType.callout => text,
@@ -242,7 +266,7 @@ class RichContentBody {
           .split(RegExp(r'\n{2,}'))
           .map((p) => p.trim())
           .where((p) => p.isNotEmpty)
-          .map((p) => ContentBlock.parseHashtagLine(p) ?? ContentBlock.paragraph(p))
+          .map((p) => ContentBlock.parseHashtagLine(p) ?? ContentBlock.parseMediaUrlLine(p) ?? ContentBlock.paragraph(p))
           .toList(),
     );
   }

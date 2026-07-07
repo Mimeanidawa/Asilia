@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -26,7 +24,6 @@ import 'services/notification_center_service.dart';
 import 'services/notification_service.dart';
 import 'services/user_service.dart';
 import 'theme/app_theme.dart';
-import 'utils/app_refresh.dart';
 import 'widgets/shimmer_loading.dart';
 
 class AsiliaApp extends StatefulWidget {
@@ -88,6 +85,9 @@ class _AsiliaAppState extends State<AsiliaApp> {
         contentId,
         type,
       }) {
+        if (type == 'message') {
+          _mwalimuService.handleIncomingAdminPush();
+        }
         _notificationCenter.addFromPush(
           title: title,
           body: body,
@@ -134,6 +134,18 @@ class _AsiliaAppState extends State<AsiliaApp> {
         title: 'Dawa Asili',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
+        scrollBehavior: const MaterialScrollBehavior().copyWith(
+          scrollbars: false,
+        ),
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(
+              textScaler: TextScaler.linear(mq.textScaler.scale(1) * 1.1),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: _ready ? const _AppShell() : const AppLoadingSkeleton(),
       ),
     );
@@ -148,25 +160,7 @@ class _AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<_AppShell> {
-  Timer? _autoRefreshTimer;
   DateTime? _lastBackPress;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoRefreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-        if (!mounted) return;
-        AppRefresh.all(context);
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoRefreshTimer?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

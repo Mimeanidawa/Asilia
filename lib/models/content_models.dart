@@ -181,7 +181,7 @@ class AppUser {
 
 class MwalimuSettings {
   const MwalimuSettings({
-    this.mwalimuName = 'Mwalimu Mussa Hassan',
+    this.mwalimuName = 'Mwalimu',
     this.mwalimuImage = '',
     this.mwalimuWelcome = 'Karibu!',
     this.freeMessageLimit = 5,
@@ -197,7 +197,7 @@ class MwalimuSettings {
   factory MwalimuSettings.fromJson(Map<String, dynamic> json) => MwalimuSettings(
         mwalimuName: json['mwalimuName'] as String? ??
             json['mtabibuName'] as String? ??
-            'Mwalimu Mussa Hassan',
+            'Mwalimu',
         mwalimuImage: json['mwalimuImage'] as String? ??
             json['mtabibuImage'] as String? ??
             '',
@@ -240,6 +240,7 @@ class ContentSections {
   static const vyakulaMatunda = 'vyakula_matunda';
   static const jifunze = 'jifunze';
   static const darasaHuru = 'darasa_huru';
+  static const allMakala = 'all_makala';
 
   static const dodosoCategories = ['darasa_huru', 'mizizi', 'miti', 'matunda', 'mimea'];
   static const chaguaMadaCategories = ['mimea', 'wanawake', 'watoto', 'wanaume'];
@@ -257,6 +258,17 @@ class ContentSections {
       case 'wanaume': return 'Wanaume';
       case 'vyakula': return 'Vyakula';
       default: return cat;
+    }
+  }
+
+  static String sectionLabel(String section) {
+    switch (section) {
+      case dodoso: return 'Dodoso';
+      case chaguaMada: return 'Chagua Mada';
+      case vyakulaMatunda: return 'Vyakula na Matunda';
+      case jifunze: return 'Jifunze';
+      case allMakala: return 'Makala';
+      default: return section;
     }
   }
 }

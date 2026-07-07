@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../services/content_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../widgets/herb_image.dart';
 import '../widgets/pull_to_refresh.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -71,8 +73,109 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
+  Future<void> _confirmDeleteAll(BuildContext context) async {
+    final center = context.read<NotificationCenterService>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Futa arifa zote?'),
+        content: const Text('Arifa zote zitafutwa kabisa kutoka kwenye kifaa chako.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Ghairi'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Futa zote',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await center.clearAll();
+  }
+
+  Future<void> _confirmDeleteOne(BuildContext context, AppNotification n) async {
+    final center = context.read<NotificationCenterService>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Futa arifa?'),
+        content: Text('Una uhakika unataka kufuta "${n.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Ghairi'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Futa',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await center.delete(n.id);
+  }
+
   bool _hasTarget(AppNotification n) =>
       n.contentId != null || n.lessonId != null || n.type == 'message';
+
+  String? _resolveImageUrl(BuildContext context, AppNotification n) {
+    if (n.imageUrl.isNotEmpty) return n.imageUrl;
+
+    final content = context.read<ContentService>();
+    if (n.contentId != null) {
+      for (final post in [
+        ...content.chaguaMadaPosts,
+        ...content.dodosoPosts,
+        ...content.vyakulaMatundaPosts,
+        ...content.jifunzePosts,
+      ]) {
+        if (post.id == n.contentId && post.imageUrl.isNotEmpty) {
+          return post.imageUrl;
+        }
+      }
+    }
+
+    if (n.lessonId != null) {
+      final lesson = context.read<AppProvider>().lessonService.lessonById(n.lessonId!);
+      if (lesson != null && lesson.imageUrl.isNotEmpty) return lesson.imageUrl;
+    }
+
+    return null;
+  }
+
+  Widget _leadingVisual(BuildContext context, AppNotification n, Color color) {
+    final imageUrl = _resolveImageUrl(context, n);
+    if (imageUrl != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: HerbImage(
+          url: imageUrl,
+          width: 72,
+          height: 72,
+          borderRadius: 12,
+        ),
+      );
+    }
+
+    return Container(
+      width: 72,
+      height: 72,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(_iconFor(n.type), color: color, size: 28),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +210,14 @@ class NotificationsScreen extends StatelessWidget {
                     child: const Text(
                       'Soma zote',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.emerald800),
+                    ),
+                  ),
+                if (items.isNotEmpty)
+                  TextButton(
+                    onPressed: () => _confirmDeleteAll(context),
+                    child: const Text(
+                      'Futa zote',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.red),
                     ),
                   ),
               ],
@@ -151,93 +262,118 @@ class NotificationsScreen extends StatelessWidget {
                       final color = _colorFor(n.type);
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: Material(
-                          color: n.isRead ? Colors.white : AppColors.emerald50.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(16),
-                          child: InkWell(
+                        child: Dismissible(
+                          key: ValueKey(n.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 22),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade400,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(
+                              Icons.delete_outline_rounded,
+                              color: Colors.white,
+                              size: 26,
+                            ),
+                          ),
+                          onDismissed: (_) => center.delete(n.id),
+                          child: Material(
+                            color: n.isRead ? Colors.white : AppColors.emerald50.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(16),
-                            onTap: _hasTarget(n) ? () => _onTap(context, n) : null,
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: n.isRead
-                                      ? AppColors.forest.withValues(alpha: 0.06)
-                                      : AppColors.forest.withValues(alpha: 0.12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: _hasTarget(n) ? () => _onTap(context, n) : null,
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: n.isRead
+                                        ? AppColors.forest.withValues(alpha: 0.06)
+                                        : AppColors.forest.withValues(alpha: 0.12),
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(_iconFor(n.type), color: color, size: 20),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                n.title,
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: n.isRead ? FontWeight.w700 : FontWeight.w900,
-                                                  color: AppColors.forest,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _leadingVisual(context, n, color),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  n.title,
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: n.isRead ? FontWeight.w700 : FontWeight.w900,
+                                                    color: AppColors.forest,
+                                                  ),
                                                 ),
                                               ),
+                                              if (!n.isRead)
+                                                Container(
+                                                  width: 8,
+                                                  height: 8,
+                                                  decoration: const BoxDecoration(
+                                                    color: AppColors.amber,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            n.body,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.gray500,
+                                              height: 1.35,
                                             ),
-                                            if (!n.isRead)
-                                              Container(
-                                                width: 8,
-                                                height: 8,
-                                                decoration: const BoxDecoration(
-                                                  color: AppColors.amber,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          n.body,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: AppColors.gray500,
-                                            height: 1.35,
                                           ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _formatTime(n.timestamp),
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: AppColors.gray400,
-                                            fontWeight: FontWeight.w600,
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            _formatTime(n.timestamp),
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: AppColors.gray400,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  if (_hasTarget(n))
-                                    const Padding(
-                                      padding: EdgeInsets.only(left: 4, top: 8),
-                                      child: Icon(Icons.chevron_right_rounded, color: AppColors.gray400, size: 20),
+                                    IconButton(
+                                      onPressed: () => _confirmDeleteOne(context, n),
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        size: 18,
+                                        color: AppColors.gray400.withValues(alpha: 0.8),
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 32,
+                                        minHeight: 32,
+                                      ),
+                                      tooltip: 'Futa',
                                     ),
-                                ],
+                                    if (_hasTarget(n))
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 2, top: 8),
+                                        child: Icon(Icons.chevron_right_rounded, color: AppColors.gray400, size: 20),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ).animate().fadeIn(delay: (i * 60).ms).slideX(begin: 0.03),
-                      );
+                        ),
+                      ).animate().fadeIn(delay: (i * 60).ms).slideX(begin: 0.03);
                     },
                   ),
             ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../widgets/herb_image.dart';
@@ -449,6 +450,7 @@ class _LessonReader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final paragraphs = lesson.content.split('\n\n');
+    final authorName = context.watch<MwalimuService>().displayName;
 
     return SizedBox.expand(
       child: Column(
@@ -553,7 +555,7 @@ class _LessonReader extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  lesson.authorName,
+                                  authorName,
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,

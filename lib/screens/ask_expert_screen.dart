@@ -33,6 +33,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
   Future<void> _initChat() async {
     final user = context.read<UserService>();
     final mwalimu = context.read<MwalimuService>();
+    mwalimu.setChatOpen(true);
     await mwalimu.loadSettings();
     if (user.token != null) {
       await mwalimu.loadMessages(user.token);
@@ -41,6 +42,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
 
   @override
   void dispose() {
+    context.read<MwalimuService>().setChatOpen(false);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -177,7 +179,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        settings.mwalimuName,
+                        mwalimu.displayName,
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.forest),
                       ),
                       Text(
@@ -204,16 +206,6 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
               ],
             ),
           ).animate().fadeIn(duration: 400.ms),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            color: AppColors.emerald50.withValues(alpha: 0.4),
-            child: Text(
-              'Kwa elimu tu — si ushauri wa kimatibabu. Jifunze kuhusu mizizi, miti na matunda.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 10, color: AppColors.gray500, fontWeight: FontWeight.w600),
-            ),
-          ),
           Expanded(
             child: PullToRefresh(
               onRefresh: _refresh,

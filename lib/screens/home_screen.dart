@@ -12,12 +12,14 @@ import '../services/content_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/api_carousel.dart';
+import '../widgets/carousel_content_picker_sheet.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/content_post_card.dart';
 import '../widgets/darasa_huru_card.dart';
 import '../widgets/shimmer_loading.dart';
-import '../widgets/herb_image.dart';
 import '../widgets/learning_pathways_row.dart';
 import '../utils/app_refresh.dart';
+import '../utils/premium_content_flow.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
 
@@ -120,10 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildHeroCarousel(context),
                 const StatsStrip(),
                 _buildLearningPathways(context, app),
-                _buildCategoryGrid(context, app),
                 _buildDarasaHuru(context, app),
-                _buildRecommended(context, app),
-                _buildVyakulaMatundaSection(context, app),
+                _buildCategoryGrid(context, app),
+                _buildMakalaSection(context, app),
               ],
             ],
           ),
@@ -463,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 post: post,
                 onTap: () {
                   _commitSearch(_searchQuery);
-                  app.navigate(AppScreen.contentDetail, contentId: post.id);
+                  openContentPost(context, post);
                 },
               ),
             ),
@@ -501,25 +502,14 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ApiCarousel(
         slides: content.carousels,
         height: 210,
+        autoPlay: true,
         onSlideTap: (slide) => _handleCarouselTap(context, slide),
       ),
     );
   }
 
   void _handleCarouselTap(BuildContext context, CarouselSlide slide) {
-    final app = context.read<AppProvider>();
-    switch (slide.linkSection) {
-      case 'darasa_huru':
-        app.navigate(AppScreen.darasaHuru);
-      case 'mwalimu':
-        app.navigate(AppScreen.askExpert);
-      case 'jifunze':
-        app.navigate(AppScreen.learn);
-      default:
-        if (slide.linkId != null) {
-          app.navigate(AppScreen.contentDetail, contentId: slide.linkId);
-        }
-    }
+    showCarouselContentPicker(context, slide: slide);
   }
 
   Widget _buildLearningPathways(BuildContext context, AppProvider app) {
@@ -559,9 +549,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildMakalaSection(BuildContext context, AppProvider app) {
+    final content = context.watch<ContentService>();
+    final posts = content.allMakalaPosts;
+
+    return _buildPostListSection(
+      context,
+      app,
+      title: 'Makala',
+      subtitle: 'Machapisho yote kutoka Dodoso, Chagua Mada, Vyakula na Jifunze',
+      posts: posts,
+      section: ContentSections.allMakala,
+      showSectionOnCards: true,
+      headerPadding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+      onViewAll: () {
+        app.selectedContentCategory = null;
+        app.navigate(
+          AppScreen.contentList,
+          contentSection: ContentSections.allMakala,
+        );
+      },
+    );
+  }
+
+  Widget _buildPostListSection(
+    BuildContext context,
+    AppProvider app, {
+    required String title,
+    required String subtitle,
+    required List<ContentPost> posts,
+    required String section,
+    EdgeInsets headerPadding = const EdgeInsets.fromLTRB(20, 12, 20, 10),
+    bool showSectionOnCards = false,
+    VoidCallback? onViewAll,
+  }) {
+    if (posts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: title,
+          subtitle: subtitle,
+          padding: headerPadding,
+          actionLabel: 'Zote',
+          onAction: onViewAll ??
+              () => app.navigate(
+                    AppScreen.contentList,
+                    contentSection: section,
+                  ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              for (var i = 0; i < posts.length; i++)
+                ContentPostCard(
+                  post: posts[i],
+                  showSectionLabel: showSectionOnCards,
+                  onTap: () => openContentPost(context, posts[i]),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDarasaHuru(BuildContext context, AppProvider app) {
     final lessons = app.lessonService;
-    if (lessons.isSyncing && lessons.todayLesson == null) {
+    if (lessons.isSyncing && lessons.publishedLessons.isEmpty) {
       return Column(
         children: [
           const SectionHeader(
@@ -667,170 +724,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVyakulaMatundaSection(BuildContext context, AppProvider app) {
-    final content = context.watch<ContentService>();
-    final posts = content.vyakulaMatundaPosts.take(6).toList();
-    if (posts.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Vyakula na Matunda',
-          subtitle: 'Jifunze kuhusu vyakula na matunda ya asili',
-          actionLabel: 'Zote',
-          onAction: () => app.navigate(
-            AppScreen.contentList,
-            contentSection: ContentSections.vyakulaMatunda,
-          ),
-        ),
-        SizedBox(
-          height: 100,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: posts.length,
-            itemBuilder: (context, i) {
-              final p = posts[i];
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => app.navigate(AppScreen.contentDetail, contentId: p.id),
-                    child: SizedBox(
-                      width: 200,
-                      child: Row(
-                        children: [
-                          HerbImage(url: p.imageUrl, width: 100, height: 100, borderRadius: 14),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    p.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.forest,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    p.excerpt,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 9, color: AppColors.gray500),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecommended(BuildContext context, AppProvider app) {
-    final content = context.watch<ContentService>();
-    final items = content.recommended;
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader(
-          title: 'Mapendekezo',
-          subtitle: 'Kutoka Darasa Huru na Dodoso',
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 8),
-        ),
-        SizedBox(
-          height: 160,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: items.length,
-            itemBuilder: (context, i) {
-              final item = items[i];
-              return Container(
-                width: 230,
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.forest.withValues(alpha: 0.03)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      ContentSections.categoryLabel(item.category ?? item.section),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.amber,
-                      ),
-                    ),
-                    Text(
-                      item.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.forest,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.excerpt,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: AppColors.gray500),
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: () {
-                        if (item.section == 'darasa_huru') {
-                          app.navigate(AppScreen.darasaHuru, lessonId: item.id);
-                        } else {
-                          app.navigate(AppScreen.contentDetail, contentId: item.id);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.forest,
-                        foregroundColor: AppColors.cream,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Soma Zaidi', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              );
-            },
           ),
         ),
       ],

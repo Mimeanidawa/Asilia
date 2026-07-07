@@ -145,7 +145,7 @@ class UserService extends ChangeNotifier {
   }
 
   bool canReadContent(ContentPost post) {
-    if (!post.isPremium) return isLoggedIn;
+    if (!post.isPremium) return true;
     if (!isLoggedIn) return false;
     if (user!.isPremiumActive) return true;
     return purchasedContentIds.contains(post.id);

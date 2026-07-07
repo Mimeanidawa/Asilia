@@ -12,11 +12,13 @@ class ApiCarousel extends StatefulWidget {
     required this.slides,
     required this.onSlideTap,
     this.height = 210,
+    this.autoPlay = false,
   });
 
   final List<CarouselSlide> slides;
   final void Function(CarouselSlide slide) onSlideTap;
   final double height;
+  final bool autoPlay;
 
   @override
   State<ApiCarousel> createState() => _ApiCarouselState();
@@ -31,6 +33,11 @@ class _ApiCarouselState extends State<ApiCarousel> {
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.92);
+    if (widget.autoPlay) _startAutoPlay();
+  }
+
+  void _startAutoPlay() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || widget.slides.isEmpty) return;
       final next = (_currentPage + 1) % widget.slides.length;
@@ -135,9 +142,9 @@ class _ApiCarouselState extends State<ApiCarousel> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Text(
-                                  'Gundua',
+                                  'Soma makala hii',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w800,
                                     color: AppColors.forest,
                                   ),

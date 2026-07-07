@@ -106,7 +106,7 @@ class NotificationService {
   }
 
   Future<void> _initLocalNotifications() async {
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@drawable/ic_notification');
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
@@ -200,7 +200,7 @@ class NotificationService {
           channelDescription: 'Arifa za masomo, makala na ujumbe',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: '@drawable/ic_notification',
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,

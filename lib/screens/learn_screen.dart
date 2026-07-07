@@ -10,11 +10,11 @@ import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../utils/premium_content_flow.dart';
 import '../widgets/herb_image.dart';
-import '../services/payment_service.dart';
-import '../utils/tzs_format.dart';
-import '../widgets/sonicpesa_payment_sheet.dart';
+import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/rich_content_view.dart';
 
 class LearnScreen extends StatefulWidget {
   const LearnScreen({super.key});
@@ -66,25 +66,14 @@ class _LearnScreenState extends State<LearnScreen> {
           final full = await content.fetchPost(_activePost!.id, userToken: user.token);
           if (full != null && mounted) setState(() => _activePost = full);
         },
-        onPurchase: () async {
-          if (!user.isLoggedIn) {
-            context.read<AppProvider>().navigate(AppScreen.auth);
-            return;
-          }
-          final post = _activePost!;
-          final result = await showSonicPesaPayment(
-            context,
-            type: PaymentType.content,
-            title: post.title,
-            subtitle: 'Makala ya Premium — Jifunze',
-            amount: post.price,
-            contentId: post.id,
-          );
-          if (result == SonicPesaPaymentResult.success && mounted) {
-            final full = await content.fetchPost(post.id, userToken: user.token);
-            if (full != null) setState(() => _activePost = full);
-          }
-        },
+        onPurchase: () => purchasePremiumContent(
+          context,
+          post: _activePost!,
+          onSuccess: () async {
+            final full = await content.fetchPost(_activePost!.id, userToken: user.token);
+            if (full != null && mounted) setState(() => _activePost = full);
+          },
+        ),
       );
     }
 
@@ -211,8 +200,12 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   void _openPost(ContentPost post, UserService user) {
-    if (!user.isLoggedIn) {
-      context.read<AppProvider>().navigate(AppScreen.auth);
+    if (needsPremiumUnlock(user, post)) {
+      showPremiumUnlockForPost(
+        context,
+        post: post,
+        onUnlocked: () => setState(() => _activePost = post),
+      );
       return;
     }
     setState(() => _activePost = post);
@@ -364,7 +357,7 @@ class _ArticleTile extends StatelessWidget {
   }
 }
 
-class _ArticleReader extends StatelessWidget {
+class _ArticleReader extends StatefulWidget {
   const _ArticleReader({
     required this.post,
     required this.user,
@@ -380,8 +373,35 @@ class _ArticleReader extends StatelessWidget {
   final Future<void> Function() onPurchase;
 
   @override
+  State<_ArticleReader> createState() => _ArticleReaderState();
+}
+
+class _ArticleReaderState extends State<_ArticleReader> {
+  bool _premiumModalShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowPremiumModal());
+  }
+
+  void _maybeShowPremiumModal() {
+    if (_premiumModalShown) return;
+    final canRead = !widget.post.isPremium || widget.user.canReadContent(widget.post);
+    if (canRead) return;
+
+    _premiumModalShown = true;
+    showPremiumMakalaModal(
+      context,
+      post: widget.post,
+      onUnlock: widget.onPurchase,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final canRead = !post.isPremium || user.canReadContent(post);
+    final post = widget.post;
+    final canRead = !post.isPremium || widget.user.canReadContent(post);
 
     return SizedBox.expand(
       child: Column(
@@ -392,7 +412,7 @@ class _ArticleReader extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
-                  onPressed: onClose,
+                  onPressed: widget.onClose,
                   icon: const Icon(Icons.arrow_back_ios, color: AppColors.forest, size: 18),
                 ),
                 Expanded(
@@ -408,7 +428,7 @@ class _ArticleReader extends StatelessWidget {
           ),
           Expanded(
             child: PullToRefresh(
-              onRefresh: onRefresh,
+              onRefresh: widget.onRefresh,
               child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(20),
@@ -420,48 +440,12 @@ class _ArticleReader extends StatelessWidget {
                   ),
                 const SizedBox(height: 16),
                 if (canRead)
-                  Text(post.content, style: TextStyle(fontSize: 14, color: AppColors.gray600, height: 1.7))
-                else ...[
-                  Text(post.excerpt, style: TextStyle(fontSize: 14, color: AppColors.gray600, height: 1.7)),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.emerald50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
-                    ),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.lock_rounded, color: AppColors.forest, size: 32),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Makala ya Premium',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.forest),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          TzsFormat.full(post.price),
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.amber),
-                        ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: onPurchase,
-                            icon: const Icon(Icons.payments_rounded, size: 18),
-                            label: const Text('Lipa kwa SonicPesa', style: TextStyle(fontWeight: FontWeight.w900)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.forest,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  RichContentView(content: post.content)
+                else
+                  PremiumMakalaGate(
+                    post: post,
+                    onUnlock: widget.onPurchase,
                   ),
-                ],
               ],
             ),
             ),

@@ -32,10 +32,12 @@ class LessonService extends ChangeNotifier {
     await syncFromServer();
   }
 
-  Future<void> syncFromServer() async {
-    _isSyncing = true;
-    _lastError = null;
-    notifyListeners();
+  Future<void> syncFromServer({bool silent = false}) async {
+    if (!silent) {
+      _isSyncing = true;
+      _lastError = null;
+      notifyListeners();
+    }
 
     try {
       final data = await _api.get('/api/lessons');
@@ -53,7 +55,7 @@ class LessonService extends ChangeNotifier {
       _lastError = e.toString();
       debugPrint('Lesson sync failed: $e');
     } finally {
-      _isSyncing = false;
+      if (!silent) _isSyncing = false;
       notifyListeners();
     }
   }
@@ -115,7 +117,7 @@ class LessonService extends ChangeNotifier {
       content: json['content'] as String? ?? '',
       imageUrl: json['imageUrl'] as String? ?? '',
       publishedAt: date,
-      authorName: json['authorName'] as String? ?? 'Dr. Mussa Hassan',
+      authorName: json['authorName'] as String? ?? '',
       readTimeMinutes: json['readTimeMinutes'] as int? ?? 4,
       topicTag: json['topicTag'] as String?,
       isPublished: json['isPublished'] as bool? ?? true,

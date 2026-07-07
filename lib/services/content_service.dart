@@ -22,12 +22,16 @@ class ContentService extends ChangeNotifier {
   String? error;
 
   Future<void> load({String? userToken}) async {
-    isLoading = true;
     error = null;
-    notifyListeners();
+    final hadCache = await _loadCache();
+    if (hadCache) notifyListeners();
+
+    if (!hadCache) {
+      isLoading = true;
+      notifyListeners();
+    }
 
     try {
-      await _loadCache();
       await syncFromServer(userToken: userToken);
     } catch (e) {
       error = e.toString();
@@ -68,10 +72,11 @@ class ContentService extends ChangeNotifier {
           .toList();
 
       await _saveCache();
-      notifyListeners();
     } catch (e) {
       debugPrint('ContentService sync error: $e');
       rethrow;
+    } finally {
+      notifyListeners();
     }
   }
 
@@ -86,6 +91,8 @@ class ContentService extends ChangeNotifier {
   }
 
   List<ContentPost> postsForSection(String section, {String? category}) {
+    if (section == ContentSections.allMakala) return allMakalaPosts;
+
     List<ContentPost> posts;
     switch (section) {
       case ContentSections.dodoso:
@@ -109,15 +116,45 @@ class ContentService extends ChangeNotifier {
     return posts;
   }
 
+  /// Every content post in the app (all sections, deduplicated).
+  List<ContentPost> get allPosts {
+    final seen = <String>{};
+    final combined = <ContentPost>[];
+    for (final post in [
+      ...dodosoPosts,
+      ...chaguaMadaPosts,
+      ...vyakulaMatundaPosts,
+      ...jifunzePosts,
+    ]) {
+      if (seen.add(post.id)) combined.add(post);
+    }
+    return combined;
+  }
+
+  /// All published-style posts across Dodoso, Chagua Mada, Vyakula na Matunda, and Jifunze.
+  List<ContentPost> get allMakalaPosts {
+    final seen = <String>{};
+    final combined = <ContentPost>[];
+    for (final post in [
+      ...dodosoPosts.where((p) => p.category != 'darasa_huru'),
+      ...chaguaMadaPosts,
+      ...vyakulaMatundaPosts,
+      ...jifunzePosts,
+    ]) {
+      if (seen.add(post.id)) combined.add(post);
+    }
+    return combined;
+  }
+
   List<ContentPost> _parsePosts(Map<String, dynamic> data) =>
       (data['posts'] as List)
           .map((e) => ContentPost.fromJson(e as Map<String, dynamic>))
           .toList();
 
-  Future<void> _loadCache() async {
+  Future<bool> _loadCache() async {
     final prefs = await SharedPreferences.getInstance();
     final cached = prefs.getString('da_content_cache_v2');
-    if (cached == null) return;
+    if (cached == null) return false;
 
     try {
       final data = jsonDecode(cached) as Map<String, dynamic>;
@@ -136,7 +173,14 @@ class ContentService extends ChangeNotifier {
       jifunzePosts = (data['jifunze'] as List? ?? [])
           .map((e) => ContentPost.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {}
+      return carousels.isNotEmpty ||
+          dodosoPosts.isNotEmpty ||
+          chaguaMadaPosts.isNotEmpty ||
+          vyakulaMatundaPosts.isNotEmpty ||
+          jifunzePosts.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _saveCache() async {

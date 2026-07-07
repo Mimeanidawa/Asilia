@@ -4,16 +4,14 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
-import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
-import '../utils/tzs_format.dart';
-import '../services/payment_service.dart';
+import '../utils/premium_content_flow.dart';
+import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
-import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/rich_content_view.dart';
 import '../widgets/fullscreen_image_viewer.dart';
 
@@ -27,6 +25,7 @@ class ContentDetailScreen extends StatefulWidget {
 class _ContentDetailScreenState extends State<ContentDetailScreen> {
   ContentPost? _post;
   bool _loading = true;
+  bool _premiumModalShown = false;
 
   @override
   void initState() {
@@ -42,12 +41,29 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     if (id == null) return;
 
     final post = await content.fetchPost(id, userToken: user.token);
-    if (mounted) {
-      setState(() {
-        _post = post;
-        _loading = false;
-      });
-    }
+    if (!mounted) return;
+
+    setState(() {
+      _post = post;
+      _loading = false;
+    });
+
+    _maybeShowPremiumModal(post, user);
+  }
+
+  void _maybeShowPremiumModal(ContentPost? post, UserService user) {
+    if (post == null || _premiumModalShown) return;
+    if (!post.isPremium || user.canReadContent(post)) return;
+
+    _premiumModalShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showPremiumMakalaModal(
+        context,
+        post: post,
+        onUnlock: _purchase,
+      );
+    });
   }
 
   Future<void> _refresh() async {
@@ -56,30 +72,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   }
 
   Future<void> _purchase() async {
-    final user = context.read<UserService>();
-    if (!user.isLoggedIn) {
-      context.read<AppProvider>().navigate(AppScreen.auth);
-      return;
-    }
     final post = _post!;
-    final result = await showSonicPesaPayment(
+    final ok = await purchasePremiumContent(
       context,
-      type: PaymentType.content,
-      title: post.title,
-      subtitle: 'Makala ya Premium — ufunguo wa milele kwa makala hii',
-      amount: post.price,
-      contentId: post.id,
+      post: post,
+      onSuccess: _load,
     );
-    if (result == SonicPesaPaymentResult.success && mounted) {
-      await _load();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Malipo yamekamilika! Sasa unaweza kusoma makala kamili.'),
-          backgroundColor: AppColors.forest,
-        ),
-      );
-    }
+    if (ok && mounted) setState(() => _premiumModalShown = true);
   }
 
   @override
@@ -104,9 +103,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     }
 
     final post = _post!;
-    final canRead = !post.isPremium
-        ? user.isLoggedIn
-        : user.canReadContent(post);
+    final canRead = user.canReadContent(post);
 
     return SizedBox.expand(
       child: Column(
@@ -160,10 +157,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                         style: TextStyle(fontSize: 12, color: AppColors.gray400),
                       ),
                       const SizedBox(height: 20),
-                      if (!user.isLoggedIn && !post.isPremium)
-                        _loginPrompt(context)
-                      else if (post.isPremium && !canRead)
-                        _premiumPrompt(context, post)
+                      if (post.isPremium && !canRead)
+                        PremiumMakalaGate(
+                          post: post,
+                          onUnlock: _purchase,
+                        )
                       else
                         RichContentView(content: post.content).animate().fadeIn(delay: 200.ms),
                     ],
@@ -191,126 +189,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           const Text(
             'SOMA ZAIDI',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.forest),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _loginPrompt(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.emerald50, Colors.white]),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.lock_outline, color: AppColors.forest, size: 36),
-          const SizedBox(height: 12),
-          const Text(
-            'Jiunge ili kusoma makala kamili',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.forest),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => context.read<AppProvider>().navigate(AppScreen.auth),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.forest,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-            child: const Text('Jiunge Sasa', style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _premiumPrompt(BuildContext context, ContentPost post) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [AppColors.amber.withValues(alpha: 0.1), Colors.white]),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.amber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.star_rounded, color: AppColors.amber, size: 28),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Makala ya Premium',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.forest),
-                    ),
-                    Text(
-                      'Lipia mara moja, soma milele',
-                      style: TextStyle(fontSize: 11, color: AppColors.gray500, fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            post.excerpt,
-            style: TextStyle(fontSize: 13, color: AppColors.gray600, height: 1.5),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppColors.emerald50,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.payments_rounded, color: AppColors.emerald800, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Bei: ${TzsFormat.full(post.price)}',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.forest),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _purchase,
-            icon: const Icon(Icons.lock_open_rounded, size: 18),
-            label: Text('Fungua kwa ${TzsFormat.full(post.price)}', style: const TextStyle(fontWeight: FontWeight.w900)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.forest,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Malipo salama kupitia SonicPesa • M-Pesa, Tigo, Airtel, HaloPesa',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10, color: AppColors.gray400, fontWeight: FontWeight.w600),
           ),
         ],
       ),

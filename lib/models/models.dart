@@ -275,6 +275,7 @@ class AppNotification {
     this.isRead = false,
     this.lessonId,
     this.contentId,
+    this.imageUrl = '',
     this.type = 'general',
   });
 
@@ -285,6 +286,7 @@ class AppNotification {
   final bool isRead;
   final String? lessonId;
   final String? contentId;
+  final String imageUrl;
   final String type;
 
   AppNotification copyWith({bool? isRead}) => AppNotification(
@@ -295,6 +297,7 @@ class AppNotification {
         isRead: isRead ?? this.isRead,
         lessonId: lessonId,
         contentId: contentId,
+        imageUrl: imageUrl,
         type: type,
       );
 
@@ -306,6 +309,7 @@ class AppNotification {
         'isRead': isRead,
         if (lessonId != null) 'lessonId': lessonId,
         if (contentId != null) 'contentId': contentId,
+        if (imageUrl.isNotEmpty) 'imageUrl': imageUrl,
         'type': type,
       };
 
@@ -317,6 +321,7 @@ class AppNotification {
         isRead: json['isRead'] as bool? ?? false,
         lessonId: json['lessonId'] as String?,
         contentId: json['contentId'] as String?,
+        imageUrl: json['imageUrl'] as String? ?? '',
         type: json['type'] as String? ?? 'general',
       );
 }

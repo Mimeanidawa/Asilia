@@ -6,6 +6,7 @@ import '../models/content_blocks.dart';
 import '../theme/app_colors.dart';
 import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
+import '../utils/video_url.dart';
 import 'embedded_video_player.dart';
 import 'fullscreen_image_viewer.dart';
 
@@ -44,20 +45,9 @@ class _BlockWidget extends StatelessWidget {
       ContentBlockType.tag => _TagBlock(name: block.text, caption: block.caption),
       ContentBlockType.heading => _Heading(text: block.text, level: block.level, accent: block.accent),
       ContentBlockType.image => _ImageBlock(url: block.url, caption: block.caption),
-      ContentBlockType.video => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            EmbeddedVideoPlayer(url: block.url, caption: block.caption),
-            if (block.caption.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  block.caption,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.gray400, fontStyle: FontStyle.italic),
-                ),
-              ),
-          ],
+      ContentBlockType.video => EmbeddedVideoPlayer(
+          url: block.url,
+          caption: _videoDisplayCaption(block),
         ),
       ContentBlockType.audio => _AudioBlock(url: block.url, title: block.title),
       ContentBlockType.quote => _QuoteBlock(text: block.text),
@@ -68,6 +58,21 @@ class _BlockWidget extends StatelessWidget {
         ),
       ContentBlockType.list => _ListBlock(style: block.listStyle, items: block.items),
     };
+  }
+
+  /// Show caption only when it is real text, not a duplicate/raw video URL.
+  String? _videoDisplayCaption(ContentBlock block) {
+    final caption = block.caption.trim();
+    if (caption.isEmpty) return null;
+    if (caption == block.url.trim()) return null;
+
+    final parsed = VideoUrlParser.parse(caption);
+    if (parsed.isEmbed) return null;
+    if (parsed.kind == VideoSourceKind.direct && VideoUrlParser.looksLikeDirectVideo(caption)) {
+      return null;
+    }
+
+    return caption;
   }
 }
 
@@ -81,6 +86,10 @@ class _ParagraphBlock extends StatelessWidget {
     final tag = ContentBlock.parseHashtagLine(text);
     if (tag != null) {
       return _TagBlock(name: tag.text, caption: tag.caption);
+    }
+
+    if (ContentBlock.parseMediaUrlLine(text) != null) {
+      return const SizedBox.shrink();
     }
 
     return Text(
