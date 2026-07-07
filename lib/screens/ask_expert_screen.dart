@@ -285,6 +285,8 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parts = !isUser ? _SharedArticleTagParser.parse(content) : const <_MessagePart>[];
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -316,22 +318,134 @@ class _Bubble extends StatelessWidget {
                 ),
                 border: isUser ? null : Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
               ),
-              child: Text(
-                content,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isUser ? Colors.white : AppColors.gray600,
-                  height: 1.45,
-                ),
-              ),
+              child: _buildContent(context, parts),
             ),
           ),
         ],
       ),
     ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1);
   }
+
+  Widget _buildContent(BuildContext context, List<_MessagePart> parts) {
+    final textStyle = TextStyle(
+      fontSize: 13,
+      color: isUser ? Colors.white : AppColors.gray600,
+      height: 1.45,
+    );
+
+    if (isUser || parts.isEmpty) {
+      return Text(content, style: textStyle);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < parts.length; i++) ...[
+          if (parts[i] is _TextPart && (parts[i] as _TextPart).text.trim().isNotEmpty)
+            Text((parts[i] as _TextPart).text, style: textStyle),
+          if (parts[i] is _ArticlePart)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _SharedArticleCard(part: parts[i] as _ArticlePart),
+            ),
+        ],
+      ],
+    );
+  }
 }
 
 extension on UserService {
   bool get isPremiumActive => user?.isPremiumActive ?? false;
+}
+
+sealed class _MessagePart {
+  const _MessagePart();
+}
+
+class _TextPart extends _MessagePart {
+  const _TextPart(this.text);
+  final String text;
+}
+
+class _ArticlePart extends _MessagePart {
+  const _ArticlePart({required this.id, required this.title});
+  final String id;
+  final String title;
+}
+
+class _SharedArticleTagParser {
+  static final RegExp _pattern = RegExp(r'\[MAKALA:([^|\]]+)\|([^\]]+)\]');
+
+  static List<_MessagePart> parse(String input) {
+    final parts = <_MessagePart>[];
+    var cursor = 0;
+    for (final m in _pattern.allMatches(input)) {
+      if (m.start > cursor) {
+        parts.add(_TextPart(input.substring(cursor, m.start)));
+      }
+      final id = (m.group(1) ?? '').trim();
+      final title = (m.group(2) ?? 'Makala').trim();
+      if (id.isNotEmpty) {
+        parts.add(_ArticlePart(id: id, title: title));
+      }
+      cursor = m.end;
+    }
+    if (cursor < input.length) {
+      parts.add(_TextPart(input.substring(cursor)));
+    }
+    return parts;
+  }
+}
+
+class _SharedArticleCard extends StatelessWidget {
+  const _SharedArticleCard({required this.part});
+
+  final _ArticlePart part;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.emerald50.withValues(alpha: 0.55),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context
+            .read<AppProvider>()
+            .navigate(AppScreen.contentDetail, contentId: part.id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              const Icon(Icons.menu_book_rounded, size: 18, color: AppColors.forest),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  part.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.forest,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Soma',
+                style: TextStyle(
+                  color: AppColors.forest,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                ),
+              ),
+              const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.forest),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

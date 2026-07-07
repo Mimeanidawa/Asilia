@@ -17,6 +17,7 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
   Map<String, dynamic> _settings = {};
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _messages = [];
+  List<Map<String, dynamic>> _publishedArticles = [];
   String? _selectedConvId;
   final _replyCtrl = TextEditingController();
 
@@ -33,6 +34,13 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
       final s = await svc.fetchMwalimuSettings();
       _settings = s['settings'] as Map<String, dynamic>;
       _conversations = await svc.fetchConversations();
+      final posts = await svc.fetchPosts();
+      _publishedArticles = posts
+          .where((p) => p['isPublished'] == true)
+          .toList()
+        ..sort((a, b) => ((a['title'] as String?) ?? '')
+            .toLowerCase()
+            .compareTo(((b['title'] as String?) ?? '').toLowerCase()));
     } catch (_) {}
     if (mounted) setState(() {});
   }
@@ -194,6 +202,11 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
+              IconButton(
+                tooltip: 'Shiriki makala',
+                onPressed: _pickAndShareArticle,
+                icon: const Icon(Icons.link_rounded, color: AdminColors.emerald),
+              ),
               Expanded(
                 child: TextField(
                   controller: _replyCtrl,
@@ -232,6 +245,155 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
         maxLines: maxLines,
         style: GoogleFonts.inter(color: AdminColors.textPrimary),
         decoration: InputDecoration(labelText: label, labelStyle: GoogleFonts.inter(color: AdminColors.textDim)),
+      ),
+    );
+  }
+
+  Future<void> _pickAndShareArticle() async {
+    if (_selectedConvId == null) return;
+    if (_publishedArticles.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Hakuna makala iliyochapishwa kwa sasa.')),
+        );
+      }
+      return;
+    }
+
+    final article = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PublishedArticlePickerSheet(items: _publishedArticles),
+    );
+    if (article == null) return;
+
+    final id = (article['id'] as String?) ?? '';
+    final title = (article['title'] as String?) ?? 'Makala';
+    if (id.isEmpty) return;
+
+    final section = (article['section'] as String?) ?? '';
+    final tag = _articleTag(id: id, title: title);
+    final shareLine = '🔗 Makala iliyoshirikiwa: $title'
+        '${section.isNotEmpty ? ' • $section' : ''}\n$tag';
+
+    if (_replyCtrl.text.trim().isEmpty) {
+      _replyCtrl.text = shareLine;
+    } else {
+      _replyCtrl.text = '${_replyCtrl.text.trim()}\n\n$shareLine';
+    }
+    setState(() {});
+  }
+
+  String _articleTag({required String id, required String title}) =>
+      '[MAKALA:$id|${title.replaceAll(']', '').replaceAll('|', '/')}]';
+}
+
+class _PublishedArticlePickerSheet extends StatefulWidget {
+  const _PublishedArticlePickerSheet({required this.items});
+
+  final List<Map<String, dynamic>> items;
+
+  @override
+  State<_PublishedArticlePickerSheet> createState() =>
+      _PublishedArticlePickerSheetState();
+}
+
+class _PublishedArticlePickerSheetState extends State<_PublishedArticlePickerSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = widget.items.where((item) {
+      if (_query.trim().isEmpty) return true;
+      final q = _query.toLowerCase();
+      final title = ((item['title'] as String?) ?? '').toLowerCase();
+      final subtitle = ((item['subtitle'] as String?) ?? '').toLowerCase();
+      return title.contains(q) || subtitle.contains(q);
+    }).toList();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AdminColors.bg,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AdminColors.textDim.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Shiriki makala iliyochapishwa',
+                style: GoogleFonts.inter(
+                  color: AdminColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                onChanged: (v) => setState(() => _query = v),
+                style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Tafuta makala...',
+                  hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
+                  prefixIcon: const Icon(Icons.search, color: AdminColors.textDim),
+                  filled: true,
+                  fillColor: AdminColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 420,
+                child: ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final item = filtered[i];
+                    final isPremium = item['isPremium'] == true;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      title: Text(
+                        (item['title'] as String?) ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: AdminColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      subtitle: Text(
+                        isPremium ? 'Premium' : 'Bure',
+                        style: GoogleFonts.inter(
+                          color: isPremium ? AdminColors.amber : AdminColors.emerald,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      trailing: const Icon(Icons.send_rounded, color: AdminColors.emerald),
+                      onTap: () => Navigator.pop(context, item),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
