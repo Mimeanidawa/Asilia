@@ -87,10 +87,13 @@ class _AsiliaAppState extends State<AsiliaApp> {
       }) {
         if (type == 'message') {
           _mwalimuService.handleIncomingAdminPush();
+          if (_userService.token != null) {
+            _mwalimuService.syncMessages(_userService.token);
+          }
         }
         _notificationCenter.addFromPush(
-          title: title,
-          body: body,
+          title: title.isNotEmpty ? title : 'Ujumbe kutoka kwa Mwalimu',
+          body: body.isNotEmpty ? body : 'Una ujumbe mpya katika Uliza Mwalimu',
           lessonId: lessonId,
           contentId: contentId,
           type: type,
@@ -103,6 +106,11 @@ class _AsiliaAppState extends State<AsiliaApp> {
     await _userService.load();
     await _notificationService.linkToUser(_userService.token);
     await _mwalimuService.loadSettings();
+    await _mwalimuService.loadGuestState();
+    if (_userService.token != null) {
+      await _mwalimuService.flushGuestMessagesToServer(_userService.token!);
+      await _mwalimuService.syncMessages(_userService.token);
+    }
     await _contentService.load(userToken: _userService.token);
     await _appProvider.init();
     await _notificationCenter.syncFromCatalog(
@@ -159,8 +167,29 @@ class _AppShell extends StatefulWidget {
   State<_AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<_AppShell> {
+class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   DateTime? _lastBackPress;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final user = context.read<UserService>();
+    if (user.token != null) {
+      context.read<MwalimuService>().syncMessages(user.token);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,9 +225,6 @@ class _AppShellState extends State<_AppShell> {
         screen = const NotificationsScreen();
     }
 
-    final hideNav = app.activeScreen == AppScreen.herbDetails ||
-        app.activeScreen == AppScreen.auth;
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -206,7 +232,7 @@ class _AppShellState extends State<_AppShell> {
         _handleBackPress(context, app);
       },
       child: AppScaffold(
-        showBottomNav: !hideNav,
+        showBottomNav: app.showsBottomNav,
         child: screen,
       ),
     );

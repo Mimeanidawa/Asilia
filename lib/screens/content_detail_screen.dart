@@ -14,6 +14,7 @@ import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/rich_content_view.dart';
 import '../widgets/fullscreen_image_viewer.dart';
+import '../widgets/screen_header.dart';
 
 class ContentDetailScreen extends StatefulWidget {
   const ContentDetailScreen({super.key});
@@ -177,21 +178,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   }
 
   Widget _header(AppProvider app) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 12, 20, 12),
-      color: Colors.white,
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: app.goBack,
-            icon: const Icon(Icons.arrow_back_ios, color: AppColors.forest, size: 18),
-          ),
-          const Text(
-            'SOMA ZAIDI',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.forest),
-          ),
-        ],
-      ),
+    return ScreenHeader(
+      title: 'SOMA ZAIDI',
+      onBack: app.goBack,
     );
   }
 }

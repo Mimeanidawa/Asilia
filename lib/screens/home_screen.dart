@@ -20,6 +20,7 @@ import '../widgets/shimmer_loading.dart';
 import '../widgets/learning_pathways_row.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
+import '../utils/responsive.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
 
@@ -516,9 +517,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final dodosoCats = [
       ('darasa_huru', 'Darasa Huru', 'Somo la kila siku', Icons.school_rounded, const [Color(0xFF0C2E1F), Color(0xFF1C4731)]),
       ('mizizi', 'Mizizi', 'Mizizi ya dawa asili', Icons.grass_rounded, const [Color(0xFF065F46), Color(0xFF047857)]),
-      ('miti', 'Miti', 'Miti na faida zake', Icons.park_rounded, const [Color(0xFF1C4731), Color(0xFF113121)]),
+      ('miti', 'Mimea', 'Mimea na Faida zake', Icons.park_rounded, const [Color(0xFF1C4731), Color(0xFF113121)]),
       ('matunda', 'Matunda', 'Matunda ya asili', Icons.apple_rounded, const [Color(0xFFB45309), Color(0xFF836C45)]),
-      ('mimea', 'Mimea', 'Mimea mbalimbali', Icons.eco_rounded, const [Color(0xFF1E40AF), Color(0xFF1E3A8A)]),
+      ('mimea', 'Lishe', 'Lishe Bora', Icons.restaurant_menu_rounded, const [Color(0xFF1E40AF), Color(0xFF1E3A8A)]),
     ];
 
     return Column(
@@ -600,17 +601,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              for (var i = 0; i < posts.length; i++)
-                ContentPostCard(
-                  post: posts[i],
-                  showSectionLabel: showSectionOnCards,
-                  onTap: () => openContentPost(context, posts[i]),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
+          child: Responsive.listColumns(context) == 1
+              ? Column(
+                  children: [
+                    for (var i = 0; i < posts.length; i++)
+                      ContentPostCard(
+                        post: posts[i],
+                        showSectionLabel: showSectionOnCards,
+                        onTap: () => openContentPost(context, posts[i]),
+                      ),
+                  ],
+                )
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: Responsive.listColumns(context),
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                    childAspectRatio: 0.82,
+                  ),
+                  itemCount: posts.length,
+                  itemBuilder: (context, i) => ContentPostCard(
+                    post: posts[i],
+                    showSectionLabel: showSectionOnCards,
+                    margin: EdgeInsets.zero,
+                    onTap: () => openContentPost(context, posts[i]),
+                  ),
                 ),
-            ],
-          ),
         ),
       ],
     );
@@ -650,9 +669,59 @@ class _HomeScreenState extends State<HomeScreen> {
             AppScreen.darasaHuru,
             lessonId: lesson.id,
           ),
-          onViewAll: () => app.navigate(AppScreen.darasaHuru),
         ),
       ],
+    );
+  }
+
+  Widget _categoryTile(
+    BuildContext context,
+    AppProvider app,
+    (IconData, String, String, List<Color>) cat,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => app.navigate(
+            AppScreen.contentList,
+            contentSection: ContentSections.chaguaMada,
+            contentCategory: cat.$3,
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: cat.$4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(cat.$1, size: 22, color: AppColors.forest),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  cat.$2,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.forest,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -672,59 +741,22 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-          child: Row(
-            children: cats.map((cat) {
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => app.navigate(
-                        AppScreen.contentList,
-                        contentSection: ContentSections.chaguaMada,
-                        contentCategory: cat.$3,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppColors.forest.withValues(alpha: 0.05),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(colors: cat.$4),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Icon(cat.$1, size: 22, color: AppColors.forest),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              cat.$2,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.forest,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
+          child: Responsive.isPhone(context)
+              ? Row(
+                  children: cats
+                      .map((cat) => Expanded(child: _categoryTile(context, app, cat)))
+                      .toList(),
+                )
+              : GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 4,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 0.95,
+                  children: cats.map((cat) => _categoryTile(context, app, cat)).toList(),
                 ),
-              );
-            }).toList(),
-          ),
         ),
       ],
     );

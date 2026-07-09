@@ -75,6 +75,26 @@ class AppProvider extends ChangeNotifier {
   bool _loaded = false;
   bool get isLoaded => _loaded;
 
+  /// Hides bottom nav while reading content inside a main tab (e.g. Jifunze reader).
+  bool bottomNavSuppressed = false;
+
+  bool get showsBottomNav {
+    switch (activeScreen) {
+      case AppScreen.home:
+      case AppScreen.learn:
+      case AppScreen.profile:
+        return !bottomNavSuppressed;
+      default:
+        return false;
+    }
+  }
+
+  void setBottomNavSuppressed(bool value) {
+    if (bottomNavSuppressed == value) return;
+    bottomNavSuppressed = value;
+    notifyListeners();
+  }
+
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -141,6 +161,7 @@ class AppProvider extends ChangeNotifier {
     if (contentId != null) selectedContentId = contentId;
     if (contentSection != null) selectedContentSection = contentSection;
     if (contentCategory != null) selectedContentCategory = contentCategory;
+    bottomNavSuppressed = false;
     activeScreen = screen;
     screenHistory.add(screen);
     notifyListeners();
@@ -150,6 +171,7 @@ class AppProvider extends ChangeNotifier {
       activeScreen == AppScreen.home && screenHistory.length == 1;
 
   void goBack() {
+    bottomNavSuppressed = false;
     if (screenHistory.length > 1) {
       screenHistory.removeLast();
       activeScreen = screenHistory.last;

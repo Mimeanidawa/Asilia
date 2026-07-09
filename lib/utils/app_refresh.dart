@@ -36,7 +36,11 @@ class AppRefresh {
       final mwalimu = context.read<MwalimuService>();
       final user = context.read<UserService>();
       await mwalimu.loadSettings();
-      if (user.token != null) await mwalimu.loadMessages(user.token);
+      await mwalimu.loadGuestState();
+      if (user.token != null) {
+        await mwalimu.flushGuestMessagesToServer(user.token!);
+        await mwalimu.loadMessages(user.token);
+      }
     } catch (_) {}
   }
 

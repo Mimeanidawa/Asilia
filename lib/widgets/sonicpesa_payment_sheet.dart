@@ -234,7 +234,7 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Malipo kwa SonicPesa',
+                'Fungua Maudhui yote',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.forest),
               ),
               Text(

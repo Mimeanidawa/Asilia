@@ -10,6 +10,7 @@ import '../widgets/herb_image.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
 import '../widgets/shimmer_loading.dart';
+import '../widgets/screen_header.dart';
 
 class DarasaHuruScreen extends StatefulWidget {
   const DarasaHuruScreen({super.key});
@@ -30,10 +31,20 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
       if (id != null) {
         final lesson = app.lessonService.lessonById(id);
         if (lesson != null && mounted) {
-          setState(() => _activeLesson = lesson);
+          _openLesson(lesson);
         }
       }
     });
+  }
+
+  void _openLesson(DailyLesson lesson) {
+    setState(() => _activeLesson = lesson);
+    context.read<AppProvider>().setBottomNavSuppressed(true);
+  }
+
+  void _closeLesson() {
+    setState(() => _activeLesson = null);
+    context.read<AppProvider>().setBottomNavSuppressed(false);
   }
 
   @override
@@ -45,10 +56,23 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
     final activeLessonStillPublished = _activeLesson != null &&
         lessons.any((lesson) => lesson.id == _activeLesson!.id);
 
+    if (_activeLesson != null && !activeLessonStillPublished) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _closeLesson();
+      });
+    }
+
     if (_activeLesson != null && activeLessonStillPublished) {
-      return _LessonReader(
-        lesson: _activeLesson!,
-        onClose: () => setState(() => _activeLesson = null),
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          _closeLesson();
+        },
+        child: _LessonReader(
+          lesson: _activeLesson!,
+          onClose: _closeLesson,
+        ),
       );
     }
 
@@ -80,7 +104,7 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
                           padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                           child: _FeaturedLessonCard(
                             lesson: today,
-                            onRead: () => setState(() => _activeLesson = today),
+                            onRead: () => _openLesson(today),
                           ),
                         ),
                       ],
@@ -96,8 +120,7 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
                           child: _LessonListTile(
                             lesson: lesson,
                             isToday: lesson.isToday,
-                            onTap: () =>
-                                setState(() => _activeLesson = lesson),
+                            onTap: () => _openLesson(lesson),
                           ),
                         ),
                       ),
@@ -111,59 +134,11 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
   }
 
   Widget _buildHeader(BuildContext context, AppProvider app) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 12, 20, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
-        ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.forest),
-            onPressed: app.goBack,
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.emerald50,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.forum_rounded,
-              color: AppColors.emerald800,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'DARASA HURU',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.forest,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Text(
-                  'Masomo ya kila siku kutoka kwa wataalamu',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.gray500,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return ScreenHeader(
+      title: 'DARASA HURU',
+      subtitle: 'Masomo ya kila siku kutoka kwa wataalamu',
+      onBack: app.goBack,
+      showBottomBorder: true,
     );
   }
 
@@ -250,8 +225,15 @@ class _FeaturedLessonCard extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.amber,
+                      color: const Color(0xFFD4A017),
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: const Text(
                       'DARASA LA LEO',
@@ -292,6 +274,16 @@ class _FeaturedLessonCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  const Text(
+                    'Muhtasari',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.emerald800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
                     lesson.excerpt,
                     maxLines: 3,
@@ -418,9 +410,19 @@ class _LessonListTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
+                    const Text(
+                      'Muhtasari',
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.gray400,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
                     Text(
                       lesson.excerpt,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 10,
@@ -457,30 +459,14 @@ class _LessonReader extends StatelessWidget {
     return SizedBox.expand(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
-            color: Colors.white,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded,
-                      color: AppColors.forest),
-                  onPressed: onClose,
-                ),
-                const Expanded(
-                  child: Text(
-                    'DARASA HURU',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.emerald800,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
+          ScreenHeader(
+            title: 'DARASA HURU',
+            onBack: onClose,
+            titleStyle: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: AppColors.emerald800,
+              letterSpacing: 1,
             ),
           ),
           Expanded(
@@ -506,7 +492,7 @@ class _LessonReader extends StatelessWidget {
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.amber.withValues(alpha: 0.15),
+                            color: const Color(0xFFD4A017),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
@@ -514,7 +500,7 @@ class _LessonReader extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 9,
                               fontWeight: FontWeight.w900,
-                              color: AppColors.amber,
+                              color: Colors.white,
                               letterSpacing: 0.8,
                             ),
                           ),

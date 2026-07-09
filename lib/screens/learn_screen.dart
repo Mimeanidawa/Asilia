@@ -11,9 +11,11 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
+import '../utils/responsive.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/screen_header.dart';
 import '../widgets/rich_content_view.dart';
 
 class LearnScreen extends StatefulWidget {
@@ -57,22 +59,29 @@ class _LearnScreenState extends State<LearnScreen> {
     final filtered = _filtered(content);
 
     if (_activePost != null) {
-      return _ArticleReader(
-        post: _activePost!,
-        user: user,
-        onClose: () => setState(() => _activePost = null),
-        onRefresh: () async {
-          await AppRefresh.catalog(context);
-          final full = await content.fetchPost(_activePost!.id, userToken: user.token);
-          if (full != null && mounted) setState(() => _activePost = full);
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          _closePost();
         },
-        onPurchase: () => purchasePremiumContent(
-          context,
+        child: _ArticleReader(
           post: _activePost!,
-          onSuccess: () async {
+          user: user,
+          onClose: _closePost,
+          onRefresh: () async {
+            await AppRefresh.catalog(context);
             final full = await content.fetchPost(_activePost!.id, userToken: user.token);
             if (full != null && mounted) setState(() => _activePost = full);
           },
+          onPurchase: () => purchasePremiumContent(
+            context,
+            post: _activePost!,
+            onSuccess: () async {
+              final full = await content.fetchPost(_activePost!.id, userToken: user.token);
+              if (full != null && mounted) setState(() => _activePost = full);
+            },
+          ),
         ),
       );
     }
@@ -175,21 +184,53 @@ class _LearnScreenState extends State<LearnScreen> {
                         ),
                       ],
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                        padding: EdgeInsets.fromLTRB(
+                          Responsive.horizontalGutter(context) + 4,
+                          8,
+                          Responsive.horizontalGutter(context) + 4,
+                          8,
+                        ),
                         child: Text(
                           '${filtered.length} makala zinapatikana',
                           style: TextStyle(fontSize: 11, color: AppColors.gray400, fontWeight: FontWeight.w700),
                         ),
                       ),
-                      ...filtered.map(
-                        (post) => Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                          child: _ArticleTile(
-                            post: post,
-                            onTap: () => _openPost(post, user),
+                      if (Responsive.listColumns(context) == 1)
+                        ...filtered.map(
+                          (post) => Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              Responsive.horizontalGutter(context),
+                              0,
+                              Responsive.horizontalGutter(context),
+                              12,
+                            ),
+                            child: _ArticleTile(
+                              post: post,
+                              onTap: () => _openPost(post, user),
+                            ),
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: Responsive.horizontalGutter(context),
+                          ),
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: Responsive.listColumns(context),
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                              childAspectRatio: 1.05,
+                            ),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, i) => _ArticleTile(
+                              post: filtered[i],
+                              onTap: () => _openPost(filtered[i], user),
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                   ),
@@ -204,11 +245,21 @@ class _LearnScreenState extends State<LearnScreen> {
       showPremiumUnlockForPost(
         context,
         post: post,
-        onUnlocked: () => setState(() => _activePost = post),
+        onUnlocked: () => _showPost(post),
       );
       return;
     }
+    _showPost(post);
+  }
+
+  void _showPost(ContentPost post) {
     setState(() => _activePost = post);
+    context.read<AppProvider>().setBottomNavSuppressed(true);
+  }
+
+  void _closePost() {
+    setState(() => _activePost = null);
+    context.read<AppProvider>().setBottomNavSuppressed(false);
   }
 }
 
@@ -406,25 +457,9 @@ class _ArticleReaderState extends State<_ArticleReader> {
     return SizedBox.expand(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(8, 12, 12, 12),
-            color: Colors.white,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: widget.onClose,
-                  icon: const Icon(Icons.arrow_back_ios, color: AppColors.forest, size: 18),
-                ),
-                Expanded(
-                  child: Text(
-                    post.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.forest),
-                  ),
-                ),
-              ],
-            ),
+          ScreenHeader(
+            title: post.title,
+            onBack: widget.onClose,
           ),
           Expanded(
             child: PullToRefresh(

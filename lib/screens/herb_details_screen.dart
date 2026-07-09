@@ -9,6 +9,7 @@ import '../utils/app_refresh.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/screen_header.dart';
 
 class HerbDetailsScreen extends StatelessWidget {
   const HerbDetailsScreen({super.key});
@@ -22,26 +23,9 @@ class HerbDetailsScreen extends StatelessWidget {
       return SizedBox.expand(
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              color: Colors.white,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppColors.forest),
-                    onPressed: app.goBack,
-                  ),
-                  const Text(
-                    'MAELEZO',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.forest,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
+            ScreenHeader(
+              title: 'MAELEZO',
+              onBack: app.goBack,
             ),
             Expanded(
               child: PullToRefresh(
@@ -72,33 +56,15 @@ class HerbDetailsScreen extends StatelessWidget {
     return SizedBox.expand(
       child: Column(
       children: [
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-          color: Colors.white,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppColors.forest),
-                onPressed: app.goBack,
-              ),
-              const Text(
-                'HERB DETAILS',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.forest,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              IconButton(
-                icon: Icon(
-                  favorited ? Icons.favorite : Icons.favorite_border,
-                  color: favorited ? AppColors.red600 : AppColors.forest,
-                ),
-                onPressed: () => app.toggleFavorite(herb.id),
-              ),
-            ],
+        ScreenHeader(
+          title: 'HERB DETAILS',
+          onBack: app.goBack,
+          trailing: IconButton(
+            icon: Icon(
+              favorited ? Icons.favorite : Icons.favorite_border,
+              color: favorited ? AppColors.red600 : AppColors.forest,
+            ),
+            onPressed: () => app.toggleFavorite(herb.id),
           ),
         ),
         Expanded(

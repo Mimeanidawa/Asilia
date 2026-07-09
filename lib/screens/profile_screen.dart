@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/models.dart';
@@ -18,6 +19,11 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final userService = context.watch<UserService>();
+    final user = userService.user;
+    final isLoggedIn = userService.isLoggedIn && user != null;
+    final contact = (user?.email?.trim().isNotEmpty ?? false)
+        ? user!.email!.trim()
+        : ((user?.phone?.trim().isNotEmpty ?? false) ? user!.phone!.trim() : null);
 
     return SizedBox.expand(
       child: PullToRefresh(
@@ -27,118 +33,72 @@ class ProfileScreen extends StatelessWidget {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
               child: const Row(
                 children: [
-                  Icon(Icons.person_outline, color: AppColors.emerald800, size: 18),
+                  Icon(Icons.verified_user_rounded, color: AppColors.emerald800, size: 20),
                   SizedBox(width: 8),
                   Text(
                     'MTUMIAJI',
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
                       color: AppColors.forest,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.all(20),
-              color: Colors.white,
-              child: userService.isLoggedIn
-                  ? Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: AppColors.emerald50,
-                          child: Text(
-                            userService.user!.fullName.isNotEmpty
-                                ? userService.user!.fullName[0].toUpperCase()
-                                : 'M',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.forest,
+            AnimatedSwitcher(
+              duration: 350.ms,
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(animation),
+                  child: child,
+                ),
+              ),
+              child: isLoggedIn
+                  ? _ProfileCard(
+                      key: const ValueKey('profile-logged'),
+                      fullName: user.fullName,
+                      contact: contact,
+                      isPremium: user.isPremiumActive,
+                      onLogout: userService.logout,
+                      onUpgrade: () async {
+                        final mwalimu = context.read<MwalimuService>();
+                        final price = mwalimu.settings.premiumPrice;
+                        final result = await showSonicPesaPayment(
+                          context,
+                          type: PaymentType.premium,
+                          title: 'Premium — Dawa Asili',
+                          subtitle: 'Maswali bila kikomo kwa Mwalimu + makala za Premium',
+                          amount: price,
+                        );
+                        if (result == SonicPesaPaymentResult.success && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Premium imeamilishwa kwa siku 30!'),
+                              backgroundColor: AppColors.forest,
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                userService.user!.fullName,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.forest,
-                                ),
-                              ),
-                              Text(
-                                userService.user!.phone ?? userService.user!.email ?? '',
-                                style: const TextStyle(fontSize: 12, color: AppColors.gray400),
-                              ),
-                              const SizedBox(height: 6),
-                              if (userService.user!.isPremiumActive)
-                                const _MembershipBadge()
-                              else
-                                GestureDetector(
-                                  onTap: () async {
-                                    final mwalimu = context.read<MwalimuService>();
-                                    final price = mwalimu.settings.premiumPrice;
-                                    final result = await showSonicPesaPayment(
-                                      context,
-                                      type: PaymentType.premium,
-                                      title: 'Premium — Dawa Asili',
-                                      subtitle: 'Maswali bila kikomo kwa Mwalimu + makala za Premium',
-                                      amount: price,
-                                    );
-                                    if (result == SonicPesaPaymentResult.success && context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Premium imeamilishwa kwa siku 30!'),
-                                          backgroundColor: AppColors.forest,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.amber.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: const Text(
-                                      'PATA PREMIUM',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w900,
-                                        color: AppColors.amber,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => userService.logout(),
-                          icon: Icon(Icons.logout, color: AppColors.gray400, size: 20),
-                        ),
-                      ],
-                    )
+                          );
+                        }
+                      },
+                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04)
                   : _GuestProfileCard(
+                      key: const ValueKey('profile-guest'),
                       onJoin: () => app.navigate(AppScreen.auth),
-                    ),
+                    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04),
             ),
+            const SizedBox(height: 14),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Material(
                 color: AppColors.red50,
                 borderRadius: BorderRadius.circular(16),
@@ -183,7 +143,7 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _GuestProfileCard extends StatelessWidget {
-  const _GuestProfileCard({required this.onJoin});
+  const _GuestProfileCard({super.key, required this.onJoin});
 
   final VoidCallback onJoin;
 
@@ -192,11 +152,20 @@ class _GuestProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [AppColors.emerald50, Colors.white],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.1)),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.forest.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -232,23 +201,201 @@ class _GuestProfileCard extends StatelessWidget {
   }
 }
 
-class _MembershipBadge extends StatelessWidget {
-  const _MembershipBadge();
+class _ProfileCard extends StatelessWidget {
+  const _ProfileCard({
+    super.key,
+    required this.fullName,
+    required this.contact,
+    required this.isPremium,
+    required this.onLogout,
+    required this.onUpgrade,
+  });
+
+  final String fullName;
+  final String? contact;
+  final bool isPremium;
+  final VoidCallback onLogout;
+  final Future<void> Function() onUpgrade;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.amber.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF4FBF8), Colors.white],
+        ),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.forest.withValues(alpha: 0.07),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
-      child: const Text(
-        'PREMIUM MEMBER',
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    fullName,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.forest,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: onLogout,
+                    child: const Padding(
+                      padding: EdgeInsets.all(9),
+                      child: Icon(Icons.logout_rounded, color: AppColors.gray500, size: 19),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (contact != null) ...[
+              const SizedBox(height: 10),
+              _MetaPill(
+                icon: contact!.contains('@') ? Icons.email_outlined : Icons.phone_outlined,
+                label: contact!,
+              ),
+            ],
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.gray200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.workspace_premium_rounded, size: 18, color: AppColors.forest),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Hali ya akaunti',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.gray500,
+                    ),
+                  ),
+                  const Spacer(),
+                  _MembershipBadge(isPremium: isPremium),
+                ],
+              ),
+            ),
+            if (!isPremium) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onUpgrade,
+                  icon: const Icon(Icons.stars_rounded, size: 16),
+                  label: const Text(
+                    'Fungua Makala zote sasa',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.forest,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  const _MetaPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.gray200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.gray500),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.gray600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MembershipBadge extends StatelessWidget {
+  const _MembershipBadge({super.key, required this.isPremium});
+
+  final bool isPremium;
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = isPremium
+        ? AppColors.amber.withValues(alpha: 0.15)
+        : AppColors.gray200;
+    final textColor = isPremium ? AppColors.amber : AppColors.gray600;
+    final label = isPremium ? 'PREMIUM' : 'LIMITED';
+    return AnimatedContainer(
+      duration: 250.ms,
+      curve: Curves.easeOutCubic,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isPremium
+              ? AppColors.amber.withValues(alpha: 0.3)
+              : AppColors.gray400.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Text(
+        label,
         style: TextStyle(
-          fontSize: 8,
+          fontSize: 9,
           fontWeight: FontWeight.w900,
-          color: AppColors.amber,
+          color: textColor,
           letterSpacing: 0.5,
         ),
       ),

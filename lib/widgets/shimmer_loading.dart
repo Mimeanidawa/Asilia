@@ -333,35 +333,25 @@ class DarasaCardSkeleton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SkeletonBox(
-              height: 140,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              height: 248,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
             ),
             Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              padding: EdgeInsets.all(14),
+              child: Row(
                 children: [
-                  SkeletonBox(width: 60, height: 8, margin: EdgeInsets.only(bottom: 8)),
-                  SkeletonBox(height: 16, margin: EdgeInsets.only(bottom: 6)),
-                  SkeletonBox(width: 240, height: 16, margin: EdgeInsets.only(bottom: 10)),
-                  SkeletonBox(height: 11, margin: EdgeInsets.only(bottom: 4)),
-                  SkeletonBox(width: 200, height: 11, margin: EdgeInsets.only(bottom: 14)),
-                  Row(
-                    children: [
-                      SkeletonBox(width: 24, height: 24, borderRadius: BorderRadius.all(Radius.circular(12))),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SkeletonBox(width: 100, height: 10, margin: EdgeInsets.only(bottom: 4)),
-                            SkeletonBox(width: 80, height: 8),
-                          ],
-                        ),
-                      ),
-                      SkeletonBox(width: 72, height: 32, borderRadius: BorderRadius.all(Radius.circular(12))),
-                    ],
+                  SkeletonBox(width: 28, height: 28, borderRadius: BorderRadius.all(Radius.circular(14))),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SkeletonBox(width: 100, height: 10, margin: EdgeInsets.only(bottom: 4)),
+                        SkeletonBox(width: 80, height: 8),
+                      ],
+                    ),
                   ),
+                  SkeletonBox(width: 72, height: 32, borderRadius: BorderRadius.all(Radius.circular(12))),
                 ],
               ),
             ),

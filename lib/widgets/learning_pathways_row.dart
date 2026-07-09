@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/responsive.dart';
 
 class LearningPathway {
   const LearningPathway({
@@ -28,26 +29,48 @@ class LearningPathwaysRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 118,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+    final columns = Responsive.pathwayColumns(context);
+    final gutter = Responsive.horizontalGutter(context);
+
+    if (columns == 1) {
+      return SizedBox(
+        height: 118,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: gutter + 4),
+          itemCount: pathways.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, i) => _PathwayCard(pathway: pathways[i]),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: gutter),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.35,
+        ),
         itemCount: pathways.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, i) {
-          final p = pathways[i];
-          return _PathwayCard(pathway: p);
-        },
+        itemBuilder: (context, i) => _PathwayCard(
+          pathway: pathways[i],
+          expanded: true,
+        ),
       ),
     );
   }
 }
 
 class _PathwayCard extends StatelessWidget {
-  const _PathwayCard({required this.pathway});
+  const _PathwayCard({required this.pathway, this.expanded = false});
 
   final LearningPathway pathway;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +80,7 @@ class _PathwayCard extends StatelessWidget {
       child: InkWell(
         onTap: pathway.onTap,
         child: Ink(
-          width: 148,
+          width: expanded ? null : 148,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,

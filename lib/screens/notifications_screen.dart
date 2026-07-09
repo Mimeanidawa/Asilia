@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/screen_header.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -185,43 +186,32 @@ class NotificationsScreen extends StatelessWidget {
     return SizedBox.expand(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(8, 12, 12, 12),
-            color: Colors.white,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: () => context.read<AppProvider>().goBack(),
-                  icon: const Icon(Icons.arrow_back_ios, color: AppColors.forest, size: 18),
-                ),
-                const Expanded(
-                  child: Text(
-                    'ARIFA',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.forest,
-                    ),
-                  ),
-                ),
-                if (center.unreadCount > 0)
-                  TextButton(
-                    onPressed: center.markAllRead,
-                    child: const Text(
-                      'Soma zote',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.emerald800),
-                    ),
-                  ),
-                if (items.isNotEmpty)
-                  TextButton(
-                    onPressed: () => _confirmDeleteAll(context),
-                    child: const Text(
-                      'Futa zote',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.red),
-                    ),
-                  ),
-              ],
-            ),
+          ScreenHeader(
+            title: 'ARIFA',
+            onBack: () => context.read<AppProvider>().goBack(),
+            trailing: (center.unreadCount > 0 || items.isNotEmpty)
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (center.unreadCount > 0)
+                        TextButton(
+                          onPressed: center.markAllRead,
+                          child: const Text(
+                            'Soma zote',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.emerald800),
+                          ),
+                        ),
+                      if (items.isNotEmpty)
+                        TextButton(
+                          onPressed: () => _confirmDeleteAll(context),
+                          child: const Text(
+                            'Futa zote',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.red),
+                          ),
+                        ),
+                    ],
+                  )
+                : null,
           ),
           if (center.unreadCount > 0)
             Container(

@@ -3,10 +3,12 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_provider.dart';
+import '../services/mwalimu_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/phone_format.dart';
+import '../widgets/circle_back_button.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -53,6 +55,12 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     );
     if (ok && mounted) {
       await context.read<NotificationService>().linkToUser(userService.token);
+      final mwalimu = context.read<MwalimuService>();
+      await mwalimu.loadGuestState();
+      if (userService.token != null) {
+        await mwalimu.flushGuestMessagesToServer(userService.token!);
+        await mwalimu.loadMessages(userService.token);
+      }
       context.read<AppProvider>().goBack();
     }
   }
@@ -66,6 +74,12 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     );
     if (ok && mounted) {
       await context.read<NotificationService>().linkToUser(userService.token);
+      final mwalimu = context.read<MwalimuService>();
+      await mwalimu.loadGuestState();
+      if (userService.token != null) {
+        await mwalimu.flushGuestMessagesToServer(userService.token!);
+        await mwalimu.loadMessages(userService.token);
+      }
       context.read<AppProvider>().goBack();
     }
   }
@@ -90,9 +104,8 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    IconButton(
+                    CircleBackButton(
                       onPressed: () => context.read<AppProvider>().goBack(),
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
                     ),
                     const Spacer(),
                     const Icon(Icons.eco, color: AppColors.cream, size: 24),

@@ -12,6 +12,7 @@ import '../utils/app_refresh.dart';
 import '../services/payment_service.dart';
 import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/screen_header.dart';
 
 class AskExpertScreen extends StatefulWidget {
   const AskExpertScreen({super.key});
@@ -23,6 +24,8 @@ class AskExpertScreen extends StatefulWidget {
 class _AskExpertScreenState extends State<AskExpertScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
+  MwalimuService? _mwalimuService;
+  int _lastMessageCount = 0;
 
   @override
   void initState() {
@@ -30,19 +33,27 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _initChat());
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _mwalimuService ??= context.read<MwalimuService>();
+  }
+
   Future<void> _initChat() async {
     final user = context.read<UserService>();
-    final mwalimu = context.read<MwalimuService>();
+    final mwalimu = _mwalimuService ?? context.read<MwalimuService>();
     mwalimu.setChatOpen(true);
     await mwalimu.loadSettings();
+    await mwalimu.loadGuestState();
     if (user.token != null) {
+      await mwalimu.flushGuestMessagesToServer(user.token!);
       await mwalimu.loadMessages(user.token);
     }
   }
 
   @override
   void dispose() {
-    context.read<MwalimuService>().setChatOpen(false);
+    _mwalimuService?.setChatOpen(false);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -66,23 +77,57 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
 
   Future<void> _send() async {
     final user = context.read<UserService>();
-    if (!user.isLoggedIn) {
-      context.read<AppProvider>().navigate(AppScreen.auth);
-      return;
-    }
-
+    final mwalimu = context.read<MwalimuService>();
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
-    final mwalimu = context.read<MwalimuService>();
+    if (!user.isLoggedIn) {
+      if (!mwalimu.canSendAsGuest()) {
+        _showSignupRequiredDialog();
+        return;
+      }
+      _controller.clear();
+      await mwalimu.sendGuestMessage(text);
+      _scrollToBottom();
+      return;
+    }
+
     if (!mwalimu.canSendMessage()) {
       _showPremiumDialog();
       return;
     }
 
     _controller.clear();
-    await mwalimu.sendMessage(text, user.token!);
+    final ok = await mwalimu.sendMessage(text, user.token!);
+    if (!ok && mounted && !mwalimu.canSendMessage()) {
+      _showPremiumDialog();
+      return;
+    }
     _scrollToBottom();
+  }
+
+  void _showSignupRequiredDialog() {
+    final limit = context.read<MwalimuService>().settings.freeMessageLimit;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Ingia ili uendelee', style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Text(
+          'Umefikia kikomo cha maswali $limit bila kujiandikisha. Jisajili au ingia ili kuendelea kuwasiliana na Mwalimu.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Baadaye')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              context.read<AppProvider>().navigate(AppScreen.auth);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.forest),
+            child: const Text('Jisajili / Ingia'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPremiumDialog() {
@@ -128,31 +173,26 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     final mwalimu = context.watch<MwalimuService>();
     final user = context.watch<UserService>();
     final settings = mwalimu.settings;
+    final chatMessages = user.isLoggedIn ? mwalimu.messages : mwalimu.guestMessages;
+    final guestLimitReached = !user.isLoggedIn && !mwalimu.canSendAsGuest();
 
-    _scrollToBottom();
+    if (chatMessages.length != _lastMessageCount) {
+      _lastMessageCount = chatMessages.length;
+      _scrollToBottom();
+    }
 
     return SizedBox.expand(
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
-            color: Colors.white,
-            child: Row(
-              children: [
-                const Icon(Icons.school_rounded, color: AppColors.emerald800, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'ULIZA MWALIMU',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.forest),
-                ),
-                const Spacer(),
-                if (!user.isLoggedIn)
-                  TextButton(
+          ScreenHeader(
+            title: 'ULIZA MWALIMU',
+            onBack: () => context.read<AppProvider>().goBack(),
+            trailing: !user.isLoggedIn
+                ? TextButton(
                     onPressed: () => context.read<AppProvider>().navigate(AppScreen.auth),
                     child: const Text('Ingia', style: TextStyle(fontWeight: FontWeight.w800)),
-                  ),
-              ],
-            ),
+                  )
+                : null,
           ),
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
@@ -186,7 +226,12 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                         'Mtaalamu wa Elimu ya Mimea na Asili',
                         style: TextStyle(fontSize: 11, color: AppColors.gray500),
                       ),
-                      if (!mwalimu.isPremium && user.isLoggedIn && mwalimu.remainingMessages >= 0)
+                      if (!user.isLoggedIn && mwalimu.remainingGuestMessages >= 0)
+                        Text(
+                          'Maswali ${mwalimu.remainingGuestMessages} yamesalia (bila kujiandikisha)',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.amber),
+                        )
+                      else if (!mwalimu.isPremium && user.isLoggedIn && mwalimu.remainingMessages >= 0)
                         Text(
                           'Maswali ${mwalimu.remainingMessages} yamesalia',
                           style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.amber),
@@ -219,7 +264,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                   content: settings.mwalimuWelcome,
                   avatarUrl: settings.mwalimuImage,
                 ),
-                ...mwalimu.messages.map((m) => _Bubble(
+                ...chatMessages.map((m) => _Bubble(
                       isUser: m.isUser,
                       content: m.content,
                       avatarUrl: m.isAdmin ? settings.mwalimuImage : null,
@@ -233,6 +278,28 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
             ),
             ),
           ),
+          if (guestLimitReached)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: AppColors.amber.withValues(alpha: 0.12),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Umefikia kikomo cha maswali ${settings.freeMessageLimit}. Jisajili ili uendelee.',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.gray600),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => context.read<AppProvider>().navigate(AppScreen.auth),
+                    child: const Text('Ingia', style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ],
+              ),
+            ),
           Container(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             color: Colors.white,
@@ -241,8 +308,13 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
+                    enabled: !guestLimitReached,
                     decoration: InputDecoration(
-                      hintText: user.isLoggedIn ? 'Uliza kuhusu mimea, mizizi, miti...' : 'Ingia ili kuuliza...',
+                      hintText: guestLimitReached
+                          ? 'Jisajili ili uendelee kuuliza...'
+                          : user.isLoggedIn
+                              ? 'Uliza kuhusu mimea, mizizi, miti...'
+                              : 'Uliza Hapa...',
                       filled: true,
                       fillColor: AppColors.emerald50.withValues(alpha: 0.4),
                       border: OutlineInputBorder(
@@ -256,11 +328,11 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                 ),
                 const SizedBox(width: 8),
                 Material(
-                  color: AppColors.forest,
+                  color: guestLimitReached ? AppColors.gray400 : AppColors.forest,
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
-                    onTap: _send,
+                    onTap: guestLimitReached ? _showSignupRequiredDialog : _send,
                     child: const Padding(
                       padding: EdgeInsets.all(12),
                       child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
