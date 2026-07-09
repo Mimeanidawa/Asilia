@@ -235,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Jifunze dawa za asili kutoka mizizi, miti na matunda',
+                      'Jifunze dawa asilia za vyakula, matunda na mimea hapa',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.gray500,

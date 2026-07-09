@@ -45,12 +45,12 @@ class LessonService extends ChangeNotifier {
           .map((e) => _lessonFromApi(e as Map<String, dynamic>))
           .toList();
 
-      if (list.isNotEmpty) {
-        _lessons = list;
-        await _persist();
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
-      }
+      // Always replace local state with server truth, including empty lists,
+      // so deleted lessons disappear from cached user devices.
+      _lessons = list;
+      await _persist();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
     } catch (e) {
       _lastError = e.toString();
       debugPrint('Lesson sync failed: $e');

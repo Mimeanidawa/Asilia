@@ -42,8 +42,10 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
     final lessonService = app.lessonService;
     final lessons = lessonService.publishedLessons;
     final today = lessonService.todayLesson;
+    final activeLessonStillPublished = _activeLesson != null &&
+        lessons.any((lesson) => lesson.id == _activeLesson!.id);
 
-    if (_activeLesson != null) {
+    if (_activeLesson != null && activeLessonStillPublished) {
       return _LessonReader(
         lesson: _activeLesson!,
         onClose: () => setState(() => _activeLesson = null),
