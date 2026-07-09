@@ -22,6 +22,28 @@ async function getOrCreateConversation(db, userId) {
   return convId;
 }
 
+async function getFreeMessageLimit(db) {
+  const { rows } = await db.query(
+    "SELECT value FROM app_settings WHERE key = 'free_message_limit'",
+  );
+  return parseInt(rows[0]?.value || '5', 10);
+}
+
+async function getOrCreateGuestConversation(db, sessionId) {
+  const { rows } = await db.query(
+    'SELECT id, guest_message_count FROM chat_conversations WHERE guest_session_id = $1',
+    [sessionId],
+  );
+  if (rows.length) return rows[0];
+
+  const convId = uuidv4();
+  await db.query(
+    'INSERT INTO chat_conversations (id, guest_session_id, guest_message_count) VALUES ($1, $2, 0)',
+    [convId, sessionId],
+  );
+  return { id: convId, guest_message_count: 0 };
+}
+
 router.get('/settings', async (_req, res) => {
   try {
     const db = getPool();
@@ -172,30 +194,166 @@ router.post('/messages', requireUser, async (req, res) => {
   }
 });
 
+// Guest: get messages (no auth — keyed by device session)
+router.get('/guest/messages', async (req, res) => {
+  try {
+    const sessionId = req.query.sessionId?.trim();
+    if (!sessionId || sessionId.length < 8 || sessionId.length > 128) {
+      return res.status(400).json({ error: 'sessionId si sahihi' });
+    }
+
+    const db = getPool();
+    const limit = await getFreeMessageLimit(db);
+
+    const { rows: convRows } = await db.query(
+      'SELECT id, guest_message_count FROM chat_conversations WHERE guest_session_id = $1',
+      [sessionId],
+    );
+
+    if (!convRows.length) {
+      return res.json({ messages: [], messageCount: 0, messageLimit: limit });
+    }
+
+    const conv = convRows[0];
+    const { rows: messages } = await db.query(
+      `SELECT id, sender_type AS "senderType", content, created_at AS "createdAt"
+       FROM chat_messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
+      [conv.id],
+    );
+
+    res.json({
+      messages,
+      messageCount: conv.guest_message_count || 0,
+      messageLimit: limit,
+    });
+  } catch (err) {
+    console.error('GET /chat/guest/messages:', err);
+    res.status(500).json({ error: 'Imeshindwa kupata ujumbe' });
+  }
+});
+
+// Guest: send message (no auth)
+router.post('/guest/messages', async (req, res) => {
+  try {
+    const { content, sessionId } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'Ujumbe unahitajika' });
+    if (!sessionId?.trim() || sessionId.length < 8 || sessionId.length > 128) {
+      return res.status(400).json({ error: 'sessionId si sahihi' });
+    }
+
+    const db = getPool();
+    const limit = await getFreeMessageLimit(db);
+    const conv = await getOrCreateGuestConversation(db, sessionId.trim());
+
+    if ((conv.guest_message_count || 0) >= limit) {
+      return res.status(403).json({
+        error: 'Umefikia kikomo cha maswali. Jisajili ili uendelee.',
+        limitReached: true,
+      });
+    }
+
+    const msgId = uuidv4();
+    await db.query(
+      'INSERT INTO chat_messages (id, conversation_id, sender_type, content) VALUES ($1,$2,$3,$4)',
+      [msgId, conv.id, 'user', content.trim()],
+    );
+
+    const { rows: updated } = await db.query(
+      `UPDATE chat_conversations
+       SET guest_message_count = guest_message_count + 1, updated_at = NOW()
+       WHERE id = $1
+       RETURNING guest_message_count`,
+      [conv.id],
+    );
+
+    res.status(201).json({
+      message: {
+        id: msgId,
+        senderType: 'user',
+        content: content.trim(),
+        createdAt: new Date().toISOString(),
+      },
+      messageCount: updated[0]?.guest_message_count || 0,
+      messageLimit: limit,
+    });
+  } catch (err) {
+    console.error('POST /chat/guest/messages:', err);
+    res.status(500).json({ error: 'Imeshindwa kutuma ujumbe' });
+  }
+});
+
+// Guest: link session to registered user after signup/login
+router.post('/guest/link', requireUser, async (req, res) => {
+  try {
+    const sessionId = req.body.sessionId?.trim();
+    if (!sessionId) return res.json({ ok: true });
+
+    const db = getPool();
+    const userId = req.user.sub;
+
+    const { rows: guestRows } = await db.query(
+      'SELECT id, guest_message_count FROM chat_conversations WHERE guest_session_id = $1',
+      [sessionId],
+    );
+    if (!guestRows.length) return res.json({ ok: true });
+
+    const guestConv = guestRows[0];
+    const userConvId = await getOrCreateConversation(db, userId);
+
+    if (guestConv.id !== userConvId) {
+      await db.query(
+        'UPDATE chat_messages SET conversation_id = $1 WHERE conversation_id = $2',
+        [userConvId, guestConv.id],
+      );
+
+      if (guestConv.guest_message_count > 0) {
+        await db.query(
+          `UPDATE users SET message_count = message_count + $1, updated_at = NOW() WHERE id = $2`,
+          [guestConv.guest_message_count, userId],
+        );
+      }
+
+      await db.query('DELETE FROM chat_conversations WHERE id = $1', [guestConv.id]);
+      await db.query(
+        'UPDATE chat_conversations SET updated_at = NOW() WHERE id = $1',
+        [userConvId],
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('POST /chat/guest/link:', err);
+    res.status(500).json({ error: 'Imeshindwa kuunganisha akaunti' });
+  }
+});
+
 // Admin: list conversations
 router.get('/admin/conversations', requireAdmin, async (_req, res) => {
   try {
     const db = getPool();
     const { rows } = await db.query(`
-      SELECT c.id, c.user_id, c.status, c.updated_at,
+      SELECT c.id, c.user_id, c.guest_session_id, c.status, c.updated_at,
              u.full_name, u.phone, u.email, u.is_premium, u.message_count,
+             c.guest_message_count,
              (SELECT content FROM chat_messages WHERE conversation_id = c.id
               ORDER BY created_at DESC LIMIT 1) AS last_message
       FROM chat_conversations c
-      JOIN users u ON u.id = c.user_id
+      LEFT JOIN users u ON u.id = c.user_id
       ORDER BY c.updated_at DESC
     `);
     res.json({
       conversations: rows.map((r) => ({
         id: r.id,
         userId: r.user_id,
+        guestSessionId: r.guest_session_id,
+        isGuest: !r.user_id,
         status: r.status,
         updatedAt: r.updated_at,
-        userName: r.full_name,
+        userName: r.full_name || (r.guest_session_id ? 'Mgeni' : 'Mtumiaji'),
         userPhone: r.phone,
         userEmail: r.email,
-        isPremium: r.is_premium,
-        messageCount: r.message_count,
+        isPremium: r.is_premium ?? false,
+        messageCount: r.user_id ? r.message_count : r.guest_message_count,
         lastMessage: r.last_message,
       })),
     });

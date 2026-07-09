@@ -145,11 +145,28 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: AdminColors.emerald.withValues(alpha: 0.2),
-                child: Text((c['userName'] as String? ?? 'U')[0], style: const TextStyle(color: AdminColors.emerald)),
+                child: Text(
+                  (c['isGuest'] == true ? 'M' : (c['userName'] as String? ?? 'U'))[0],
+                  style: const TextStyle(color: AdminColors.emerald),
+                ),
               ),
-              title: Text(c['userName'] as String? ?? '', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-              subtitle: Text(c['lastMessage'] as String? ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
-              trailing: c['isPremium'] == true ? const Icon(Icons.star, color: AdminColors.amber, size: 16) : null,
+              title: Text(
+                c['userName'] as String? ?? '',
+                style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                c['isGuest'] == true
+                    ? 'Mgeni · ${c['lastMessage'] as String? ?? ''}'
+                    : (c['lastMessage'] as String? ?? ''),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12),
+              ),
+              trailing: c['isPremium'] == true
+                  ? const Icon(Icons.star, color: AdminColors.amber, size: 16)
+                  : c['isGuest'] == true
+                      ? Icon(Icons.person_outline, color: AdminColors.textDim.withValues(alpha: 0.6), size: 18)
+                      : null,
               onTap: () async {
                 _selectedConvId = c['id'] as String;
                 _messages = await context.read<AdminProvider>().contentService.fetchMessages(_selectedConvId!);

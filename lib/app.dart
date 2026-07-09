@@ -89,6 +89,8 @@ class _AsiliaAppState extends State<AsiliaApp> {
           _mwalimuService.handleIncomingAdminPush();
           if (_userService.token != null) {
             _mwalimuService.syncMessages(_userService.token);
+          } else {
+            _mwalimuService.loadGuestMessages();
           }
         }
         _notificationCenter.addFromPush(
@@ -110,6 +112,8 @@ class _AsiliaAppState extends State<AsiliaApp> {
     if (_userService.token != null) {
       await _mwalimuService.flushGuestMessagesToServer(_userService.token!);
       await _mwalimuService.syncMessages(_userService.token);
+    } else {
+      await _mwalimuService.loadGuestMessages();
     }
     await _contentService.load(userToken: _userService.token);
     await _appProvider.init();
@@ -186,8 +190,11 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed || !mounted) return;
     final user = context.read<UserService>();
+    final mwalimu = context.read<MwalimuService>();
     if (user.token != null) {
-      context.read<MwalimuService>().syncMessages(user.token);
+      mwalimu.syncMessages(user.token);
+    } else {
+      mwalimu.loadGuestMessages();
     }
   }
 

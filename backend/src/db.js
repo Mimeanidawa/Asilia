@@ -195,5 +195,21 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens (user_id)
   `);
 
+  // Guest chat: allow conversations without a registered user
+  await db.query(`
+    ALTER TABLE chat_conversations ALTER COLUMN user_id DROP NOT NULL
+  `);
+  await db.query(`
+    ALTER TABLE chat_conversations ADD COLUMN IF NOT EXISTS guest_session_id TEXT
+  `);
+  await db.query(`
+    ALTER TABLE chat_conversations ADD COLUMN IF NOT EXISTS guest_message_count INTEGER NOT NULL DEFAULT 0
+  `);
+  await db.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_conv_guest_session
+      ON chat_conversations (guest_session_id)
+      WHERE guest_session_id IS NOT NULL
+  `);
+
   console.log('Database schema ready');
 }

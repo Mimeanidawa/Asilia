@@ -11,7 +11,7 @@ class MwalimuService extends ChangeNotifier {
   MwalimuService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
   static const _seenAdminMessageKey = 'da_mwalimu_seen_admin_message_id';
   static const _guestMessagesKey = 'da_guest_chat_messages';
-  static const _guestCountKey = 'da_guest_message_count';
+  static const _guestSessionKey = 'da_guest_session_id';
 
   final ApiClient _api;
 
@@ -29,12 +29,30 @@ class MwalimuService extends ChangeNotifier {
   bool _chatOpen = false;
   bool _stateLoaded = false;
   String? _lastSeenAdminMessageId;
+  String? _guestSessionId;
 
   Future<void> _loadState() async {
     if (_stateLoaded) return;
     final prefs = await SharedPreferences.getInstance();
     _lastSeenAdminMessageId = prefs.getString(_seenAdminMessageKey);
+    _guestSessionId = prefs.getString(_guestSessionKey);
     _stateLoaded = true;
+  }
+
+  Future<String> getGuestSessionId() async {
+    await _loadState();
+    if (_guestSessionId != null && _guestSessionId!.isNotEmpty) {
+      return _guestSessionId!;
+    }
+
+    final rand = math.Random.secure();
+    final bytes = List<int>.generate(16, (_) => rand.nextInt(256));
+    final id = base64Url.encode(bytes).replaceAll('=', '');
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_guestSessionKey, id);
+    _guestSessionId = id;
+    return id;
   }
 
   Future<void> _saveSeenAdminMessageId(String? id) async {
@@ -48,34 +66,59 @@ class MwalimuService extends ChangeNotifier {
 
   Future<void> loadGuestState() async {
     final prefs = await SharedPreferences.getInstance();
-    guestMessageCount = prefs.getInt(_guestCountKey) ?? 0;
     final raw = prefs.getString(_guestMessagesKey);
     if (raw == null || raw.isEmpty) {
       guestMessages = [];
-      return;
-    }
-
-    try {
-      final list = jsonDecode(raw) as List;
-      guestMessages = list
-          .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
-          .toList();
-      guestMessageCount = math.max(guestMessageCount, guestMessages.length);
-    } catch (e) {
-      debugPrint('Guest chat load error: $e');
-      guestMessages = [];
-      guestMessageCount = 0;
+    } else {
+      try {
+        final list = jsonDecode(raw) as List;
+        guestMessages = list
+            .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
+            .toList();
+      } catch (e) {
+        debugPrint('Guest chat load error: $e');
+        guestMessages = [];
+      }
     }
     notifyListeners();
   }
 
+  Future<void> loadGuestMessages() async {
+    await _loadState();
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final sessionId = await getGuestSessionId();
+      final data = await _api.get(
+        '/api/chat/guest/messages?sessionId=${Uri.encodeComponent(sessionId)}',
+      );
+      guestMessages = (data['messages'] as List)
+          .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
+          .toList();
+      guestMessageCount = data['messageCount'] as int? ?? 0;
+      messageLimit = data['messageLimit'] as int?;
+      await _saveGuestState();
+      _recomputeUnreadFromMessages(guestMessages);
+    } catch (e) {
+      debugPrint('Guest messages sync error: $e');
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  int get guestSentCount => guestMessageCount > 0
+      ? guestMessageCount
+      : guestMessages.where((m) => m.isUser).length;
+
   Future<void> _saveGuestState() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_guestCountKey, guestMessageCount);
     await prefs.setString(
       _guestMessagesKey,
       jsonEncode(guestMessages.map(_messageToJson).toList()),
     );
+    await prefs.remove('da_guest_message_count');
   }
 
   Map<String, dynamic> _messageToJson(MwalimuMessage message) => {
@@ -89,35 +132,88 @@ class MwalimuService extends ChangeNotifier {
     final trimmed = content.trim();
     if (trimmed.isEmpty || !canSendAsGuest()) return false;
 
-    final msg = MwalimuMessage(
-      id: 'guest_${DateTime.now().microsecondsSinceEpoch}',
+    final sessionId = await getGuestSessionId();
+
+    // Optimistic local bubble while request is in flight
+    final pendingId = 'guest_${DateTime.now().microsecondsSinceEpoch}';
+    final pending = MwalimuMessage(
+      id: pendingId,
       senderType: 'user',
       content: trimmed,
       createdAt: DateTime.now().toUtc().toIso8601String(),
     );
-    guestMessages = [...guestMessages, msg];
-    guestMessageCount++;
-    await _saveGuestState();
+    guestMessages = [...guestMessages, pending];
     notifyListeners();
-    return true;
+
+    try {
+      final data = await _api.post('/api/chat/guest/messages', body: {
+        'content': trimmed,
+        'sessionId': sessionId,
+      });
+
+      final msg = MwalimuMessage.fromJson(
+        data['message'] as Map<String, dynamic>,
+      );
+      guestMessageCount = data['messageCount'] as int? ?? guestMessageCount + 1;
+      messageLimit = data['messageLimit'] as int?;
+
+      guestMessages = [
+        ...guestMessages.where((m) => m.id != pendingId),
+        msg,
+      ];
+      await _saveGuestState();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      error = e.toString().replaceAll('ApiException: ', '');
+      guestMessages = guestMessages.where((m) => m.id != pendingId).toList();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> linkGuestSession(String userToken) async {
+    final sessionId = await getGuestSessionId();
+    try {
+      await _api.post('/api/chat/guest/link', body: {
+        'sessionId': sessionId,
+      }, token: userToken);
+      guestMessages = [];
+      guestMessageCount = 0;
+      await _saveGuestState();
+    } catch (e) {
+      debugPrint('Guest session link error: $e');
+    }
   }
 
   Future<void> flushGuestMessagesToServer(String userToken) async {
-    if (guestMessages.isEmpty) return;
+    await loadGuestState();
 
+    // Retry any messages that failed to reach the server
+    final pending = guestMessages
+        .where((m) => m.isUser && m.id.startsWith('guest_'))
+        .toList();
+    for (final msg in pending) {
+      if (!canSendAsGuest()) break;
+      final ok = await sendGuestMessage(msg.content);
+      if (!ok) break;
+    }
+
+    await linkGuestSession(userToken);
+
+    // Fallback: send any remaining local-only messages as authenticated user
     while (guestMessages.isNotEmpty && canSendMessage()) {
       final msg = guestMessages.first;
+      if (!msg.isUser) {
+        guestMessages = guestMessages.sublist(1);
+        continue;
+      }
       final ok = await sendMessage(msg.content, userToken);
       if (!ok) break;
       guestMessages = guestMessages.sublist(1);
-      guestMessageCount = guestMessages.length;
       await _saveGuestState();
     }
 
-    if (guestMessages.isEmpty) {
-      guestMessageCount = 0;
-      await _saveGuestState();
-    }
     notifyListeners();
   }
 
@@ -147,7 +243,7 @@ class MwalimuService extends ChangeNotifier {
       messageCount = data['messageCount'] as int? ?? 0;
       messageLimit = data['messageLimit'] as int?;
       isPremium = data['isPremium'] as bool? ?? false;
-      _recomputeUnreadFromMessages();
+      _recomputeUnreadFromMessages(messages);
     } catch (e) {
       error = e.toString();
     } finally {
@@ -183,18 +279,8 @@ class MwalimuService extends ChangeNotifier {
   }
 
   bool canSendAsGuest() {
-    final limit = settings.freeMessageLimit;
-    return guestMessageCount < limit;
-  }
-
-  int get remainingGuestMessages {
-    final limit = settings.freeMessageLimit;
-    return (limit - guestMessageCount).clamp(0, limit);
-  }
-
-  int get remainingMessages {
-    if (isPremium || messageLimit == null) return -1;
-    return (messageLimit! - messageCount).clamp(0, messageLimit!);
+    final limit = messageLimit ?? settings.freeMessageLimit;
+    return guestSentCount < limit;
   }
 
   void setChatOpen(bool isOpen) {
@@ -205,7 +291,8 @@ class MwalimuService extends ChangeNotifier {
   }
 
   Future<void> markAllRead() async {
-    final latestAdminId = _latestAdminMessageId(messages);
+    final list = messages.isNotEmpty ? messages : guestMessages;
+    final latestAdminId = _latestAdminMessageId(list);
     unreadCount = 0;
     _lastSeenAdminMessageId = latestAdminId;
     await _saveSeenAdminMessageId(latestAdminId);
@@ -220,7 +307,10 @@ class MwalimuService extends ChangeNotifier {
   }
 
   Future<void> syncMessages(String? userToken) async {
-    if (userToken == null) return;
+    if (userToken == null) {
+      await loadGuestMessages();
+      return;
+    }
     await _loadState();
     try {
       final data = await _api.get('/api/chat/messages', token: userToken);
@@ -231,7 +321,7 @@ class MwalimuService extends ChangeNotifier {
       messageLimit = data['messageLimit'] as int?;
       isPremium = data['isPremium'] as bool? ?? false;
       final bumped = unreadCount;
-      _recomputeUnreadFromMessages();
+      _recomputeUnreadFromMessages(messages);
       unreadCount = math.max(unreadCount, bumped);
       notifyListeners();
     } catch (e) {
@@ -239,8 +329,8 @@ class MwalimuService extends ChangeNotifier {
     }
   }
 
-  void _recomputeUnreadFromMessages() {
-    final latestAdminId = _latestAdminMessageId(messages);
+  void _recomputeUnreadFromMessages(List<MwalimuMessage> list) {
+    final latestAdminId = _latestAdminMessageId(list);
     if (latestAdminId == null) {
       unreadCount = 0;
       return;
@@ -262,7 +352,7 @@ class MwalimuService extends ChangeNotifier {
       return;
     }
 
-    unreadCount = _countAdminMessagesAfter(_lastSeenAdminMessageId!, messages);
+    unreadCount = _countAdminMessagesAfter(_lastSeenAdminMessageId!, list);
   }
 
   String? _latestAdminMessageId(List<MwalimuMessage> list) {

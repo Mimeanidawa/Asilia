@@ -48,6 +48,8 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     if (user.token != null) {
       await mwalimu.flushGuestMessagesToServer(user.token!);
       await mwalimu.loadMessages(user.token);
+    } else {
+      await mwalimu.loadGuestMessages();
     }
   }
 
@@ -87,7 +89,20 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
         return;
       }
       _controller.clear();
-      await mwalimu.sendGuestMessage(text);
+      final ok = await mwalimu.sendGuestMessage(text);
+      if (!ok && mounted) {
+        if (!mwalimu.canSendAsGuest()) {
+          _showSignupRequiredDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(mwalimu.error ?? 'Imeshindwa kutuma ujumbe'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+        }
+        return;
+      }
       _scrollToBottom();
       return;
     }
@@ -226,16 +241,6 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                         'Mtaalamu wa Elimu ya Mimea na Asili',
                         style: TextStyle(fontSize: 11, color: AppColors.gray500),
                       ),
-                      if (!user.isLoggedIn && mwalimu.remainingGuestMessages >= 0)
-                        Text(
-                          'Maswali ${mwalimu.remainingGuestMessages} yamesalia (bila kujiandikisha)',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.amber),
-                        )
-                      else if (!mwalimu.isPremium && user.isLoggedIn && mwalimu.remainingMessages >= 0)
-                        Text(
-                          'Maswali ${mwalimu.remainingMessages} yamesalia',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.amber),
-                        ),
                     ],
                   ),
                 ),
@@ -289,7 +294,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Umefikia kikomo cha maswali ${settings.freeMessageLimit}. Jisajili ili uendelee.',
+                      'Jisajili au ingia ili uendelee kuwasiliana na Mwalimu.',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.gray600),
                     ),
                   ),

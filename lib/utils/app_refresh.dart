@@ -40,6 +40,8 @@ class AppRefresh {
       if (user.token != null) {
         await mwalimu.flushGuestMessagesToServer(user.token!);
         await mwalimu.loadMessages(user.token);
+      } else {
+        await mwalimu.loadGuestMessages();
       }
     } catch (_) {}
   }
