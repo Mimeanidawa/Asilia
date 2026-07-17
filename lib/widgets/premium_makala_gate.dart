@@ -66,11 +66,8 @@ Future<void> showPremiumMakalaModal(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (ctx) => _PremiumMakalaSheet(
-      post: post,
-      onUnlock: onUnlock,
-      onSignUp: onSignUp,
-    ),
+    builder: (ctx) =>
+        _PremiumMakalaSheet(post: post, onUnlock: onUnlock, onSignUp: onSignUp),
   );
 }
 
@@ -130,7 +127,9 @@ class _PremiumMakalaSheet extends StatelessWidget {
                           if (onSignUp != null) {
                             onSignUp!();
                           } else {
-                            context.read<AppProvider>().navigate(AppScreen.auth);
+                            context.read<AppProvider>().navigate(
+                              AppScreen.auth,
+                            );
                           }
                         },
                         child: const Text(
@@ -144,7 +143,9 @@ class _PremiumMakalaSheet extends StatelessWidget {
                       ),
                       Text(
                         '·',
-                        style: TextStyle(color: AppColors.gray400.withValues(alpha: 0.8)),
+                        style: TextStyle(
+                          color: AppColors.gray400.withValues(alpha: 0.8),
+                        ),
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -235,7 +236,10 @@ class _PremiumUnlockCard extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
@@ -248,7 +252,11 @@ class _PremiumUnlockCard extends StatelessWidget {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 14),
+                            Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Colors.white,
+                              size: 14,
+                            ),
                             SizedBox(width: 5),
                             Text(
                               'PREMIUM',
@@ -301,7 +309,9 @@ class _PremiumUnlockCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +350,10 @@ class _PremiumUnlockCard extends StatelessWidget {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(left: 6, bottom: 3),
+                              padding: const EdgeInsets.only(
+                                left: 6,
+                                bottom: 3,
+                              ),
                               child: Text(
                                 'kwa makala hii',
                                 style: TextStyle(
@@ -364,7 +377,9 @@ class _PremiumUnlockCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
-                              color: AppColors.emerald400.withValues(alpha: 0.2),
+                              color: AppColors.emerald400.withValues(
+                                alpha: 0.2,
+                              ),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -418,7 +433,11 @@ class _PremiumUnlockCard extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.lock_open_rounded, color: AppColors.forest, size: 20),
+                                const Icon(
+                                  Icons.lock_open_rounded,
+                                  color: AppColors.forest,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Fungua Makala — ${TzsFormat.full(post.price)}',
@@ -439,10 +458,14 @@ class _PremiumUnlockCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.verified_user_rounded, size: 13, color: Colors.white.withValues(alpha: 0.45)),
+                      Icon(
+                        Icons.verified_user_rounded,
+                        size: 13,
+                        color: Colors.white.withValues(alpha: 0.45),
+                      ),
                       const SizedBox(width: 6),
                       Text(
-                        'Malipo salama • SonicPesa • M-Pesa, Tigo, Airtel',
+                        'Malipo salama • Aurax Pay • M-Pesa, Mixx, Airtel',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,

@@ -2,6 +2,17 @@ import 'api_client.dart';
 
 enum PaymentType { content, premium }
 
+enum PaymentChannel {
+  mpesa('MPESA', 'M-Pesa'),
+  airtelMoney('AIRTEL_MONEY', 'Airtel Money'),
+  tigoPesa('TIGO_PESA', 'Mixx by Yas'),
+  haloPesa('HALOPESA', 'HaloPesa');
+
+  const PaymentChannel(this.apiValue, this.label);
+  final String apiValue;
+  final String label;
+}
+
 class PaymentRecord {
   const PaymentRecord({
     required this.id,
@@ -30,16 +41,16 @@ class PaymentRecord {
   bool get isFailed => status == 'failed';
 
   factory PaymentRecord.fromJson(Map<String, dynamic> json) => PaymentRecord(
-        id: json['id'] as String,
-        type: json['type'] as String,
-        amount: json['amount'] as int? ?? 0,
-        status: json['status'] as String? ?? 'pending',
-        phone: json['phone'] as String? ?? '',
-        contentId: json['contentId'] as String?,
-        title: json['title'] as String?,
-        reference: json['reference'] as String?,
-        transid: json['transid'] as String?,
-      );
+    id: json['id'] as String,
+    type: json['type'] as String,
+    amount: json['amount'] as int? ?? 0,
+    status: json['status'] as String? ?? 'pending',
+    phone: json['phone'] as String? ?? '',
+    contentId: json['contentId'] as String?,
+    title: json['title'] as String?,
+    reference: json['reference'] as String?,
+    transid: json['transid'] as String?,
+  );
 }
 
 class PaymentInitResponse {
@@ -76,6 +87,7 @@ class PaymentService {
   Future<PaymentInitResponse> initiate({
     required PaymentType type,
     required String phone,
+    required PaymentChannel channel,
     required String token,
     String? contentId,
   }) async {
@@ -85,6 +97,7 @@ class PaymentService {
       body: {
         'type': type == PaymentType.premium ? 'premium' : 'content',
         'phone': phone,
+        'channel': channel.apiValue,
         if (contentId != null) 'contentId': contentId,
       },
     );
@@ -117,10 +130,15 @@ class PaymentService {
     required String paymentId,
     required String token,
   }) async {
-    final data = await _api.get('/api/payments/$paymentId/status', token: token);
+    final data = await _api.get(
+      '/api/payments/$paymentId/status',
+      token: token,
+    );
     return PaymentStatusResponse(
       payment: PaymentRecord.fromJson(data['payment'] as Map<String, dynamic>),
-      purchasedContentIds: List<String>.from(data['purchasedContentIds'] as List? ?? []),
+      purchasedContentIds: List<String>.from(
+        data['purchasedContentIds'] as List? ?? [],
+      ),
       isPremiumActive: data['isPremiumActive'] as bool? ?? false,
     );
   }
@@ -140,6 +158,8 @@ class PaymentService {
       }
       await Future.delayed(interval);
     }
-    throw ApiException('Muda wa malipo umeisha. Angalia simu yako na jaribu tena.');
+    throw ApiException(
+      'Muda wa malipo umeisha. Angalia simu yako na jaribu tena.',
+    );
   }
 }

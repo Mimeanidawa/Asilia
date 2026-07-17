@@ -3,35 +3,47 @@ import { getPool } from '../db.js';
 
 export async function fulfillPaymentOrder(orderRow) {
   const db = getPool();
-
-  if (orderRow.status === 'success') {
-    return { alreadyFulfilled: true };
-  }
-
-  if (orderRow.type === 'premium') {
-    await db.query(
-      `UPDATE users SET is_premium = TRUE,
-       premium_until = NOW() + INTERVAL '30 days', updated_at = NOW()
-       WHERE id = $1`,
-      [orderRow.user_id],
+  const client = await db.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      'SELECT * FROM payment_orders WHERE id = $1 FOR UPDATE',
+      [orderRow.id],
     );
-  } else if (orderRow.content_id) {
-    const { rows: existing } = await db.query(
-      'SELECT id FROM user_purchases WHERE user_id = $1 AND content_id = $2',
-      [orderRow.user_id, orderRow.content_id],
-    );
-    if (!existing.length) {
-      await db.query(
-        'INSERT INTO user_purchases (id, user_id, content_id, amount) VALUES ($1,$2,$3,$4)',
-        [uuidv4(), orderRow.user_id, orderRow.content_id, orderRow.amount],
+    const order = rows[0];
+    if (!order) throw new Error('Payment order not found');
+    if (order.status === 'success') {
+      await client.query('COMMIT');
+      return { alreadyFulfilled: true };
+    }
+
+    if (order.type === 'premium') {
+      await client.query(
+        `UPDATE users SET is_premium = TRUE,
+         premium_until = GREATEST(COALESCE(premium_until, NOW()), NOW()) + INTERVAL '30 days',
+         updated_at = NOW()
+         WHERE id = $1`,
+        [order.user_id],
+      );
+    } else if (order.content_id) {
+      await client.query(
+        `INSERT INTO user_purchases (id, user_id, content_id, amount)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (user_id, content_id) DO NOTHING`,
+        [uuidv4(), order.user_id, order.content_id, order.amount],
       );
     }
+
+    await client.query(
+      `UPDATE payment_orders SET status = 'success', updated_at = NOW() WHERE id = $1`,
+      [order.id],
+    );
+    await client.query('COMMIT');
+    return { fulfilled: true };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
-
-  await db.query(
-    `UPDATE payment_orders SET status = 'success', updated_at = NOW() WHERE id = $1`,
-    [orderRow.id],
-  );
-
-  return { fulfilled: true };
 }

@@ -23,7 +23,9 @@ class ProfileScreen extends StatelessWidget {
     final isLoggedIn = userService.isLoggedIn && user != null;
     final contact = (user?.email?.trim().isNotEmpty ?? false)
         ? user!.email!.trim()
-        : ((user?.phone?.trim().isNotEmpty ?? false) ? user!.phone!.trim() : null);
+        : ((user?.phone?.trim().isNotEmpty ?? false)
+              ? user!.phone!.trim()
+              : null);
 
     return SizedBox.expand(
       child: PullToRefresh(
@@ -39,7 +41,11 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
               child: const Row(
                 children: [
-                  Icon(Icons.verified_user_rounded, color: AppColors.emerald800, size: 20),
+                  Icon(
+                    Icons.verified_user_rounded,
+                    color: AppColors.emerald800,
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'MTUMIAJI',
@@ -60,7 +66,10 @@ class ProfileScreen extends StatelessWidget {
               transitionBuilder: (child, animation) => FadeTransition(
                 opacity: animation,
                 child: SlideTransition(
-                  position: Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero).animate(animation),
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.05),
+                    end: Offset.zero,
+                  ).animate(animation),
                   child: child,
                 ),
               ),
@@ -74,17 +83,21 @@ class ProfileScreen extends StatelessWidget {
                       onUpgrade: () async {
                         final mwalimu = context.read<MwalimuService>();
                         final price = mwalimu.settings.premiumPrice;
-                        final result = await showSonicPesaPayment(
+                        final result = await showAuraxPayment(
                           context,
                           type: PaymentType.premium,
                           title: 'Premium — Dawa Asili',
-                          subtitle: 'Maswali bila kikomo kwa Mwalimu + makala za Premium',
+                          subtitle:
+                              'Maswali bila kikomo kwa Mwalimu + makala za Premium',
                           amount: price,
                         );
-                        if (result == SonicPesaPaymentResult.success && context.mounted) {
+                        if (result == AuraxPaymentResult.success &&
+                            context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Premium imeamilishwa kwa siku 30!'),
+                              content: Text(
+                                'Premium imeamilishwa kwa siku 30!',
+                              ),
                               backgroundColor: AppColors.forest,
                             ),
                           );
@@ -173,13 +186,21 @@ class _GuestProfileCard extends StatelessWidget {
           const SizedBox(height: 12),
           const Text(
             'Karibu Dawa Asili!',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.forest),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.forest,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Jiunge ili kusoma makala, kuuliza Mwalimu, na kufungua maudhui ya Premium',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: AppColors.gray500, height: 1.4),
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.gray500,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -190,9 +211,14 @@ class _GuestProfileCard extends StatelessWidget {
                 backgroundColor: AppColors.forest,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
-              child: const Text('Jiunge au Ingia', style: TextStyle(fontWeight: FontWeight.w900)),
+              child: const Text(
+                'Jiunge au Ingia',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
             ),
           ),
         ],
@@ -262,7 +288,11 @@ class _ProfileCard extends StatelessWidget {
                     onTap: onLogout,
                     child: const Padding(
                       padding: EdgeInsets.all(9),
-                      child: Icon(Icons.logout_rounded, color: AppColors.gray500, size: 19),
+                      child: Icon(
+                        Icons.logout_rounded,
+                        color: AppColors.gray500,
+                        size: 19,
+                      ),
                     ),
                   ),
                 ),
@@ -271,7 +301,9 @@ class _ProfileCard extends StatelessWidget {
             if (contact != null) ...[
               const SizedBox(height: 10),
               _MetaPill(
-                icon: contact!.contains('@') ? Icons.email_outlined : Icons.phone_outlined,
+                icon: contact!.contains('@')
+                    ? Icons.email_outlined
+                    : Icons.phone_outlined,
                 label: contact!,
               ),
             ],
@@ -286,7 +318,11 @@ class _ProfileCard extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.workspace_premium_rounded, size: 18, color: AppColors.forest),
+                  const Icon(
+                    Icons.workspace_premium_rounded,
+                    size: 18,
+                    color: AppColors.forest,
+                  ),
                   const SizedBox(width: 8),
                   const Text(
                     'Hali ya akaunti',
@@ -317,7 +353,9 @@ class _ProfileCard extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
               ),

@@ -1,7 +1,7 @@
 name: asilia
 description: "Dawa Asili - Elimu ya dawa za asili kutoka mizizi, miti na matunda."
 publish_to: 'none'
-version: 1.0.3+4
+version: 1.0.4+5
 
 environment:
   sdk: ^3.12.0

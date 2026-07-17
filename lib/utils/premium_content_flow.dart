@@ -37,7 +37,8 @@ Future<void> openContentPost(BuildContext context, ContentPost post) async {
     onUnlock: () => purchasePremiumContent(
       context,
       post: post,
-      onSuccess: () => app.navigate(AppScreen.contentDetail, contentId: post.id),
+      onSuccess: () =>
+          app.navigate(AppScreen.contentDetail, contentId: post.id),
     ),
     onSignUp: () => app.navigate(AppScreen.auth),
   );
@@ -60,16 +61,13 @@ Future<void> showPremiumUnlockForPost(
   await showPremiumMakalaModal(
     context,
     post: post,
-    onUnlock: () => purchasePremiumContent(
-      context,
-      post: post,
-      onSuccess: onUnlocked,
-    ),
+    onUnlock: () =>
+        purchasePremiumContent(context, post: post, onSuccess: onUnlocked),
     onSignUp: () => app.navigate(AppScreen.auth),
   );
 }
 
-/// Runs SonicPesa payment for a single premium makala (unlocks that item only).
+/// Runs Aurax Pay for a single premium makala (unlocks that item only).
 Future<bool> purchasePremiumContent(
   BuildContext context, {
   required ContentPost post,
@@ -83,7 +81,9 @@ Future<bool> purchasePremiumContent(
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Jisajili kwanza, kisha urudi kulipa na kusoma makala hii.'),
+          content: Text(
+            'Jisajili kwanza, kisha urudi kulipa na kusoma makala hii.',
+          ),
           backgroundColor: AppColors.forest,
           behavior: SnackBarBehavior.floating,
         ),
@@ -92,7 +92,7 @@ Future<bool> purchasePremiumContent(
     return false;
   }
 
-  final result = await showSonicPesaPayment(
+  final result = await showAuraxPayment(
     context,
     type: PaymentType.content,
     title: post.title,
@@ -101,7 +101,7 @@ Future<bool> purchasePremiumContent(
     contentId: post.id,
   );
 
-  if (result != SonicPesaPaymentResult.success || !context.mounted) return false;
+  if (result != AuraxPaymentResult.success || !context.mounted) return false;
 
   await user.refreshProfile();
   onSuccess?.call();

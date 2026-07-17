@@ -172,6 +172,34 @@ export async function initDb() {
       ON payment_orders (sonic_order_id);
   `);
 
+  // Provider-neutral payment identifiers (retain SonicPesa columns for old orders)
+  await db.query(`
+    ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'sonicpesa';
+    ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS provider_order_id TEXT;
+    ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS provider_transaction_id TEXT;
+    ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS channel TEXT;
+  `);
+  await db.query(`
+    UPDATE payment_orders
+    SET provider_order_id = sonic_order_id
+    WHERE provider_order_id IS NULL AND sonic_order_id IS NOT NULL
+  `);
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_payment_orders_provider_order
+      ON payment_orders (provider, provider_order_id)
+  `);
+  await db.query(`
+    DELETE FROM user_purchases a
+    USING user_purchases b
+    WHERE a.user_id = b.user_id
+      AND a.content_id = b.content_id
+      AND (a.created_at, a.id) > (b.created_at, b.id)
+  `);
+  await db.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_user_purchases_user_content
+      ON user_purchases (user_id, content_id)
+  `);
+
   // Default Mwalimu (learning assistant) settings
   await db.query(`
     INSERT INTO app_settings (key, value) VALUES

@@ -7,10 +7,10 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/tzs_format.dart';
 
-enum SonicPesaPaymentResult { success, cancelled, failed }
+enum AuraxPaymentResult { success, cancelled, failed }
 
-/// Opens a SonicPesa payment sheet. Returns [SonicPesaPaymentResult.success] when paid.
-Future<SonicPesaPaymentResult?> showSonicPesaPayment(
+/// Opens an Aurax Pay payment sheet.
+Future<AuraxPaymentResult?> showAuraxPayment(
   BuildContext context, {
   required PaymentType type,
   required String title,
@@ -18,12 +18,12 @@ Future<SonicPesaPaymentResult?> showSonicPesaPayment(
   required int amount,
   String? contentId,
 }) {
-  return showModalBottomSheet<SonicPesaPaymentResult>(
+  return showModalBottomSheet<AuraxPaymentResult>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     isDismissible: false,
-    builder: (ctx) => _SonicPesaPaymentSheet(
+    builder: (ctx) => _AuraxPaymentSheet(
       type: type,
       title: title,
       subtitle: subtitle,
@@ -33,8 +33,8 @@ Future<SonicPesaPaymentResult?> showSonicPesaPayment(
   );
 }
 
-class _SonicPesaPaymentSheet extends StatefulWidget {
-  const _SonicPesaPaymentSheet({
+class _AuraxPaymentSheet extends StatefulWidget {
+  const _AuraxPaymentSheet({
     required this.type,
     required this.title,
     required this.subtitle,
@@ -49,16 +49,17 @@ class _SonicPesaPaymentSheet extends StatefulWidget {
   final String? contentId;
 
   @override
-  State<_SonicPesaPaymentSheet> createState() => _SonicPesaPaymentSheetState();
+  State<_AuraxPaymentSheet> createState() => _AuraxPaymentSheetState();
 }
 
-class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
+class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
   final _phoneCtrl = TextEditingController();
   final _paymentService = PaymentService();
 
   _PayStep _step = _PayStep.details;
   String? _error;
   String? _statusMessage;
+  PaymentChannel _channel = PaymentChannel.mpesa;
 
   @override
   void initState() {
@@ -112,6 +113,7 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
       final init = await _paymentService.initiate(
         type: widget.type,
         phone: phone,
+        channel: _channel,
         token: userService.token!,
         contentId: widget.contentId,
       );
@@ -119,10 +121,9 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
       if (init.alreadyPurchased || init.alreadyActive) {
         await userService.refreshProfile();
         if (!mounted) return;
-        Navigator.pop(context, SonicPesaPaymentResult.success);
+        Navigator.pop(context, AuraxPaymentResult.success);
         return;
       }
-
 
       setState(() => _statusMessage = init.message);
 
@@ -142,7 +143,7 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
         _statusMessage = 'Malipo yamekamilika!';
       });
       await Future.delayed(const Duration(milliseconds: 1200));
-      if (mounted) Navigator.pop(context, SonicPesaPaymentResult.success);
+      if (mounted) Navigator.pop(context, AuraxPaymentResult.success);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -165,51 +166,66 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
         ),
         child: SafeArea(
           top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.gray200,
-                      borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.gray200,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                _header(),
-                const SizedBox(height: 20),
-                if (_step == _PayStep.success)
-                  _successView()
-                else if (_step == _PayStep.processing)
-                  _processingView()
-                else ...[
-                  _amountCard(),
                   const SizedBox(height: 16),
-                  _stepsGuide(),
-                  const SizedBox(height: 16),
-                  _phoneField(),
-                  if (_error != null) ...[
+                  _header(),
+                  const SizedBox(height: 20),
+                  if (_step == _PayStep.success)
+                    _successView()
+                  else if (_step == _PayStep.processing)
+                    _processingView()
+                  else ...[
+                    _amountCard(),
+                    const SizedBox(height: 16),
+                    _stepsGuide(),
+                    const SizedBox(height: 16),
+                    _channelPicker(),
+                    const SizedBox(height: 16),
+                    _phoneField(),
+                    if (_error != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: AppColors.red600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                    _payButton(),
                     const SizedBox(height: 10),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: AppColors.red600, fontSize: 12, fontWeight: FontWeight.w600),
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pop(context, AuraxPaymentResult.cancelled),
+                      child: const Text(
+                        'Ghairi',
+                        style: TextStyle(
+                          color: AppColors.gray400,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  _payButton(),
-                  const SizedBox(height: 10),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, SonicPesaPaymentResult.cancelled),
-                    child: const Text('Ghairi', style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w700)),
-                  ),
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -223,10 +239,16 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [AppColors.forest, AppColors.emerald800]),
+            gradient: const LinearGradient(
+              colors: [AppColors.forest, AppColors.emerald800],
+            ),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 22),
+          child: const Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -235,11 +257,19 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
             children: [
               const Text(
                 'Fungua Maudhui yote',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.forest),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.forest,
+                ),
               ),
               Text(
-                'M-Pesa • Tigo Pesa • Airtel Money • HaloPesa',
-                style: TextStyle(fontSize: 10, color: AppColors.gray400, fontWeight: FontWeight.w600),
+                'M-Pesa • Mixx by Yas • Airtel Money • HaloPesa',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppColors.gray400,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -253,7 +283,10 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.amber.withValues(alpha: 0.12), AppColors.emerald50],
+          colors: [
+            AppColors.amber.withValues(alpha: 0.12),
+            AppColors.emerald50,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -265,24 +298,46 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
         children: [
           Text(
             widget.title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.forest),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.forest,
+            ),
           ),
           const SizedBox(height: 4),
-          Text(widget.subtitle, style: TextStyle(fontSize: 12, color: AppColors.gray500, height: 1.35)),
+          Text(
+            widget.subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.gray500,
+              height: 1.35,
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 TzsFormat.full(widget.amount),
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.forest, height: 1),
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.forest,
+                  height: 1,
+                ),
               ),
               const SizedBox(width: 8),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  widget.type == PaymentType.premium ? '/ siku 30' : '/ makala hii',
-                  style: TextStyle(fontSize: 11, color: AppColors.gray400, fontWeight: FontWeight.w600),
+                  widget.type == PaymentType.premium
+                      ? '/ siku 30'
+                      : '/ makala hii',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.gray400,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -325,11 +380,26 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
             color: AppColors.forest,
             borderRadius: BorderRadius.circular(7),
           ),
-          child: Text(num, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+          child: Text(
+            num,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(text, style: TextStyle(fontSize: 12, color: AppColors.gray600, height: 1.35, fontWeight: FontWeight.w600)),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.gray600,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
     );
@@ -341,31 +411,99 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
       children: [
         const Text(
           'Namba ya simu ya malipo',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppColors.forest,
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
           controller: _phoneCtrl,
           keyboardType: TextInputType.phone,
-          inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]'))],
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.forest),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
+          ],
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.forest,
+          ),
           decoration: InputDecoration(
             hintText: '07XX XXX XXX',
-            hintStyle: TextStyle(color: AppColors.gray400.withValues(alpha: 0.8), fontWeight: FontWeight.w500),
-            prefixIcon: const Icon(Icons.phone_android_rounded, color: AppColors.emerald800, size: 20),
+            hintStyle: TextStyle(
+              color: AppColors.gray400.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: const Icon(
+              Icons.phone_android_rounded,
+              color: AppColors.emerald800,
+              size: 20,
+            ),
             filled: true,
             fillColor: AppColors.emerald50,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: AppColors.forest.withValues(alpha: 0.08)),
+              borderSide: BorderSide(
+                color: AppColors.forest.withValues(alpha: 0.08),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.emerald800, width: 1.5),
+              borderSide: const BorderSide(
+                color: AppColors.emerald800,
+                width: 1.5,
+              ),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _channelPicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Mtandao wa malipo',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppColors.forest,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: PaymentChannel.values.map((channel) {
+            return ChoiceChip(
+              label: Text(channel.label),
+              selected: _channel == channel,
+              onSelected: (_) => setState(() => _channel = channel),
+              selectedColor: AppColors.emerald50,
+              labelStyle: TextStyle(
+                color: AppColors.forest,
+                fontWeight: _channel == channel
+                    ? FontWeight.w800
+                    : FontWeight.w600,
+              ),
+              side: BorderSide(
+                color: _channel == channel
+                    ? AppColors.emerald800
+                    : AppColors.gray200,
+              ),
+            );
+          }).toList(),
         ),
       ],
     );
@@ -380,14 +518,19 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
           backgroundColor: AppColors.forest,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.lock_rounded, size: 18),
             SizedBox(width: 8),
-            Text('Lipa Sasa kwa SonicPesa', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+            Text(
+              'Lipa Sasa kwa Aurax Pay',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+            ),
           ],
         ),
       ),
@@ -402,23 +545,38 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
           const SizedBox(
             width: 56,
             height: 56,
-            child: CircularProgressIndicator(color: AppColors.forest, strokeWidth: 3),
+            child: CircularProgressIndicator(
+              color: AppColors.forest,
+              strokeWidth: 3,
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
             'Subiri uthibitisho wa malipo',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.forest),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.forest,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             _statusMessage ?? 'Angalia simu yako na thibitisha malipo',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: AppColors.gray500, height: 1.4),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppColors.gray500,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             'Usifunge programu hii',
-            style: TextStyle(fontSize: 11, color: AppColors.amber, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.amber,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ),
@@ -437,12 +595,20 @@ class _SonicPesaPaymentSheetState extends State<_SonicPesaPaymentSheet> {
               color: AppColors.emerald50,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle_rounded, color: AppColors.emerald800, size: 48),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: AppColors.emerald800,
+              size: 48,
+            ),
           ),
           const SizedBox(height: 16),
           const Text(
             'Malipo Yamekamilika!',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.forest),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: AppColors.forest,
+            ),
           ),
           const SizedBox(height: 6),
           Text(

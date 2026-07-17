@@ -126,12 +126,18 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Ingia ili uendelee', style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text(
+          'Ingia ili uendelee',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
         content: Text(
           'Umefikia kikomo cha maswali $limit bila kujiandikisha. Jisajili au ingia ili kuendelea kuwasiliana na Mwalimu.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Baadaye')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Baadaye'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -149,24 +155,30 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Kikomo cha Maswali', style: TextStyle(fontWeight: FontWeight.w900)),
+        title: const Text(
+          'Kikomo cha Maswali',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
         content: const Text(
           'Umefikia kikomo cha maswali 5 kwa watumiaji wa bure. Lipia Premium ili kuendelea kujifunza bila kikomo.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Funga')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Funga'),
+          ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
               final mwalimu = context.read<MwalimuService>();
-              final result = await showSonicPesaPayment(
+              final result = await showAuraxPayment(
                 context,
                 type: PaymentType.premium,
                 title: 'Premium — Dawa Asili',
                 subtitle: 'Uliza Mwalimu bila kikomo kwa siku 30',
                 amount: mwalimu.settings.premiumPrice,
               );
-              if (result == SonicPesaPaymentResult.success && context.mounted) {
+              if (result == AuraxPaymentResult.success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Premium imeamilishwa!'),
@@ -188,7 +200,9 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     final mwalimu = context.watch<MwalimuService>();
     final user = context.watch<UserService>();
     final settings = mwalimu.settings;
-    final chatMessages = user.isLoggedIn ? mwalimu.messages : mwalimu.guestMessages;
+    final chatMessages = user.isLoggedIn
+        ? mwalimu.messages
+        : mwalimu.guestMessages;
     final guestLimitReached = !user.isLoggedIn && !mwalimu.canSendAsGuest();
 
     if (chatMessages.length != _lastMessageCount) {
@@ -204,8 +218,12 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
             onBack: () => context.read<AppProvider>().goBack(),
             trailing: !user.isLoggedIn
                 ? TextButton(
-                    onPressed: () => context.read<AppProvider>().navigate(AppScreen.auth),
-                    child: const Text('Ingia', style: TextStyle(fontWeight: FontWeight.w800)),
+                    onPressed: () =>
+                        context.read<AppProvider>().navigate(AppScreen.auth),
+                    child: const Text(
+                      'Ingia',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   )
                 : null,
           ),
@@ -213,14 +231,20 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             decoration: BoxDecoration(
               gradient: LinearGradient(colors: [Colors.white, AppColors.cream]),
-              border: Border(bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.03))),
+              border: Border(
+                bottom: BorderSide(
+                  color: AppColors.forest.withValues(alpha: 0.03),
+                ),
+              ),
             ),
             child: Row(
               children: [
                 if (settings.mwalimuImage.isNotEmpty)
                   CircleAvatar(
                     radius: 28,
-                    backgroundImage: CachedNetworkImageProvider(settings.mwalimuImage),
+                    backgroundImage: CachedNetworkImageProvider(
+                      settings.mwalimuImage,
+                    ),
                   )
                 else
                   const CircleAvatar(
@@ -235,23 +259,40 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                     children: [
                       Text(
                         mwalimu.displayName,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.forest),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.forest,
+                        ),
                       ),
                       Text(
                         'Mtaalamu wa Elimu ya Mimea na Asili',
-                        style: TextStyle(fontSize: 11, color: AppColors.gray500),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.gray500,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (user.isPremiumActive)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.amber.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text('PREMIUM', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.amber)),
+                    child: const Text(
+                      'PREMIUM',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.amber,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -260,27 +301,34 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
             child: PullToRefresh(
               onRefresh: _refresh,
               child: ListView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(20),
-              children: [
-                _Bubble(
-                  isUser: false,
-                  content: settings.mwalimuWelcome,
-                  avatarUrl: settings.mwalimuImage,
-                ),
-                ...chatMessages.map((m) => _Bubble(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  _Bubble(
+                    isUser: false,
+                    content: settings.mwalimuWelcome,
+                    avatarUrl: settings.mwalimuImage,
+                  ),
+                  ...chatMessages.map(
+                    (m) => _Bubble(
                       isUser: m.isUser,
                       content: m.content,
                       avatarUrl: m.isAdmin ? settings.mwalimuImage : null,
-                    )),
-                if (mwalimu.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.forest)),
+                    ),
                   ),
-              ],
-            ),
+                  if (mwalimu.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.forest,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
           if (guestLimitReached)
@@ -290,17 +338,29 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
               color: AppColors.amber.withValues(alpha: 0.12),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.amber),
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: AppColors.amber,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Jisajili au ingia ili uendelee kuwasiliana na Mwalimu.',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.gray600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.gray600,
+                      ),
                     ),
                   ),
                   TextButton(
-                    onPressed: () => context.read<AppProvider>().navigate(AppScreen.auth),
-                    child: const Text('Ingia', style: TextStyle(fontWeight: FontWeight.w900)),
+                    onPressed: () =>
+                        context.read<AppProvider>().navigate(AppScreen.auth),
+                    child: const Text(
+                      'Ingia',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
                   ),
                 ],
               ),
@@ -318,29 +378,40 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                       hintText: guestLimitReached
                           ? 'Jisajili ili uendelee kuuliza...'
                           : user.isLoggedIn
-                              ? 'Uliza kuhusu mimea, mizizi, miti...'
-                              : 'Uliza Hapa...',
+                          ? 'Uliza kuhusu mimea, mizizi, miti...'
+                          : 'Uliza Hapa...',
                       filled: true,
                       fillColor: AppColors.emerald50.withValues(alpha: 0.4),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
                     ),
                     onSubmitted: (_) => _send(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Material(
-                  color: guestLimitReached ? AppColors.gray400 : AppColors.forest,
+                  color: guestLimitReached
+                      ? AppColors.gray400
+                      : AppColors.forest,
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
-                    onTap: guestLimitReached ? _showSignupRequiredDialog : _send,
+                    onTap: guestLimitReached
+                        ? _showSignupRequiredDialog
+                        : _send,
                     child: const Padding(
                       padding: EdgeInsets.all(12),
-                      child: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+                      child: Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ),
@@ -362,12 +433,16 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = !isUser ? _SharedArticleTagParser.parse(content) : const <_MessagePart>[];
+    final parts = !isUser
+        ? _SharedArticleTagParser.parse(content)
+        : const <_MessagePart>[];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser && avatarUrl != null && avatarUrl!.isNotEmpty)
@@ -393,7 +468,11 @@ class _Bubble extends StatelessWidget {
                   bottomLeft: Radius.circular(isUser ? 18 : 4),
                   bottomRight: Radius.circular(isUser ? 4 : 18),
                 ),
-                border: isUser ? null : Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+                border: isUser
+                    ? null
+                    : Border.all(
+                        color: AppColors.forest.withValues(alpha: 0.08),
+                      ),
               ),
               child: _buildContent(context, parts),
             ),
@@ -419,7 +498,8 @@ class _Bubble extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < parts.length; i++) ...[
-          if (parts[i] is _TextPart && (parts[i] as _TextPart).text.trim().isNotEmpty)
+          if (parts[i] is _TextPart &&
+              (parts[i] as _TextPart).text.trim().isNotEmpty)
             Text((parts[i] as _TextPart).text, style: textStyle),
           if (parts[i] is _ArticlePart)
             Padding(
@@ -487,14 +567,19 @@ class _SharedArticleCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => context
-            .read<AppProvider>()
-            .navigate(AppScreen.contentDetail, contentId: part.id),
+        onTap: () => context.read<AppProvider>().navigate(
+          AppScreen.contentDetail,
+          contentId: part.id,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              const Icon(Icons.menu_book_rounded, size: 18, color: AppColors.forest),
+              const Icon(
+                Icons.menu_book_rounded,
+                size: 18,
+                color: AppColors.forest,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -518,7 +603,11 @@ class _SharedArticleCard extends StatelessWidget {
                   fontSize: 11,
                 ),
               ),
-              const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.forest),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: AppColors.forest,
+              ),
             ],
           ),
         ),

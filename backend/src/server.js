@@ -20,7 +20,12 @@ const corsOrigins = process.env.CORS_ORIGINS || '*';
 app.use(cors({
   origin: corsOrigins === '*' ? true : corsOrigins.split(',').map((o) => o.trim()),
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buffer) => {
+    req.rawBody = Buffer.from(buffer);
+  },
+}));
 
 app.get('/api/health', (_req, res) => {
   res.json({
