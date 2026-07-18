@@ -9,6 +9,7 @@ import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../services/mwalimu_service.dart';
 import '../services/payment_service.dart';
+import '../utils/tzs_format.dart';
 import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 
@@ -19,6 +20,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final userService = context.watch<UserService>();
+    final mwalimu = context.watch<MwalimuService>();
     final user = userService.user;
     final isLoggedIn = userService.isLoggedIn && user != null;
     final contact = (user?.email?.trim().isNotEmpty ?? false)
@@ -26,12 +28,16 @@ class ProfileScreen extends StatelessWidget {
         : ((user?.phone?.trim().isNotEmpty ?? false)
               ? user!.phone!.trim()
               : null);
+    final premiumPrice = mwalimu.settings.premiumPrice;
 
     return SizedBox.expand(
       child: PullToRefresh(
         onRefresh: () async {
-          await AppRefresh.user(context);
-          await AppRefresh.catalog(context);
+          await Future.wait([
+            AppRefresh.user(context),
+            AppRefresh.catalog(context),
+            AppRefresh.premiumSettings(context),
+          ]);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -79,24 +85,29 @@ class ProfileScreen extends StatelessWidget {
                       fullName: user.fullName,
                       contact: contact,
                       isPremium: user.isPremiumActive,
+                      premiumPrice: premiumPrice,
                       onLogout: userService.logout,
                       onUpgrade: () async {
-                        final mwalimu = context.read<MwalimuService>();
-                        final price = mwalimu.settings.premiumPrice;
+                        final svc = context.read<MwalimuService>();
+                        await svc.loadSettings();
+                        if (!context.mounted) return;
+                        final price = svc.settings.premiumPrice;
                         final result = await showAuraxPayment(
                           context,
                           type: PaymentType.premium,
                           title: 'Premium — Dawa Asili',
                           subtitle:
-                              'Maswali bila kikomo kwa Mwalimu + makala za Premium',
+                              'Fungua makala zote + maswali bila kikomo kwa Mwalimu (siku 30)',
                           amount: price,
                         );
                         if (result == AuraxPaymentResult.success &&
                             context.mounted) {
+                          await AppRefresh.afterPremiumPurchase(context);
+                          if (!context.mounted) return;
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'Premium imeamilishwa kwa siku 30!',
+                                'Premium imeamilishwa! Makala zote na mazungumzo yamefunguliwa.',
                               ),
                               backgroundColor: AppColors.forest,
                             ),
@@ -233,6 +244,7 @@ class _ProfileCard extends StatelessWidget {
     required this.fullName,
     required this.contact,
     required this.isPremium,
+    required this.premiumPrice,
     required this.onLogout,
     required this.onUpgrade,
   });
@@ -240,6 +252,7 @@ class _ProfileCard extends StatelessWidget {
   final String fullName;
   final String? contact;
   final bool isPremium;
+  final int premiumPrice;
   final VoidCallback onLogout;
   final Future<void> Function() onUpgrade;
 
@@ -344,9 +357,9 @@ class _ProfileCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onUpgrade,
                   icon: const Icon(Icons.stars_rounded, size: 16),
-                  label: const Text(
-                    'Fungua Makala zote sasa',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                  label: Text(
+                    'Fungua Makala zote — ${TzsFormat.full(premiumPrice)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.forest,
@@ -357,6 +370,16 @@ class _ProfileCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Inajumuisha makala zote za Premium + mazungumzo bila kikomo na Mwalimu kwa siku 30.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.gray500,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

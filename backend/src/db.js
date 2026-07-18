@@ -204,6 +204,16 @@ export async function initDb() {
   await db.query(`
     UPDATE content_posts SET price = 500 WHERE is_premium = TRUE AND price < 500
   `);
+  await db.query(`
+    UPDATE app_settings
+    SET value = '15000', updated_at = NOW()
+    WHERE key = 'premium_price'
+      AND (
+        value IS NULL
+        OR value !~ '^[0-9]+$'
+        OR value::bigint < 500
+      )
+  `);
 
   // Default Mwalimu (learning assistant) settings
   await db.query(`

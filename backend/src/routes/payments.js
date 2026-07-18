@@ -27,7 +27,8 @@ async function getPremiumPrice(db) {
   const { rows } = await db.query(
     "SELECT value FROM app_settings WHERE key = 'premium_price'",
   );
-  return parseInt(rows[0]?.value || '15000', 10);
+  const parsed = parseInt(rows[0]?.value || '15000', 10);
+  return Math.max(500, Number.isFinite(parsed) && parsed > 0 ? parsed : 15000);
 }
 
 async function loadUser(db, userId) {

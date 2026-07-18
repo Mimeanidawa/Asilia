@@ -12,7 +12,8 @@ class MwalimuAdminScreen extends StatefulWidget {
   State<MwalimuAdminScreen> createState() => _MwalimuAdminScreenState();
 }
 
-class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTickerProviderStateMixin {
+class _MwalimuAdminScreenState extends State<MwalimuAdminScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabs;
   Map<String, dynamic> _settings = {};
   List<Map<String, dynamic>> _conversations = [];
@@ -35,9 +36,7 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
       _settings = s['settings'] as Map<String, dynamic>;
       _conversations = await svc.fetchConversations();
       final posts = await svc.fetchPosts();
-      _publishedArticles = posts
-          .where((p) => p['isPublished'] == true)
-          .toList()
+      _publishedArticles = posts.where((p) => p['isPublished'] == true).toList()
         ..sort((a, b) => ((a['title'] as String?) ?? '')
             .toLowerCase()
             .compareTo(((b['title'] as String?) ?? '').toLowerCase()));
@@ -61,7 +60,8 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
       backgroundColor: AdminColors.bg,
       appBar: AppBar(
         backgroundColor: AdminColors.bg,
-        title: Text('Mwalimu', style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
+        title: Text('Mwalimu',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w800)),
         bottom: TabBar(
           controller: _tabs,
           indicatorColor: AdminColors.emerald,
@@ -78,51 +78,72 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
   }
 
   Widget _buildSettings() {
-    final nameCtrl = TextEditingController(text: _setting('mwalimuName', 'mtabibuName'));
-    final imgCtrl = TextEditingController(text: _setting('mwalimuImage', 'mtabibuImage'));
-    final welcomeCtrl = TextEditingController(text: _setting('mwalimuWelcome', 'mtabibuWelcome'));
-    final limitCtrl = TextEditingController(text: '${_settings['freeMessageLimit'] ?? 5}');
-    final priceCtrl = TextEditingController(text: '${_settings['premiumPrice'] ?? 15000}');
+    final nameCtrl =
+        TextEditingController(text: _setting('mwalimuName', 'mtabibuName'));
+    final imgCtrl =
+        TextEditingController(text: _setting('mwalimuImage', 'mtabibuImage'));
+    final welcomeCtrl = TextEditingController(
+        text: _setting('mwalimuWelcome', 'mtabibuWelcome'));
+    final limitCtrl =
+        TextEditingController(text: '${_settings['freeMessageLimit'] ?? 5}');
+    final priceCtrl =
+        TextEditingController(text: '${_settings['premiumPrice'] ?? 15000}');
 
     return RefreshIndicator(
       color: AdminColors.emerald,
       onRefresh: _load,
       child: ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text('Mwalimu wa Elimu', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w800, fontSize: 18)),
-        const SizedBox(height: 8),
-        Text(
-          'Kwa elimu tu — si ushauri wa kimatibabu',
-          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12),
-        ),
-        const SizedBox(height: 16),
-        _field(nameCtrl, 'Jina la Mwalimu'),
-        _field(imgCtrl, 'URL ya Picha'),
-        _field(welcomeCtrl, 'Ujumbe wa Karibu (elimu tu)', maxLines: 3),
-        _field(limitCtrl, 'Kikomo cha Maswali (Bure)'),
-        _field(priceCtrl, 'Bei ya Premium (TZS)'),
-        const SizedBox(height: 20),
-        ElevatedButton(
-          onPressed: () async {
-            await context.read<AdminProvider>().contentService.updateMwalimuSettings({
-              'mwalimuName': nameCtrl.text,
-              'mwalimuImage': imgCtrl.text,
-              'mwalimuWelcome': welcomeCtrl.text,
-              'freeMessageLimit': int.tryParse(limitCtrl.text) ?? 5,
-              'premiumPrice': int.tryParse(priceCtrl.text) ?? 15000,
-            });
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Imehifadhiwa')));
-              _load();
-            }
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: AdminColors.emerald, minimumSize: const Size(double.infinity, 48)),
-          child: const Text('Hifadhi Mipangilio'),
-        ),
-      ],
-    ),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Mwalimu wa Elimu',
+              style: GoogleFonts.inter(
+                  color: AdminColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18)),
+          const SizedBox(height: 8),
+          Text(
+            'Kwa elimu tu — si ushauri wa kimatibabu',
+            style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          _field(nameCtrl, 'Jina la Mwalimu'),
+          _field(imgCtrl, 'URL ya Picha'),
+          _field(welcomeCtrl, 'Ujumbe wa Karibu (elimu tu)', maxLines: 3),
+          _field(limitCtrl, 'Kikomo cha Maswali (Bure)'),
+          _field(priceCtrl, 'Bei ya Fungua Makala Zote / Premium (TZS)'),
+          const SizedBox(height: 8),
+          Text(
+            'Bei hii inaonekana pia kwenye Settings → Malipo. Inatumika kwa Premium siku 30 (makala zote + maswali bila kikomo).',
+            style: GoogleFonts.inter(
+                color: AdminColors.textDim, fontSize: 11, height: 1.35),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () async {
+              await context
+                  .read<AdminProvider>()
+                  .contentService
+                  .updateMwalimuSettings({
+                'mwalimuName': nameCtrl.text,
+                'mwalimuImage': imgCtrl.text,
+                'mwalimuWelcome': welcomeCtrl.text,
+                'freeMessageLimit': int.tryParse(limitCtrl.text) ?? 5,
+                'premiumPrice': int.tryParse(priceCtrl.text) ?? 15000,
+              });
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Imehifadhiwa')));
+                _load();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AdminColors.emerald,
+                minimumSize: const Size(double.infinity, 48)),
+            child: const Text('Hifadhi Mipangilio'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -132,51 +153,61 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
       color: AdminColors.emerald,
       onRefresh: _load,
       child: ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(16),
-      itemCount: _conversations.length,
-      itemBuilder: (_, i) {
-        final c = _conversations[i];
-        return Card(
-          color: AdminColors.surface,
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Material(
-            color: Colors.transparent,
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: AdminColors.emerald.withValues(alpha: 0.2),
-                child: Text(
-                  (c['isGuest'] == true ? 'M' : (c['userName'] as String? ?? 'U'))[0],
-                  style: const TextStyle(color: AdminColors.emerald),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: _conversations.length,
+        itemBuilder: (_, i) {
+          final c = _conversations[i];
+          return Card(
+            color: AdminColors.surface,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AdminColors.emerald.withValues(alpha: 0.2),
+                  child: Text(
+                    (c['isGuest'] == true
+                        ? 'M'
+                        : (c['userName'] as String? ?? 'U'))[0],
+                    style: const TextStyle(color: AdminColors.emerald),
+                  ),
                 ),
+                title: Text(
+                  c['userName'] as String? ?? '',
+                  style: GoogleFonts.inter(
+                      color: AdminColors.textPrimary,
+                      fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  c['isGuest'] == true
+                      ? 'Mgeni · ${c['lastMessage'] as String? ?? ''}'
+                      : (c['lastMessage'] as String? ?? ''),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                      color: AdminColors.textDim, fontSize: 12),
+                ),
+                trailing: c['isPremium'] == true
+                    ? const Icon(Icons.star, color: AdminColors.amber, size: 16)
+                    : c['isGuest'] == true
+                        ? Icon(Icons.person_outline,
+                            color: AdminColors.textDim.withValues(alpha: 0.6),
+                            size: 18)
+                        : null,
+                onTap: () async {
+                  _selectedConvId = c['id'] as String;
+                  _messages = await context
+                      .read<AdminProvider>()
+                      .contentService
+                      .fetchMessages(_selectedConvId!);
+                  setState(() {});
+                },
               ),
-              title: Text(
-                c['userName'] as String? ?? '',
-                style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                c['isGuest'] == true
-                    ? 'Mgeni · ${c['lastMessage'] as String? ?? ''}'
-                    : (c['lastMessage'] as String? ?? ''),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12),
-              ),
-              trailing: c['isPremium'] == true
-                  ? const Icon(Icons.star, color: AdminColors.amber, size: 16)
-                  : c['isGuest'] == true
-                      ? Icon(Icons.person_outline, color: AdminColors.textDim.withValues(alpha: 0.6), size: 18)
-                      : null,
-              onTap: () async {
-                _selectedConvId = c['id'] as String;
-                _messages = await context.read<AdminProvider>().contentService.fetchMessages(_selectedConvId!);
-                setState(() {});
-              },
             ),
-          ),
-        );
-      },
-    ),
+          );
+        },
+      ),
     );
   }
 
@@ -184,35 +215,45 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
     return Column(
       children: [
         ListTile(
-          leading: IconButton(icon: const Icon(Icons.arrow_back, color: AdminColors.emerald), onPressed: () => setState(() => _selectedConvId = null)),
-          title: Text('Maswali ya Mwanafunzi', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
+          leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: AdminColors.emerald),
+              onPressed: () => setState(() => _selectedConvId = null)),
+          title: Text('Maswali ya Mwanafunzi',
+              style: GoogleFonts.inter(
+                  color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
         ),
         Expanded(
           child: RefreshIndicator(
             color: AdminColors.emerald,
             onRefresh: _load,
             child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: _messages.length,
-            itemBuilder: (_, i) {
-              final m = _messages[i];
-              final isAdmin = m['senderType'] == 'admin';
-              return Align(
-                alignment: isAdmin ? Alignment.centerRight : Alignment.centerLeft,
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                  decoration: BoxDecoration(
-                    color: isAdmin ? AdminColors.emerald.withValues(alpha: 0.2) : AdminColors.surface,
-                    borderRadius: BorderRadius.circular(14),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (_, i) {
+                final m = _messages[i];
+                final isAdmin = m['senderType'] == 'admin';
+                return Align(
+                  alignment:
+                      isAdmin ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    constraints: BoxConstraints(
+                        maxWidth: MediaQuery.of(context).size.width * 0.75),
+                    decoration: BoxDecoration(
+                      color: isAdmin
+                          ? AdminColors.emerald.withValues(alpha: 0.2)
+                          : AdminColors.surface,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(m['content'] as String,
+                        style: GoogleFonts.inter(
+                            color: AdminColors.textPrimary, fontSize: 13)),
                   ),
-                  child: Text(m['content'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 13)),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
           ),
         ),
         Padding(
@@ -222,7 +263,8 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
               IconButton(
                 tooltip: 'Shiriki makala',
                 onPressed: _pickAndShareArticle,
-                icon: const Icon(Icons.link_rounded, color: AdminColors.emerald),
+                icon:
+                    const Icon(Icons.link_rounded, color: AdminColors.emerald),
               ),
               Expanded(
                 child: TextField(
@@ -233,16 +275,24 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
                     hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
                     filled: true,
                     fillColor: AdminColors.surface,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none),
                   ),
                 ),
               ),
               IconButton(
                 onPressed: () async {
                   if (_replyCtrl.text.trim().isEmpty) return;
-                  await context.read<AdminProvider>().contentService.replyToConversation(_selectedConvId!, _replyCtrl.text);
+                  await context
+                      .read<AdminProvider>()
+                      .contentService
+                      .replyToConversation(_selectedConvId!, _replyCtrl.text);
                   _replyCtrl.clear();
-                  _messages = await context.read<AdminProvider>().contentService.fetchMessages(_selectedConvId!);
+                  _messages = await context
+                      .read<AdminProvider>()
+                      .contentService
+                      .fetchMessages(_selectedConvId!);
                   setState(() {});
                 },
                 icon: const Icon(Icons.send, color: AdminColors.emerald),
@@ -261,7 +311,9 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
         controller: c,
         maxLines: maxLines,
         style: GoogleFonts.inter(color: AdminColors.textPrimary),
-        decoration: InputDecoration(labelText: label, labelStyle: GoogleFonts.inter(color: AdminColors.textDim)),
+        decoration: InputDecoration(
+            labelText: label,
+            labelStyle: GoogleFonts.inter(color: AdminColors.textDim)),
       ),
     );
   }
@@ -271,7 +323,8 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> with SingleTick
     if (_publishedArticles.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Hakuna makala iliyochapishwa kwa sasa.')),
+          const SnackBar(
+              content: Text('Hakuna makala iliyochapishwa kwa sasa.')),
         );
       }
       return;
@@ -316,7 +369,8 @@ class _PublishedArticlePickerSheet extends StatefulWidget {
       _PublishedArticlePickerSheetState();
 }
 
-class _PublishedArticlePickerSheetState extends State<_PublishedArticlePickerSheet> {
+class _PublishedArticlePickerSheetState
+    extends State<_PublishedArticlePickerSheet> {
   String _query = '';
 
   @override
@@ -365,7 +419,8 @@ class _PublishedArticlePickerSheetState extends State<_PublishedArticlePickerShe
                 decoration: InputDecoration(
                   hintText: 'Tafuta makala...',
                   hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
-                  prefixIcon: const Icon(Icons.search, color: AdminColors.textDim),
+                  prefixIcon:
+                      const Icon(Icons.search, color: AdminColors.textDim),
                   filled: true,
                   fillColor: AdminColors.surface,
                   border: OutlineInputBorder(
@@ -397,12 +452,15 @@ class _PublishedArticlePickerSheetState extends State<_PublishedArticlePickerShe
                       subtitle: Text(
                         isPremium ? 'Premium' : 'Bure',
                         style: GoogleFonts.inter(
-                          color: isPremium ? AdminColors.amber : AdminColors.emerald,
+                          color: isPremium
+                              ? AdminColors.amber
+                              : AdminColors.emerald,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      trailing: const Icon(Icons.send_rounded, color: AdminColors.emerald),
+                      trailing: const Icon(Icons.send_rounded,
+                          color: AdminColors.emerald),
                       onTap: () => Navigator.pop(context, item),
                     );
                   },

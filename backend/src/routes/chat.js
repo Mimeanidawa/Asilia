@@ -58,7 +58,7 @@ router.get('/settings', async (_req, res) => {
         mwalimuWelcome: settings.mwalimu_welcome || settings.mtabibu_welcome ||
           'Karibu! Mimi ni Mwalimu wako wa elimu ya dawa za asili. Uliza kuhusu mimea, mizizi, miti na matunda — kwa elimu tu, si ushauri wa kimatibabu.',
         freeMessageLimit: parseInt(settings.free_message_limit || '5', 10),
-        premiumPrice: parseInt(settings.premium_price || '15000', 10),
+        premiumPrice: Math.max(500, parseInt(settings.premium_price || '15000', 10) || 15000),
       },
     });
   } catch (err) {
@@ -77,7 +77,9 @@ router.put('/settings', requireAdmin, async (req, res) => {
       ['mwalimu_image', mwalimuImage ?? mtabibuImage],
       ['mwalimu_welcome', mwalimuWelcome ?? mtabibuWelcome],
       ['free_message_limit', freeMessageLimit?.toString()],
-      ['premium_price', premiumPrice?.toString()],
+      ['premium_price', premiumPrice != null
+        ? Math.max(500, parseInt(String(premiumPrice), 10) || 15000).toString()
+        : undefined],
     ];
 
     for (const [key, value] of updates) {

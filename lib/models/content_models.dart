@@ -205,7 +205,7 @@ class MwalimuSettings {
             json['mtabibuWelcome'] as String? ??
             'Karibu!',
         freeMessageLimit: json['freeMessageLimit'] as int? ?? 5,
-        premiumPrice: json['premiumPrice'] as int? ?? 15000,
+        premiumPrice: Math.max(500, json['premiumPrice'] as int? ?? 15000),
       );
 }
 

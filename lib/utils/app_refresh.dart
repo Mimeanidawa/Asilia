@@ -31,6 +31,25 @@ class AppRefresh {
     } catch (_) {}
   }
 
+  /// Fresh Premium / unlock-all price from admin settings.
+  static Future<void> premiumSettings(BuildContext context) async {
+    try {
+      await context.read<MwalimuService>().loadSettings();
+    } catch (_) {}
+  }
+
+  /// After Premium purchase: unlock all makala + unlimited Mwalimu chat.
+  static Future<void> afterPremiumPurchase(BuildContext context) async {
+    try {
+      final user = context.read<UserService>();
+      final mwalimu = context.read<MwalimuService>();
+      await Future.wait([user.refreshProfile(), mwalimu.loadSettings()]);
+      if (user.token != null) {
+        await mwalimu.loadMessages(user.token);
+      }
+    } catch (_) {}
+  }
+
   static Future<void> mwalimu(BuildContext context) async {
     try {
       final mwalimu = context.read<MwalimuService>();

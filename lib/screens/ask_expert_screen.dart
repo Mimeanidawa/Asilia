@@ -10,6 +10,7 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../services/payment_service.dart';
+import '../utils/tzs_format.dart';
 import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/screen_header.dart';
@@ -152,6 +153,9 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
   }
 
   void _showPremiumDialog() {
+    final mwalimu = context.read<MwalimuService>();
+    final limit = mwalimu.settings.freeMessageLimit;
+    final price = mwalimu.settings.premiumPrice;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -159,8 +163,8 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
           'Kikomo cha Maswali',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
-        content: const Text(
-          'Umefikia kikomo cha maswali 5 kwa watumiaji wa bure. Lipia Premium ili kuendelea kujifunza bila kikomo.',
+        content: Text(
+          'Umefikia kikomo cha maswali $limit kwa watumiaji wa bure. Lipia Premium (${TzsFormat.full(price)}) ili kuendelea kujifunza bila kikomo na kufungua makala zote.',
         ),
         actions: [
           TextButton(
@@ -170,18 +174,25 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final mwalimu = context.read<MwalimuService>();
+              final svc = context.read<MwalimuService>();
+              await svc.loadSettings();
+              if (!context.mounted) return;
               final result = await showAuraxPayment(
                 context,
                 type: PaymentType.premium,
                 title: 'Premium — Dawa Asili',
-                subtitle: 'Uliza Mwalimu bila kikomo kwa siku 30',
-                amount: mwalimu.settings.premiumPrice,
+                subtitle:
+                    'Fungua makala zote + maswali bila kikomo kwa Mwalimu (siku 30)',
+                amount: svc.settings.premiumPrice,
               );
               if (result == AuraxPaymentResult.success && context.mounted) {
+                await AppRefresh.afterPremiumPurchase(context);
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Premium imeamilishwa!'),
+                    content: Text(
+                      'Premium imeamilishwa! Unaweza kuuliza bila kikomo.',
+                    ),
                     backgroundColor: AppColors.forest,
                   ),
                 );
