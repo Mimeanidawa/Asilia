@@ -53,7 +53,10 @@ class ContentTagStyle {
         return 'Watoto';
       case 'darasa_huru':
         return 'Darasa Huru';
+      case 'lishe':
+        return 'Lishe';
       default:
+        if (tag.isEmpty) return tag;
         return tag[0].toUpperCase() + tag.substring(1);
     }
   }

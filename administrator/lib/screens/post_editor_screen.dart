@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/content_blocks.dart';
+import '../models/content_sections.dart';
 import '../theme/admin_colors.dart';
 import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
@@ -33,6 +34,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   final _priceCtrl = TextEditingController(text: '2000');
 
   late String _category;
+  late List<String> _categoryOptions;
   late List<ContentBlock> _blocks;
   bool _isPremium = false;
   bool _isPublished = true;
@@ -44,7 +46,19 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _category = e?['category'] as String? ?? widget.categories.first;
+    _categoryOptions = List<String>.from(widget.categories);
+    final existingCat = e?['category'] as String?;
+    if (existingCat != null &&
+        existingCat.isNotEmpty &&
+        !_categoryOptions.contains(existingCat)) {
+      _categoryOptions = [existingCat, ..._categoryOptions];
+    }
+    if (_categoryOptions.isEmpty) {
+      _categoryOptions = ['mimea'];
+    }
+    _category = (existingCat != null && existingCat.isNotEmpty)
+        ? existingCat
+        : _categoryOptions.first;
     _titleCtrl.text = e?['title'] as String? ?? '';
     _subtitleCtrl.text = e?['subtitle'] as String? ?? '';
     _excerptCtrl.text = e?['excerpt'] as String? ?? '';
@@ -238,10 +252,20 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
               child: Column(
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _category,
+                    value: _categoryOptions.contains(_category) ? _category : _categoryOptions.first,
                     dropdownColor: AdminColors.surface,
                     decoration: _inputDeco('Kategoria'),
-                    items: widget.categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    items: _categoryOptions
+                        .map(
+                          (c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              AdminContentSections.categoryLabel(c, section: widget.section),
+                              style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                            ),
+                          ),
+                        )
+                        .toList(),
                     onChanged: (v) => setState(() => _category = v!),
                   ),
                   const SizedBox(height: 12),

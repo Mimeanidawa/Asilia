@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../models/content_sections.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import 'post_editor_screen.dart';
@@ -19,20 +20,8 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
   bool _loading = true;
   List<Map<String, dynamic>> _carousels = [];
   List<Map<String, dynamic>> _posts = [];
-  String _section = 'dodoso';
-
-  static const _sections = [
-    ('dodoso', 'Dodoso'),
-    ('chagua_mada', 'Chagua Mada'),
-    ('vyakula_matunda', 'Vyakula na Matunda'),
-    ('jifunze', 'Jifunze'),
-  ];
-
-  static const _categories = {
-    'dodoso': ['mizizi', 'miti', 'matunda', 'mimea'],
-    'chagua_mada': ['mimea', 'wanawake', 'watoto', 'wanaume'],
-    'jifunze': ['matunda', 'mizizi', 'miti', 'mimea', 'vyakula'],
-  };
+  String _section = AdminContentSections.dodoso;
+  String? _categoryFilter;
 
   @override
   void initState() {
@@ -147,7 +136,16 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
     );
   }
 
+  List<Map<String, dynamic>> get _filteredPosts {
+    if (_categoryFilter == null) return _posts;
+    return _posts.where((p) => p['category'] == _categoryFilter).toList();
+  }
+
+  List<String> get _sectionCategories => AdminContentSections.categoriesFor(_section);
+
   Widget _buildPosts() {
+    final categories = _sectionCategories;
+    final visible = _filteredPosts;
     return Column(
       children: [
         SizedBox(
@@ -155,7 +153,7 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
           child: ListView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            children: _sections.map((s) {
+            children: AdminContentSections.sections.map((s) {
               final sel = _section == s.$1;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -163,56 +161,110 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                   label: Text(s.$2),
                   selected: sel,
                   onSelected: (_) async {
-                    setState(() => _section = s.$1);
+                    setState(() {
+                      _section = s.$1;
+                      _categoryFilter = null;
+                      _loading = true;
+                    });
                     try {
                       _posts = await context.read<AdminProvider>().contentService.fetchPosts(section: _section);
                     } catch (e) {
                       if (mounted) _showMessage('Imeshindwa kupakia makala: ${_errorText(e)}', isError: true);
                     }
-                    if (mounted) setState(() {});
+                    if (mounted) setState(() => _loading = false);
                   },
-                  selectedColor: AdminColors.emerald.withOpacity(0.2),
+                  selectedColor: AdminColors.emerald.withValues(alpha: 0.2),
                   checkmarkColor: AdminColors.emerald,
                 ),
               );
             }).toList(),
           ),
         ),
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: FilterChip(
+                  label: Text('Zote (${_posts.length})'),
+                  selected: _categoryFilter == null,
+                  onSelected: (_) => setState(() => _categoryFilter = null),
+                  selectedColor: AdminColors.emerald.withValues(alpha: 0.2),
+                  checkmarkColor: AdminColors.emerald,
+                ),
+              ),
+              ...categories.map((cat) {
+                final count = _posts.where((p) => p['category'] == cat).length;
+                final sel = _categoryFilter == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text('${AdminContentSections.categoryLabel(cat, section: _section)} ($count)'),
+                    selected: sel,
+                    onSelected: (_) => setState(() => _categoryFilter = sel ? null : cat),
+                    selectedColor: AdminColors.emerald.withValues(alpha: 0.2),
+                    checkmarkColor: AdminColors.emerald,
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator(color: AdminColors.emerald))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _posts.length,
-                  itemBuilder: (_, i) {
-                    final p = _posts[i];
-                    return Card(
-                      color: AdminColors.surface,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: ListTile(
-                          title: Text(p['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                            '${p['category'] ?? ''} ${p['isPremium'] == true ? '• PREMIUM TZS ${p['price']}' : ''} ${p['isPublished'] == true ? '• Published' : '• Draft'}',
-                            style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: Icon(p['isPublished'] == true ? Icons.visibility : Icons.visibility_off, color: AdminColors.emerald, size: 18),
-                                onPressed: () => _togglePublish(p['id'] as String),
-                              ),
-                              IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showPostForm(existing: p)),
-                              IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePost(p['id'] as String)),
-                            ],
-                          ),
+              : visible.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _categoryFilter == null
+                              ? 'Hakuna makala katika sehemu hii.\nBonyeza + Makala kuongeza.'
+                              : 'Hakuna makala katika kategoria hii bado.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: visible.length,
+                      itemBuilder: (_, i) {
+                        final p = visible[i];
+                        final cat = p['category'] as String? ?? '';
+                        final catLabel = cat.isEmpty
+                            ? '—'
+                            : AdminContentSections.categoryLabel(cat, section: _section);
+                        return Card(
+                          color: AdminColors.surface,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: ListTile(
+                              title: Text(p['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
+                              subtitle: Text(
+                                '$catLabel${p['isPremium'] == true ? ' • PREMIUM TZS ${p['price']}' : ''}${p['isPublished'] == true ? ' • Published' : ' • Draft'}',
+                                style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(p['isPublished'] == true ? Icons.visibility : Icons.visibility_off, color: AdminColors.emerald, size: 18),
+                                    onPressed: () => _togglePublish(p['id'] as String),
+                                  ),
+                                  IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showPostForm(existing: p)),
+                                  IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePost(p['id'] as String)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
         ),
       ],
     );
@@ -286,7 +338,7 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
   }
 
   Future<void> _showPostForm({Map<String, dynamic>? existing}) async {
-    final categories = _categories[_section] ?? ['general'];
+    final categories = AdminContentSections.categoriesFor(_section);
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(

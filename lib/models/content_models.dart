@@ -247,6 +247,7 @@ class ContentSections {
 
   static const dodosoCategories = ['darasa_huru', 'mizizi', 'miti', 'matunda', 'mimea'];
   static const chaguaMadaCategories = ['mimea', 'wanawake', 'watoto', 'wanaume'];
+  static const vyakulaMatundaCategories = ['matunda', 'mizizi', 'miti', 'mimea', 'vyakula'];
   static const jifunzeCategories = ['matunda', 'mizizi', 'miti', 'mimea', 'vyakula'];
 
   static String categoryLabel(String cat) {
@@ -260,6 +261,7 @@ class ContentSections {
       case 'watoto': return 'Watoto';
       case 'wanaume': return 'Wanaume';
       case 'vyakula': return 'Vyakula';
+      case 'lishe': return 'Lishe';
       default: return cat;
     }
   }
