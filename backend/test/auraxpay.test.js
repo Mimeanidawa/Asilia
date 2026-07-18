@@ -4,16 +4,31 @@ import test from 'node:test';
 
 import {
   createAuraxPayment,
+  detectAuraxChannel,
   normalizeAuraxChannel,
   normalizeAuraxPhone,
   normalizeAuraxStatus,
+  resolveAuraxChannel,
+  toLocalPhone,
   verifyAuraxWebhook,
 } from '../src/services/auraxpay.js';
 
-test('normalizes Tanzanian phone numbers and channels', () => {
-  assert.equal(normalizeAuraxPhone('0712 345 678'), '+255712345678');
+test('normalizes Tanzanian phones to local 0 and Aurax +255', () => {
+  assert.equal(toLocalPhone('0712 345 678'), '0712345678');
+  assert.equal(toLocalPhone('255712345678'), '0712345678');
+  assert.equal(toLocalPhone('+255712345678'), '0712345678');
+  assert.equal(normalizeAuraxPhone('0712345678'), '+255712345678');
   assert.equal(normalizeAuraxPhone('255712345678'), '+255712345678');
   assert.equal(normalizeAuraxPhone('123'), null);
+});
+
+test('detects all major Tanzanian networks from local numbers', () => {
+  assert.equal(detectAuraxChannel('0744123456'), 'MPESA');
+  assert.equal(detectAuraxChannel('0688123456'), 'AIRTEL_MONEY');
+  assert.equal(detectAuraxChannel('0655123456'), 'TIGO_PESA');
+  assert.equal(detectAuraxChannel('0712123456'), 'TIGO_PESA');
+  assert.equal(detectAuraxChannel('0622123456'), 'HALOPESA');
+  assert.equal(resolveAuraxChannel('0688123456', 'MPESA'), 'AIRTEL_MONEY');
   assert.equal(normalizeAuraxChannel('mpesa'), 'MPESA');
   assert.equal(normalizeAuraxChannel('bank'), null);
 });
@@ -25,7 +40,7 @@ test('maps only explicit terminal payment statuses', () => {
   assert.equal(normalizeAuraxStatus({ transaction: { status: 'UNKNOWN' } }), 'pending');
 });
 
-test('creates payments using backend-only API authentication', async () => {
+test('creates payments with +255 phone even when client sends local 0', async () => {
   const originalFetch = global.fetch;
   process.env.AURAXPAY_API_KEY = 'test-key';
   process.env.AURAXPAY_BASE_URL = 'https://api.example.test/v1';
@@ -36,7 +51,7 @@ test('creates payments using backend-only API authentication', async () => {
     const body = JSON.parse(options.body);
     assert.deepEqual(body, {
       amount: 2000,
-      channel: 'MPESA',
+      channel: 'TIGO_PESA',
       buyerPhone: '+255712345678',
       buyerName: 'Mteja',
       buyerEmail: 'mteja@example.com',
@@ -53,7 +68,7 @@ test('creates payments using backend-only API authentication', async () => {
     const result = await createAuraxPayment({
       amount: 2000,
       channel: 'MPESA',
-      buyerPhone: '+255712345678',
+      buyerPhone: '0712345678',
       buyerName: 'Mteja',
       buyerEmail: 'mteja@example.com',
       description: 'Makala',
@@ -78,4 +93,3 @@ test('verifies hex and base64 webhook signatures', () => {
   assert.equal(verifyAuraxWebhook(body, digest.toString('base64')), true);
   assert.equal(verifyAuraxWebhook(body, 'invalid'), false);
 });
-

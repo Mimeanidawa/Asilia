@@ -200,6 +200,11 @@ export async function initDb() {
       ON user_purchases (user_id, content_id)
   `);
 
+  // Aurax Pay minimum collection amount is TZS 500
+  await db.query(`
+    UPDATE content_posts SET price = 500 WHERE is_premium = TRUE AND price < 500
+  `);
+
   // Default Mwalimu (learning assistant) settings
   await db.query(`
     INSERT INTO app_settings (key, value) VALUES

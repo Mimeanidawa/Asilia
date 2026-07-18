@@ -11,6 +11,48 @@ enum PaymentChannel {
   const PaymentChannel(this.apiValue, this.label);
   final String apiValue;
   final String label;
+
+  /// Detect MNO from local `07XXXXXXXX` / `255…` Tanzanian numbers.
+  static PaymentChannel? fromPhone(String raw) {
+    var digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('255') && digits.length >= 12) {
+      digits = '0${digits.substring(3)}';
+    }
+    if (digits.length < 3 || !digits.startsWith('0')) return null;
+    final prefix = digits.substring(0, 3);
+    switch (prefix) {
+      case '061':
+      case '062':
+        return PaymentChannel.haloPesa;
+      case '065':
+      case '067':
+      case '071':
+      case '077':
+        return PaymentChannel.tigoPesa;
+      case '068':
+      case '069':
+      case '078':
+      case '079':
+        return PaymentChannel.airtelMoney;
+      case '074':
+      case '075':
+      case '076':
+        return PaymentChannel.mpesa;
+      default:
+        return null;
+    }
+  }
+}
+
+/// Normalize any TZ phone to local `07XXXXXXXX` for the payments API.
+String? toLocalPaymentPhone(String raw) {
+  var digits = raw.replaceAll(RegExp(r'\D'), '');
+  if (digits.startsWith('255') && digits.length >= 12) {
+    digits = '0${digits.substring(3)}';
+  }
+  if (digits.length == 9) digits = '0$digits';
+  if (!RegExp(r'^0\d{9}$').hasMatch(digits)) return null;
+  return digits;
 }
 
 class PaymentRecord {

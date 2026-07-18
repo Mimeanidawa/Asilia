@@ -7,14 +7,16 @@ import {
   isPaymentSuccessful,
 } from '../services/sonicpesa.js';
 import {
+  AURAX_MIN_AMOUNT,
   auraxPaymentId,
   auraxTransaction,
   auraxTransactionId,
   createAuraxPayment,
   getAuraxPayment,
-  normalizeAuraxChannel,
   normalizeAuraxPhone,
   normalizeAuraxStatus,
+  resolveAuraxChannel,
+  toLocalPhone,
   verifyAuraxWebhook,
 } from '../services/auraxpay.js';
 import { fulfillPaymentOrder } from '../services/payment_fulfillment.js';
@@ -87,13 +89,14 @@ router.post('/initiate', requireUser, async (req, res) => {
     const user = await loadUser(db, userId);
     if (!user) return res.status(404).json({ error: 'Mtumiaji haipatikani' });
 
-    const normalizedPhone = normalizeAuraxPhone(phone || user.phone);
-    if (!normalizedPhone) {
+    const inputPhone = phone || user.phone;
+    const localPhone = toLocalPhone(inputPhone);
+    if (!localPhone || !normalizeAuraxPhone(inputPhone)) {
       return res.status(400).json({
-        error: 'Namba ya simu si sahihi. Tumia muundo 07XXXXXXXX au 2557XXXXXXXX',
+        error: 'Namba ya simu si sahihi. Tumia muundo 07XXXXXXXX',
       });
     }
-    const normalizedChannel = normalizeAuraxChannel(channel);
+    const normalizedChannel = resolveAuraxChannel(inputPhone, channel);
     if (!normalizedChannel) {
       return res.status(400).json({
         error: 'Chagua mtandao wa malipo: M-Pesa, Airtel Money, Mixx by Yas au HaloPesa',
@@ -146,6 +149,11 @@ router.post('/initiate', requireUser, async (req, res) => {
       title = posts[0].title;
     }
 
+    // Aurax rejects amounts under 500 — raise tiny catalog prices so checkout works.
+    if (amount < AURAX_MIN_AMOUNT) {
+      amount = AURAX_MIN_AMOUNT;
+    }
+
     const paymentId = uuidv4();
     const buyerEmail = user.email || `user-${userId}@asilia.app`;
     const buyerName = user.full_name || 'Mteja';
@@ -162,7 +170,7 @@ router.post('/initiate', requireUser, async (req, res) => {
         resolvedType,
         resolvedType === 'content' ? contentId : null,
         amount,
-        normalizedPhone,
+        localPhone,
         title,
         reference,
         normalizedChannel,
@@ -174,7 +182,7 @@ router.post('/initiate', requireUser, async (req, res) => {
       aurax = await createAuraxPayment({
         amount,
         channel: normalizedChannel,
-        buyerPhone: normalizedPhone,
+        buyerPhone: localPhone,
         buyerName,
         buyerEmail,
         description: title,
@@ -217,7 +225,7 @@ router.post('/initiate', requireUser, async (req, res) => {
         content_id: resolvedType === 'content' ? contentId : null,
         amount,
         currency: 'TZS',
-        phone: normalizedPhone,
+        phone: localPhone,
         status: 'pending',
         provider: 'aurax',
         provider_order_id: providerOrderId,
@@ -232,7 +240,9 @@ router.post('/initiate', requireUser, async (req, res) => {
     });
   } catch (err) {
     console.error('POST /payments/initiate:', err);
-    res.status(500).json({ error: err.message || 'Imeshindwa kuanzisha malipo' });
+    const msg = err.message || 'Imeshindwa kuanzisha malipo';
+    const status = /simu|mtandao|kiasi|angalau/i.test(msg) ? 400 : 500;
+    res.status(status).json({ error: msg });
   }
 });
 

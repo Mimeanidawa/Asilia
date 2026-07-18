@@ -67,27 +67,37 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
     final user = context.read<UserService>().user;
     final phone = user?.phone;
     if (phone != null && phone.isNotEmpty) {
-      _phoneCtrl.text = _displayPhone(phone);
+      final local = toLocalPaymentPhone(phone);
+      _phoneCtrl.text = local ?? _displayPhone(phone);
+      _syncChannelFromPhone(_phoneCtrl.text);
     }
+    _phoneCtrl.addListener(_onPhoneChanged);
   }
 
   @override
   void dispose() {
+    _phoneCtrl.removeListener(_onPhoneChanged);
     _phoneCtrl.dispose();
     super.dispose();
   }
 
-  String _displayPhone(String raw) {
-    final digits = raw.replaceAll(RegExp(r'\D'), '');
-    if (digits.startsWith('255')) return '0${digits.substring(3)}';
-    return raw;
+  void _onPhoneChanged() => _syncChannelFromPhone(_phoneCtrl.text);
+
+  void _syncChannelFromPhone(String raw) {
+    final detected = PaymentChannel.fromPhone(raw);
+    if (detected != null && detected != _channel) {
+      setState(() => _channel = detected);
+    }
   }
 
-  String _normalizePhone(String input) {
-    var digits = input.replaceAll(RegExp(r'\D'), '');
-    if (digits.startsWith('0')) digits = '255${digits.substring(1)}';
-    if (digits.length == 9) digits = '255$digits';
-    return digits;
+  String _displayPhone(String raw) {
+    final local = toLocalPaymentPhone(raw);
+    if (local != null) return local;
+    final digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('255') && digits.length > 3) {
+      return '0${digits.substring(3)}';
+    }
+    return raw;
   }
 
   Future<void> _pay() async {
@@ -97,14 +107,17 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
       return;
     }
 
-    final phone = _normalizePhone(_phoneCtrl.text.trim());
-    if (phone.length < 12) {
+    final phone = toLocalPaymentPhone(_phoneCtrl.text.trim());
+    if (phone == null) {
       setState(() => _error = 'Weka namba sahihi ya simu (07XXXXXXXX)');
       return;
     }
 
+    final channel = PaymentChannel.fromPhone(phone) ?? _channel;
+
     setState(() {
       _error = null;
+      _channel = channel;
       _step = _PayStep.processing;
       _statusMessage = 'Tunatuma ombi la malipo...';
     });
@@ -113,7 +126,7 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
       final init = await _paymentService.initiate(
         type: widget.type,
         phone: phone,
-        channel: _channel,
+        channel: channel,
         token: userService.token!,
         contentId: widget.contentId,
       );
@@ -148,7 +161,10 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
       if (!mounted) return;
       setState(() {
         _step = _PayStep.details;
-        _error = e.toString().replaceAll('Exception: ', '');
+        _error = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('ApiException: ', '');
       });
     }
   }
@@ -356,13 +372,16 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
       ),
       child: Column(
         children: [
-          _stepRow('1', 'Weka namba ya simu ya malipo'),
+          _stepRow('1', 'Weka namba ya simu (mfano 07XXXXXXXX)'),
           const SizedBox(height: 8),
-          _stepRow('2', 'Bonyeza "Lipa Sasa" — utapokea ombi kwenye simu'),
+          _stepRow(
+            '2',
+            'Mtandao (M-Pesa, Airtel, Mixx, Halo) huchaguliwa kiotomatiki',
+          ),
           const SizedBox(height: 8),
-          _stepRow('3', 'Thibitisha malipo kwenye simu yako'),
+          _stepRow('3', 'Bonyeza "Lipa Sasa" — utapokea ombi kwenye simu'),
           const SizedBox(height: 8),
-          _stepRow('4', 'Maudhui yatafunguliwa mara malipo yatakapokamilika'),
+          _stepRow('4', 'Thibitisha malipo kwenye simu yako'),
         ],
       ),
     );
@@ -422,7 +441,8 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
           controller: _phoneCtrl,
           keyboardType: TextInputType.phone,
           inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\s-]')),
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
           ],
           style: const TextStyle(
             fontSize: 16,
@@ -430,7 +450,7 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
             color: AppColors.forest,
           ),
           decoration: InputDecoration(
-            hintText: '07XX XXX XXX',
+            hintText: '07XXXXXXXX',
             hintStyle: TextStyle(
               color: AppColors.gray400.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
