@@ -194,19 +194,22 @@ class MwalimuSettings {
   final int freeMessageLimit;
   final int premiumPrice;
 
-  factory MwalimuSettings.fromJson(Map<String, dynamic> json) => MwalimuSettings(
-        mwalimuName: json['mwalimuName'] as String? ??
-            json['mtabibuName'] as String? ??
-            'Mwalimu',
-        mwalimuImage: json['mwalimuImage'] as String? ??
-            json['mtabibuImage'] as String? ??
-            '',
-        mwalimuWelcome: json['mwalimuWelcome'] as String? ??
-            json['mtabibuWelcome'] as String? ??
-            'Karibu!',
-        freeMessageLimit: json['freeMessageLimit'] as int? ?? 5,
-        premiumPrice: Math.max(500, json['premiumPrice'] as int? ?? 15000),
-      );
+  factory MwalimuSettings.fromJson(Map<String, dynamic> json) {
+    final price = json['premiumPrice'] as int? ?? 15000;
+    return MwalimuSettings(
+      mwalimuName: json['mwalimuName'] as String? ??
+          json['mtabibuName'] as String? ??
+          'Mwalimu',
+      mwalimuImage: json['mwalimuImage'] as String? ??
+          json['mtabibuImage'] as String? ??
+          '',
+      mwalimuWelcome: json['mwalimuWelcome'] as String? ??
+          json['mtabibuWelcome'] as String? ??
+          'Karibu!',
+      freeMessageLimit: json['freeMessageLimit'] as int? ?? 5,
+      premiumPrice: price < 500 ? 15000 : price,
+    );
+  }
 }
 
 class MwalimuMessage {
