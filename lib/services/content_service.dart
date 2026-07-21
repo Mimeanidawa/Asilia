@@ -21,12 +21,20 @@ class ContentService extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
-  Future<void> load({String? userToken}) async {
-    error = null;
+  Future<void> loadFromCache() async {
     final hadCache = await _loadCache();
     if (hadCache) notifyListeners();
+  }
 
-    if (!hadCache) {
+  Future<void> load({String? userToken}) async {
+    error = null;
+    await loadFromCache();
+
+    if (carousels.isEmpty &&
+        dodosoPosts.isEmpty &&
+        chaguaMadaPosts.isEmpty &&
+        vyakulaMatundaPosts.isEmpty &&
+        jifunzePosts.isEmpty) {
       isLoading = true;
       notifyListeners();
     }

@@ -3,7 +3,7 @@ import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { optionalUser } from '../middleware/userAuth.js';
 import { sendContentNotification } from '../services/firebase.js';
-import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
+import { resolveImageUrl, normalizeImageUrl, resolveContentImageUrls, normalizeContentImageUrls } from '../utils/resolveImageUrl.js';
 
 const router = Router();
 
@@ -24,7 +24,7 @@ function rowToPost(row, { includeContent = true } = {}) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-  if (includeContent) post.content = row.content;
+  if (includeContent) post.content = normalizeContentImageUrls(row.content);
   return post;
 }
 
@@ -83,7 +83,7 @@ router.get('/recommended', async (_req, res) => {
         category: 'darasa_huru',
         title: r.title,
         excerpt: r.excerpt,
-        imageUrl: r.image_url,
+        imageUrl: normalizeImageUrl(r.image_url),
         readTimeMinutes: r.read_time_minutes,
         isPremium: false,
         price: 0,
@@ -94,7 +94,7 @@ router.get('/recommended', async (_req, res) => {
         category: r.category,
         title: r.title,
         excerpt: r.excerpt,
-        imageUrl: r.image_url,
+        imageUrl: normalizeImageUrl(r.image_url),
         readTimeMinutes: r.read_time_minutes,
         isPremium: r.is_premium,
         price: r.price,
@@ -189,7 +189,10 @@ router.post('/admin', requireAdmin, async (req, res) => {
 
     const postId = id || `post-${Date.now()}`;
     const db = getPool();
-    const resolvedImage = await resolveImageUrl(imageUrl?.trim() || '');
+    const [resolvedImage, resolvedContent] = await Promise.all([
+      resolveImageUrl(imageUrl?.trim() || ''),
+      resolveContentImageUrls(content?.trim() || ''),
+    ]);
 
     await db.query(
       `INSERT INTO content_posts
@@ -203,7 +206,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
         title.trim(),
         subtitle?.trim() || '',
         excerpt?.trim() || '',
-        content?.trim() || '',
+        resolvedContent,
         resolvedImage,
         !!isPremium,
         price ?? 2000,
@@ -248,6 +251,10 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
       imageUrl === undefined || imageUrl === null
         ? undefined
         : await resolveImageUrl(String(imageUrl).trim());
+    const resolvedContent =
+      content === undefined || content === null
+        ? undefined
+        : await resolveContentImageUrls(String(content).trim());
 
     const result = await db.query(
       `UPDATE content_posts SET
@@ -267,7 +274,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
        WHERE id = $1 RETURNING *`,
       [
         req.params.id, section, category, title?.trim(), subtitle?.trim(),
-        excerpt?.trim(), content?.trim(), resolvedImage, isPremium,
+        excerpt?.trim(), resolvedContent, resolvedImage, isPremium,
         price, isPublished, sortOrder, readTimeMinutes,
       ],
     );

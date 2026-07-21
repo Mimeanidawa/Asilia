@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/daily_lesson.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/url_image.dart';
 
 class DarasaHuruAdminScreen extends StatelessWidget {
   const DarasaHuruAdminScreen({super.key});
@@ -305,19 +306,11 @@ class _LessonCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(15),
               ),
-              child: Image.network(
-                lesson.imageUrl,
+              child: UrlImage(
+                url: lesson.imageUrl,
                 height: 120,
                 width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 80,
-                  color: AdminColors.surface,
-                  child: const Icon(
-                    Icons.image_not_supported_rounded,
-                    color: AdminColors.textDim,
-                  ),
-                ),
+                borderRadius: 0,
               ),
             ),
           Padding(

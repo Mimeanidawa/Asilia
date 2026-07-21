@@ -6,6 +6,8 @@
 const OG_IMAGE_RE =
   /(?:property|name)=["']og:image["'][^>]*content=["']([^"']+)["']|content=["']([^"']+)["'][^>]*(?:property|name)=["']og:image["']/i;
 
+const RESOLVE_TIMEOUT_MS = 4000;
+
 function tidy(raw) {
   let url = String(raw || '').trim();
   if (url.startsWith('//')) url = `https:${url}`;
@@ -98,7 +100,7 @@ export async function resolveImageUrl(raw) {
           'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
         Accept: 'text/html,application/xhtml+xml',
       },
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(RESOLVE_TIMEOUT_MS),
     });
     if (res.ok) {
       const html = await res.text();
@@ -116,4 +118,54 @@ export async function resolveImageUrl(raw) {
   }
 
   return normalized;
+}
+
+/**
+ * Resolve every image URL inside a rich-content JSON string.
+ * @param {string} content
+ * @returns {Promise<string>}
+ */
+export async function resolveContentImageUrls(content) {
+  const raw = String(content || '');
+  if (!raw.trim()) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return raw;
+    const next = await Promise.all(
+      parsed.map(async (block) => {
+        if (!block || typeof block !== 'object') return block;
+        if (block.type === 'image' && block.url) {
+          return { ...block, url: await resolveImageUrl(block.url) };
+        }
+        return block;
+      }),
+    );
+    return JSON.stringify(next);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Sync-normalize image URLs inside content JSON (no network).
+ * @param {string} content
+ * @returns {string}
+ */
+export function normalizeContentImageUrls(content) {
+  const raw = String(content || '');
+  if (!raw.trim()) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return raw;
+    const next = parsed.map((block) => {
+      if (!block || typeof block !== 'object') return block;
+      if (block.type === 'image' && block.url) {
+        return { ...block, url: normalizeImageUrl(block.url) };
+      }
+      return block;
+    });
+    return JSON.stringify(next);
+  } catch {
+    return raw;
+  }
 }

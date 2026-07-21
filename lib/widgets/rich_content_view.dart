@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -9,6 +8,7 @@ import '../utils/content_tag_style.dart';
 import '../utils/video_url.dart';
 import 'embedded_video_player.dart';
 import 'fullscreen_image_viewer.dart';
+import 'herb_image.dart';
 
 class RichContentView extends StatelessWidget {
   const RichContentView({super.key, required this.content});
@@ -207,50 +207,35 @@ class _ImageBlock extends StatelessWidget {
       children: [
         GestureDetector(
           onTap: () => openFullscreenImage(context, url, caption: caption),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                CachedNetworkImage(
-                  imageUrl: url,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    height: 200,
-                    color: AppColors.emerald50,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: AppColors.forest, strokeWidth: 2),
-                    ),
+          child: Stack(
+            children: [
+              HerbImage(
+                url: url,
+                height: 220,
+                fullWidth: true,
+                borderRadius: 16,
+                fit: BoxFit.cover,
+              ),
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  errorWidget: (_, __, ___) => Container(
-                    height: 160,
-                    decoration: BoxDecoration(
-                      color: AppColors.emerald50,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.broken_image_outlined, color: AppColors.gray400, size: 40),
-                  ),
-                ),
-                Positioned(
-                  right: 10,
-                  bottom: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.zoom_out_map_rounded, color: Colors.white, size: 14),
-                        SizedBox(width: 4),
-                        Text('Panua', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ],
-                    ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.zoom_out_map_rounded, color: Colors.white, size: 14),
+                      SizedBox(width: 4),
+                      Text('Panua', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         if (caption.isNotEmpty)

@@ -27,8 +27,13 @@ class LessonService extends ChangeNotifier {
     return copy;
   }
 
-  Future<void> load() async {
+  Future<void> loadFromCache() async {
     await _loadFromCache();
+    notifyListeners();
+  }
+
+  Future<void> load() async {
+    await loadFromCache();
     await syncFromServer();
   }
 

@@ -63,6 +63,12 @@ class _HerbImageState extends State<HerbImage> {
     });
   }
 
+  int? _cachePx(double? logical) {
+    if (logical == null || !logical.isFinite || logical <= 0) return null;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    return (logical * dpr).round().clamp(48, 1600);
+  }
+
   @override
   Widget build(BuildContext context) {
     final tidy = ImageUrl.tidy(widget.url);
@@ -75,19 +81,19 @@ class _HerbImageState extends State<HerbImage> {
     } else if (_resolving && _resolvedShareUrl == null) {
       child = _placeholder(imageWidth, loading: true);
     } else {
+      // No custom headers — browsers forbid User-Agent and extra Accept
+      // triggers CORS preflight that blocks many image CDNs (incl. admin web).
       child = CachedNetworkImage(
         imageUrl: displayUrl,
         width: imageWidth,
         height: widget.height,
         fit: widget.fit,
-        fadeInDuration: const Duration(milliseconds: 180),
-        httpHeaders: const {
-          'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-          'User-Agent':
-              'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-        },
-        placeholder: (_, _) => _placeholder(imageWidth, loading: true),
-        errorWidget: (_, _, _) => _placeholder(imageWidth, icon: Icons.eco),
+        fadeInDuration: const Duration(milliseconds: 120),
+        memCacheWidth: _cachePx(widget.width ?? (widget.fullWidth ? 600 : null)),
+        memCacheHeight: _cachePx(widget.height),
+        placeholder: (context, url) => _placeholder(imageWidth, loading: true),
+        errorWidget: (context, url, error) =>
+            _placeholder(imageWidth, icon: Icons.eco),
       );
     }
 

@@ -95,7 +95,7 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> init() async {
+  Future<void> initLocal() async {
     final prefs = await SharedPreferences.getInstance();
 
     final favJson = prefs.getString('da_favorites');
@@ -124,10 +124,18 @@ class AppProvider extends ChangeNotifier {
           .toList();
     }
 
-    await _lessonService.load();
+    await _lessonService.loadFromCache();
 
     _loaded = true;
     notifyListeners();
+  }
+
+  Future<void> syncLessons({bool silent = true}) =>
+      _lessonService.syncFromServer(silent: silent);
+
+  Future<void> init() async {
+    await initLocal();
+    await syncLessons(silent: false);
   }
 
   Future<void> _persist() async {

@@ -1,8 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../theme/app_colors.dart';
+import 'herb_image.dart';
 
 void openFullscreenImage(BuildContext context, String imageUrl, {String? caption}) {
   Navigator.of(context).push(
@@ -37,15 +36,12 @@ class FullscreenImageViewer extends StatelessWidget {
         minScale: 0.5,
         maxScale: 4,
         child: Center(
-          child: CachedNetworkImage(
-            imageUrl: imageUrl,
+          child: HerbImage(
+            url: imageUrl,
             fit: BoxFit.contain,
-            width: double.infinity,
-            height: double.infinity,
-            placeholder: (_, __) => const Center(
-              child: CircularProgressIndicator(color: AppColors.emerald400),
-            ),
-            errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 64),
+            borderRadius: 0,
+            fullWidth: true,
+            height: MediaQuery.sizeOf(context).height * 0.85,
           ),
         ),
       ),

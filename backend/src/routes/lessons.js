@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendLessonNotification } from '../services/firebase.js';
-import { resolveImageUrl } from '../utils/resolveImageUrl.js';
+import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
 
 const router = Router();
 
@@ -12,7 +12,7 @@ function rowToLesson(row) {
     title: row.title,
     excerpt: row.excerpt,
     content: row.content,
-    imageUrl: row.image_url,
+    imageUrl: normalizeImageUrl(row.image_url),
     publishedAt: row.published_at,
     authorName: row.author_name,
     readTimeMinutes: row.read_time_minutes,

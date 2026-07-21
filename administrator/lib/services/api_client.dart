@@ -20,11 +20,14 @@ class ApiClient {
 
   final http.Client _client;
   final String _baseUrl;
+  static const _timeout = Duration(seconds: 20);
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Future<Map<String, dynamic>> get(String path, {String? token}) async {
-    final res = await _client.get(_uri(path), headers: _headers(token));
+    final res = await _client
+        .get(_uri(path), headers: _headers(token))
+        .timeout(_timeout);
     return _decode(res);
   }
 
@@ -33,11 +36,13 @@ class ApiClient {
     Map<String, dynamic>? body,
     String? token,
   }) async {
-    final res = await _client.post(
-      _uri(path),
-      headers: _headers(token),
-      body: body != null ? jsonEncode(body) : null,
-    );
+    final res = await _client
+        .post(
+          _uri(path),
+          headers: _headers(token),
+          body: body != null ? jsonEncode(body) : null,
+        )
+        .timeout(_timeout);
     return _decode(res);
   }
 
@@ -46,11 +51,13 @@ class ApiClient {
     Map<String, dynamic>? body,
     String? token,
   }) async {
-    final res = await _client.put(
-      _uri(path),
-      headers: _headers(token),
-      body: body != null ? jsonEncode(body) : null,
-    );
+    final res = await _client
+        .put(
+          _uri(path),
+          headers: _headers(token),
+          body: body != null ? jsonEncode(body) : null,
+        )
+        .timeout(_timeout);
     return _decode(res);
   }
 
@@ -59,16 +66,20 @@ class ApiClient {
     Map<String, dynamic>? body,
     String? token,
   }) async {
-    final res = await _client.patch(
-      _uri(path),
-      headers: _headers(token),
-      body: body != null ? jsonEncode(body) : null,
-    );
+    final res = await _client
+        .patch(
+          _uri(path),
+          headers: _headers(token),
+          body: body != null ? jsonEncode(body) : null,
+        )
+        .timeout(_timeout);
     return _decode(res);
   }
 
   Future<void> delete(String path, {String? token}) async {
-    final res = await _client.delete(_uri(path), headers: _headers(token));
+    final res = await _client
+        .delete(_uri(path), headers: _headers(token))
+        .timeout(_timeout);
     if (res.statusCode >= 400) {
       throw ApiException(_errorMessage(res), statusCode: res.statusCode);
     }

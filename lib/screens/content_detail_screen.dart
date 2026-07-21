@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +9,7 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
+import '../widgets/herb_image.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/rich_content_view.dart';
@@ -120,10 +120,11 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                 if (post.imageUrl.isNotEmpty)
                   GestureDetector(
                     onTap: () => openFullscreenImage(context, post.imageUrl, caption: post.title),
-                    child: CachedNetworkImage(
-                      imageUrl: post.imageUrl,
+                    child: HerbImage(
+                      url: post.imageUrl,
                       height: 220,
-                      width: double.infinity,
+                      fullWidth: true,
+                      borderRadius: 0,
                       fit: BoxFit.cover,
                     ),
                   ).animate().fadeIn(),

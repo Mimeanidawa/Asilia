@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -9,6 +8,7 @@ import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
 import '../widgets/embedded_video_player.dart';
 import '../widgets/stable_text_field.dart';
+import '../widgets/url_image.dart';
 
 class PostEditorScreen extends StatefulWidget {
   const PostEditorScreen({
@@ -300,15 +300,11 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                   ),
                   if (_coverCtrl.text.trim().isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: _coverCtrl.text.trim(),
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => const SizedBox.shrink(),
-                      ),
+                    UrlImage(
+                      url: _coverCtrl.text.trim(),
+                      height: 120,
+                      width: double.infinity,
+                      borderRadius: 12,
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -754,25 +750,11 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
             ),
             if (b.type == ContentBlockType.image && b.url.trim().isNotEmpty) ...[
               const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CachedNetworkImage(
-                  imageUrl: b.url.trim(),
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    height: 160,
-                    color: AdminColors.card,
-                    child: const Center(child: CircularProgressIndicator(color: AdminColors.emerald, strokeWidth: 2)),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    height: 100,
-                    alignment: Alignment.center,
-                    color: AdminColors.card,
-                    child: Text('Picha haipatikani', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
-                  ),
-                ),
+              UrlImage(
+                url: b.url.trim(),
+                height: 160,
+                width: double.infinity,
+                borderRadius: 12,
               ),
             ],
             if (b.type == ContentBlockType.video && b.url.trim().isNotEmpty) ...[
@@ -1097,9 +1079,11 @@ class _PreviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (coverUrl.trim().isNotEmpty)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: CachedNetworkImage(imageUrl: coverUrl.trim(), height: 160, width: double.infinity, fit: BoxFit.cover),
+            UrlImage(
+              url: coverUrl.trim(),
+              height: 160,
+              width: double.infinity,
+              borderRadius: 12,
             ),
           if (coverUrl.trim().isNotEmpty) const SizedBox(height: 16),
           if (title.isNotEmpty)
@@ -1150,7 +1134,7 @@ class _PreviewCard extends StatelessWidget {
         ),
       ContentBlockType.image when b.url.isNotEmpty => Column(
           children: [
-            ClipRRect(borderRadius: BorderRadius.circular(12), child: CachedNetworkImage(imageUrl: b.url, fit: BoxFit.cover)),
+            UrlImage(url: b.url, borderRadius: 12),
             if (b.caption.isNotEmpty)
               Padding(padding: const EdgeInsets.only(top: 6), child: Text(b.caption, style: GoogleFonts.inter(fontSize: 11, color: AdminColors.textDim, fontStyle: FontStyle.italic))),
           ],

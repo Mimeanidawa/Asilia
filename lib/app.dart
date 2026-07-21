@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -66,9 +68,20 @@ class _AsiliaAppState extends State<AsiliaApp> {
     _bootstrap();
   }
 
+  /// Show UI as soon as local cache/prefs are ready; sync network in background.
   Future<void> _bootstrap() async {
-    await _notificationCenter.load();
+    await Future.wait([
+      _notificationCenter.load(),
+      _contentService.loadFromCache(),
+      _appProvider.initLocal(),
+    ]);
 
+    if (mounted) setState(() => _ready = true);
+
+    unawaited(_bootstrapBackground());
+  }
+
+  Future<void> _bootstrapBackground() async {
     try {
       await _notificationService.init();
       _notificationService.onNotificationTap = ({lessonId, contentId, type}) {
@@ -107,9 +120,14 @@ class _AsiliaAppState extends State<AsiliaApp> {
 
     await Future.wait([
       _loadUserAndMwalimu(),
-      _contentService.load(),
-      _appProvider.init(),
+      _contentService.syncFromServer().then<void>((_) {}, onError: (Object e) {
+        debugPrint('Content sync error: $e');
+      }),
+      _appProvider.syncLessons().then<void>((_) {}, onError: (Object e) {
+        debugPrint('Lesson sync error: $e');
+      }),
     ]);
+
     await _notificationCenter.syncFromCatalog(
       posts: [
         ..._contentService.dodosoPosts,
@@ -119,8 +137,6 @@ class _AsiliaAppState extends State<AsiliaApp> {
       ],
       lessons: _lessonService.publishedLessons,
     );
-
-    if (mounted) setState(() => _ready = true);
   }
 
   Future<void> _loadUserAndMwalimu() async {
@@ -208,6 +224,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
 
+    // Local prefs/cache already loaded in bootstrap — never gate on network.
     if (!app.isLoaded) {
       return const AppLoadingSkeleton();
     }
