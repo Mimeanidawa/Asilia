@@ -48,11 +48,30 @@ class NotificationCenterService extends ChangeNotifier {
     await load();
   }
 
-  /// Adds published posts and lessons that are not already in the center.
+  /// Syncs newly published catalog items into the notification center.
+  ///
+  /// On the first successful catalog sync for this install, existing posts and
+  /// lessons are marked as already-seen (no history entries) so new users only
+  /// receive notifications from that point forward.
   Future<void> syncFromCatalog({
     required List<ContentPost> posts,
     required List<DailyLesson> lessons,
   }) async {
+    final publishedLessons = lessons.where((l) => l.isPublished).toList();
+    if (posts.isEmpty && publishedLessons.isEmpty) return;
+
+    final seeded = await NotificationStore.isCatalogSeeded();
+    if (!seeded) {
+      final seedIds = <String>[
+        for (final post in posts) 'content-${post.id}',
+        for (final lesson in publishedLessons) 'lesson-${lesson.id}',
+      ];
+      await NotificationStore.addDeletedIds(seedIds);
+      _deletedIds = await NotificationStore.readDeletedIds();
+      await NotificationStore.setCatalogSeeded(true);
+      return;
+    }
+
     var changed = false;
     final existingContentIds = _items.map((n) => n.contentId).whereType<String>().toSet();
     final existingLessonIds = _items.map((n) => n.lessonId).whereType<String>().toSet();
@@ -76,7 +95,7 @@ class NotificationCenterService extends ChangeNotifier {
       changed = true;
     }
 
-    for (final lesson in lessons.where((l) => l.isPublished)) {
+    for (final lesson in publishedLessons) {
       if (existingLessonIds.contains(lesson.id)) continue;
       final notificationId = 'lesson-${lesson.id}';
       if (_deletedIds.contains(notificationId)) continue;

@@ -4,6 +4,7 @@ import { getPool } from '../db.js';
 import { optionalUser } from '../middleware/userAuth.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendBroadcastNotification } from '../services/firebase.js';
+import { recordNotificationHistory } from './notifications.js';
 
 const router = Router();
 
@@ -62,13 +63,48 @@ router.post('/broadcast', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Title and body required' });
     }
 
-    const notification = await sendBroadcastNotification({
+    const audience = target || 'all';
+    const result = await sendBroadcastNotification({
       title: title.trim(),
       body: body.trim(),
-      target: target || 'all',
+      target: audience,
     });
 
-    res.json({ ok: true, notification });
+    const sent = !!result?.sent;
+    const sentCount =
+      typeof result?.successCount === 'number'
+        ? result.successCount
+        : sent
+          ? 1
+          : 0;
+
+    let history = null;
+    try {
+      history = await recordNotificationHistory({
+        title: title.trim(),
+        body: body.trim(),
+        target: audience,
+        status: sent ? 'sent' : 'failed',
+        sentCount,
+        source: 'broadcast',
+      });
+    } catch (historyErr) {
+      console.error('Failed to save notification history:', historyErr);
+    }
+
+    res.json({
+      ok: true,
+      notification: {
+        ...result,
+        id: history?.id,
+        title: title.trim(),
+        body: body.trim(),
+        target: audience,
+        status: history?.status ?? (sent ? 'sent' : 'failed'),
+        sentCount: history?.sentCount ?? sentCount,
+        createdAt: history?.createdAt,
+      },
+    });
   } catch (err) {
     console.error('Broadcast notification:', err);
     res.status(500).json({ error: 'Failed to send notification' });

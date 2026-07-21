@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
 
 const router = Router();
 
@@ -9,7 +10,7 @@ function rowToCarousel(row) {
     id: row.id,
     title: row.title,
     subtitle: row.subtitle,
-    imageUrl: row.image_url,
+    imageUrl: normalizeImageUrl(row.image_url),
     linkSection: row.link_section,
     linkId: row.link_id,
     sortOrder: row.sort_order,
@@ -52,6 +53,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
 
     const carouselId = id || `car-${Date.now()}`;
     const db = getPool();
+    const resolvedImage = await resolveImageUrl(imageUrl?.trim() || '');
 
     await db.query(
       `INSERT INTO carousels
@@ -61,7 +63,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
         carouselId,
         title.trim(),
         subtitle?.trim() || '',
-        imageUrl?.trim() || '',
+        resolvedImage,
         linkSection || null,
         linkId || null,
         sortOrder ?? 0,
@@ -81,6 +83,10 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
   try {
     const { title, subtitle, imageUrl, linkSection, linkId, sortOrder, isPublished } = req.body;
     const db = getPool();
+    const resolvedImage =
+      imageUrl === undefined || imageUrl === null
+        ? undefined
+        : await resolveImageUrl(String(imageUrl).trim());
 
     const result = await db.query(
       `UPDATE carousels SET
@@ -93,7 +99,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
         is_published = COALESCE($8, is_published),
         updated_at = NOW()
        WHERE id = $1 RETURNING *`,
-      [req.params.id, title?.trim(), subtitle?.trim(), imageUrl?.trim(), linkSection, linkId, sortOrder, isPublished],
+      [req.params.id, title?.trim(), subtitle?.trim(), resolvedImage, linkSection, linkId, sortOrder, isPublished],
     );
 
     if (!result.rows.length) return res.status(404).json({ error: 'Carousel haipatikani' });

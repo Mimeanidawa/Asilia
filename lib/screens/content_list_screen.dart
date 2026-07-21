@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
-import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../theme/app_colors.dart';
@@ -50,6 +49,7 @@ class ContentListScreen extends StatelessWidget {
                     )
                   : ResponsiveContentList(
                       itemCount: posts.length,
+                      mainAxisSpacing: 16,
                       itemBuilder: (context, i) => ContentPostCard(
                         post: posts[i],
                         showSectionLabel: section == ContentSections.allMakala,

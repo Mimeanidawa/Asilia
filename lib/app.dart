@@ -105,18 +105,11 @@ class _AsiliaAppState extends State<AsiliaApp> {
       debugPrint('Notifications unavailable: $e');
     }
 
-    await _userService.load();
-    await _notificationService.linkToUser(_userService.token);
-    await _mwalimuService.loadSettings();
-    await _mwalimuService.loadGuestState();
-    if (_userService.token != null) {
-      await _mwalimuService.flushGuestMessagesToServer(_userService.token!);
-      await _mwalimuService.syncMessages(_userService.token);
-    } else {
-      await _mwalimuService.loadGuestMessages();
-    }
-    await _contentService.load(userToken: _userService.token);
-    await _appProvider.init();
+    await Future.wait([
+      _loadUserAndMwalimu(),
+      _contentService.load(),
+      _appProvider.init(),
+    ]);
     await _notificationCenter.syncFromCatalog(
       posts: [
         ..._contentService.dodosoPosts,
@@ -128,6 +121,19 @@ class _AsiliaAppState extends State<AsiliaApp> {
     );
 
     if (mounted) setState(() => _ready = true);
+  }
+
+  Future<void> _loadUserAndMwalimu() async {
+    await _userService.load();
+    await _notificationService.linkToUser(_userService.token);
+    await _mwalimuService.loadSettings();
+    await _mwalimuService.loadGuestState();
+    if (_userService.token != null) {
+      await _mwalimuService.flushGuestMessagesToServer(_userService.token!);
+      await _mwalimuService.syncMessages(_userService.token);
+    } else {
+      await _mwalimuService.loadGuestMessages();
+    }
   }
 
   @override

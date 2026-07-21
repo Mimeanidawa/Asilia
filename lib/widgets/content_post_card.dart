@@ -16,8 +16,8 @@ class ContentPostCard extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 16),
   });
 
-  static const _imageWidth = 168.0;
-  static const _imageHeight = 128.0;
+  static const _imageWidth = 112.0;
+  static const _imageHeight = 118.0;
 
   final ContentPost post;
   final VoidCallback onTap;
@@ -67,32 +67,35 @@ class ContentPostCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(14, compact ? 10 : 14, 8, compact ? 10 : 14),
+                    padding: EdgeInsets.fromLTRB(12, compact ? 8 : 10, 6, compact ? 8 : 10),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         if (post.isPremium)
-                          Container(
-                            margin: EdgeInsets.only(bottom: compact ? 4 : 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.amber.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              'PREMIUM TZS ${post.price}',
-                              style: const TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.amber,
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'PREMIUM TZS ${post.price}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.amber,
+                                ),
                               ),
                             ),
                           ),
                         if (showSectionLabel || (category != null && category.isNotEmpty))
                           Padding(
-                            padding: EdgeInsets.only(bottom: compact ? 4 : 6),
+                            padding: const EdgeInsets.only(bottom: 3),
                             child: Text(
                               _metaLabel(),
                               maxLines: 1,
@@ -112,22 +115,22 @@ class ContentPostCard extends StatelessWidget {
                           maxLines: compact ? 1 : 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: compact ? 14 : 15,
+                            fontSize: compact ? 13 : 14,
                             fontWeight: FontWeight.w900,
                             color: AppColors.forest,
-                            height: 1.2,
+                            height: 1.15,
                           ),
                         ),
                         if (!compact && post.excerpt.isNotEmpty) ...[
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           Text(
                             post.excerpt,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: AppColors.gray500,
-                              height: 1.35,
+                              height: 1.25,
                             ),
                           ),
                         ],

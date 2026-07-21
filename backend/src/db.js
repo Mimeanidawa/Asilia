@@ -254,5 +254,22 @@ export async function initDb() {
       WHERE guest_session_id IS NOT NULL
   `);
 
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS notification_history (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      target TEXT NOT NULL DEFAULT 'all',
+      status TEXT NOT NULL DEFAULT 'sent',
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT 'broadcast',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_notification_history_created
+      ON notification_history (created_at DESC)
+  `);
+
   console.log('Database schema ready');
 }

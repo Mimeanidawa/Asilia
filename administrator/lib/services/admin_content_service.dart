@@ -107,4 +107,18 @@ class AdminContentService {
       token: _token,
     );
   }
+
+  Future<List<Map<String, dynamic>>> fetchNotificationHistory() async {
+    final data = await _api.get('/api/notifications/admin', token: _token);
+    final list = data['notifications'] as List? ?? [];
+    return list.cast<Map<String, dynamic>>();
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await _api.delete('/api/notifications/admin/$id', token: _token);
+  }
+
+  Future<void> clearNotificationHistory() async {
+    await _api.delete('/api/notifications/admin', token: _token);
+  }
 }

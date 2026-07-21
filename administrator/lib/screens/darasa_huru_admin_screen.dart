@@ -636,8 +636,8 @@ class _ComposeLessonSheetState extends State<_ComposeLessonSheet> {
               'Andika somo kamili hapa...',
               maxLines: 6,
             ),
-            _label('Picha (URL)'),
-            _field(_imageCtrl, 'https://...'),
+            _label('Picha (URL — tumia kiungo cha moja kwa moja cha picha, mf. i.ibb.co/... au i.postimg.cc/...)'),
+            _field(_imageCtrl, 'https://i.ibb.co/...'),
             const SizedBox(height: 12),
             _label('Kategoria'),
             Wrap(

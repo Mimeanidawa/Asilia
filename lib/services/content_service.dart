@@ -44,30 +44,28 @@ class ContentService extends ChangeNotifier {
 
   Future<void> syncFromServer({String? userToken}) async {
     try {
-      final carouselData = await _api.get('/api/carousels');
-      carousels = (carouselData['carousels'] as List)
+      final results = await Future.wait([
+        _api.get('/api/carousels'),
+        _api.get('/api/content?section=dodoso'),
+        _api.get('/api/content?section=chagua_mada'),
+        _api.get('/api/content?section=vyakula_matunda'),
+        _api.get('/api/content?section=jifunze'),
+        _api.get('/api/content/recommended'),
+      ]);
+
+      carousels = (results[0]['carousels'] as List)
           .map((e) => CarouselSlide.fromJson(e as Map<String, dynamic>))
           .toList();
-
-      final dodosoData = await _api.get('/api/content?section=dodoso');
-      dodosoPosts = _parsePosts(dodosoData);
-
-      final madaData = await _api.get('/api/content?section=chagua_mada');
-      chaguaMadaPosts = _parsePosts(madaData);
-
-      final vyakulaData = await _api.get('/api/content?section=vyakula_matunda');
-      vyakulaMatundaPosts = _parsePosts(vyakulaData);
+      dodosoPosts = _parsePosts(results[1]);
+      chaguaMadaPosts = _parsePosts(results[2]);
+      vyakulaMatundaPosts = _parsePosts(results[3]);
       // Legacy section fallback
       if (vyakulaMatundaPosts.isEmpty) {
         final legacy = await _api.get('/api/content?section=jitibu_nyumbani');
         vyakulaMatundaPosts = _parsePosts(legacy);
       }
-
-      final jifunzeData = await _api.get('/api/content?section=jifunze');
-      jifunzePosts = _parsePosts(jifunzeData);
-
-      final recData = await _api.get('/api/content/recommended');
-      recommended = (recData['items'] as List)
+      jifunzePosts = _parsePosts(results[4]);
+      recommended = (results[5]['items'] as List)
           .map((e) => RecommendedItem.fromJson(e as Map<String, dynamic>))
           .toList();
 
@@ -110,8 +108,11 @@ class ContentService extends ChangeNotifier {
       default:
         posts = [];
     }
-    if (category != null) {
-      return posts.where((p) => p.category == category).toList();
+    if (category != null && category.isNotEmpty) {
+      final key = category.trim().toLowerCase();
+      return posts
+          .where((p) => (p.category ?? '').trim().toLowerCase() == key)
+          .toList();
     }
     return posts;
   }

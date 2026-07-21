@@ -97,12 +97,29 @@ class ContentPost {
         subtitle: json['subtitle'] as String? ?? '',
         excerpt: json['excerpt'] as String? ?? '',
         content: json['content'] as String? ?? '',
-        imageUrl: json['imageUrl'] as String? ?? '',
+        imageUrl: _normalizeStoredImageUrl(json['imageUrl'] as String? ?? ''),
         isPremium: json['isPremium'] as bool? ?? false,
         price: json['price'] as int? ?? 2000,
         readTimeMinutes: json['readTimeMinutes'] as int? ?? 5,
         hasAccess: json['hasAccess'] as bool? ?? true,
       );
+}
+
+String _normalizeStoredImageUrl(String raw) {
+  final url = raw.trim();
+  if (url.isEmpty) return '';
+  final uri = Uri.tryParse(url);
+  if (uri == null) return url;
+  final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+  if (host != 'i.postimg.cc') return url;
+  final parts = uri.pathSegments.where((p) => p.isNotEmpty).toList();
+  if (parts.length < 2) return url;
+  final file = parts.last.toLowerCase();
+  final blocked = file.startsWith('file-00000000') ||
+      RegExp(r'^file-[0-9a-f]{20,}').hasMatch(file);
+  if (!blocked) return url;
+  final ext = file.contains('.') ? file.split('.').last : 'png';
+  return '${uri.scheme}://${uri.host}/${parts.first}/image.$ext';
 }
 
 class RecommendedItem {

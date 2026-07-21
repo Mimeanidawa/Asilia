@@ -159,8 +159,14 @@ class AppProvider extends ChangeNotifier {
     if (conditionId != null) selectedConditionId = conditionId;
     if (lessonId != null) selectedLessonId = lessonId;
     if (contentId != null) selectedContentId = contentId;
-    if (contentSection != null) selectedContentSection = contentSection;
-    if (contentCategory != null) selectedContentCategory = contentCategory;
+    if (contentSection != null) {
+      selectedContentSection = contentSection;
+      // Opening a section without a category must clear a previous tile filter
+      // (otherwise mimea/wanawake etc. keep applying to unrelated lists).
+      selectedContentCategory = contentCategory;
+    } else if (contentCategory != null) {
+      selectedContentCategory = contentCategory;
+    }
     bottomNavSuppressed = false;
     activeScreen = screen;
     screenHistory.add(screen);

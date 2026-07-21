@@ -294,8 +294,8 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                     keyboardType: TextInputType.url,
                     style: GoogleFonts.inter(color: AdminColors.textPrimary),
                     decoration: _inputDeco(
-                      'URL ya picha ya jalada',
-                      hint: 'https://mfano.com/picha.jpg',
+                      'URL ya picha ya jalada (i.ibb.co/... au i.postimg.cc/...)',
+                      hint: 'https://i.ibb.co/...',
                     ),
                   ),
                   if (_coverCtrl.text.trim().isNotEmpty) ...[

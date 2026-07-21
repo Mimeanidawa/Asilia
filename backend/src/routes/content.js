@@ -3,6 +3,7 @@ import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { optionalUser } from '../middleware/userAuth.js';
 import { sendContentNotification } from '../services/firebase.js';
+import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ function rowToPost(row, { includeContent = true } = {}) {
     title: row.title,
     subtitle: row.subtitle,
     excerpt: row.excerpt,
-    imageUrl: row.image_url,
+    imageUrl: normalizeImageUrl(row.image_url),
     isPremium: row.is_premium,
     price: row.price,
     isPublished: row.is_published,
@@ -188,6 +189,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
 
     const postId = id || `post-${Date.now()}`;
     const db = getPool();
+    const resolvedImage = await resolveImageUrl(imageUrl?.trim() || '');
 
     await db.query(
       `INSERT INTO content_posts
@@ -202,7 +204,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
         subtitle?.trim() || '',
         excerpt?.trim() || '',
         content?.trim() || '',
-        imageUrl?.trim() || '',
+        resolvedImage,
         !!isPremium,
         price ?? 2000,
         !!isPublished,
@@ -242,6 +244,10 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     );
     if (!existing.length) return res.status(404).json({ error: 'Maudhui hayapatikani' });
     const wasPublished = existing[0].is_published;
+    const resolvedImage =
+      imageUrl === undefined || imageUrl === null
+        ? undefined
+        : await resolveImageUrl(String(imageUrl).trim());
 
     const result = await db.query(
       `UPDATE content_posts SET
@@ -261,7 +267,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
        WHERE id = $1 RETURNING *`,
       [
         req.params.id, section, category, title?.trim(), subtitle?.trim(),
-        excerpt?.trim(), content?.trim(), imageUrl?.trim(), isPremium,
+        excerpt?.trim(), content?.trim(), resolvedImage, isPremium,
         price, isPublished, sortOrder, readTimeMinutes,
       ],
     );

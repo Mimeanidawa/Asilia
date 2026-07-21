@@ -74,14 +74,6 @@ class AppDrawer extends StatelessWidget {
               Navigator.pop(context);
               app.navigate(AppScreen.profile);
             }),
-            const Spacer(),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                'Kwa elimu tu — si ushauri wa kimatibabu',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
-              ),
-            ),
           ],
         ),
       ),

@@ -24,10 +24,11 @@ class ResponsiveContentList extends StatelessWidget {
     final columns = Responsive.listColumns(context);
 
     if (columns == 1) {
-      return ListView.builder(
+      return ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: padding,
         itemCount: itemCount,
+        separatorBuilder: (_, _) => SizedBox(height: mainAxisSpacing),
         itemBuilder: itemBuilder,
       );
     }

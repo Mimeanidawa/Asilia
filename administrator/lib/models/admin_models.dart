@@ -107,6 +107,7 @@ class AdminNotification {
     required this.createdAt,
     this.scheduledAt,
     this.sentCount = 0,
+    this.source = 'broadcast',
   });
 
   final String id;
@@ -117,6 +118,31 @@ class AdminNotification {
   final DateTime createdAt;
   final DateTime? scheduledAt;
   int sentCount;
+  final String source;
+
+  factory AdminNotification.fromJson(Map<String, dynamic> json) {
+    final targetRaw = (json['target'] as String? ?? 'all').toLowerCase();
+    final statusRaw = (json['status'] as String? ?? 'sent').toLowerCase();
+    return AdminNotification(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? '',
+      body: json['body'] as String? ?? '',
+      target: switch (targetRaw) {
+        'premium' => NotificationTarget.premium,
+        'free' => NotificationTarget.free,
+        _ => NotificationTarget.all,
+      },
+      status: switch (statusRaw) {
+        'scheduled' => NotificationStatus.scheduled,
+        'draft' => NotificationStatus.draft,
+        'failed' => NotificationStatus.failed,
+        _ => NotificationStatus.sent,
+      },
+      createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+      sentCount: (json['sentCount'] as num?)?.toInt() ?? 0,
+      source: json['source'] as String? ?? 'broadcast',
+    );
+  }
 }
 
 class RecentActivity {

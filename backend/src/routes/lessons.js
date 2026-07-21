@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendLessonNotification } from '../services/firebase.js';
+import { resolveImageUrl } from '../utils/resolveImageUrl.js';
 
 const router = Router();
 
@@ -98,6 +99,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
 
     const lessonId = id || `dh-${Date.now()}`;
     const db = getPool();
+    const resolvedImage = await resolveImageUrl(imageUrl?.trim() || '');
 
     await db.query(
       `INSERT INTO lessons
@@ -109,7 +111,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
         title.trim(),
         excerpt?.trim() || '',
         content?.trim() || '',
-        imageUrl?.trim() || '',
+        resolvedImage,
         publishedAt || new Date().toISOString().slice(0, 10),
         authorName?.trim() || 'Mwalimu Mussa Hassan',
         readTimeMinutes || 4,
@@ -155,6 +157,10 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     if (!existing.length) return res.status(404).json({ error: 'Lesson not found' });
 
     const wasPublished = existing[0].is_published;
+    const resolvedImage =
+      imageUrl === undefined || imageUrl === null
+        ? undefined
+        : await resolveImageUrl(String(imageUrl).trim());
 
     await db.query(
       `UPDATE lessons SET
@@ -174,7 +180,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
         title?.trim(),
         excerpt?.trim(),
         content?.trim(),
-        imageUrl?.trim(),
+        resolvedImage,
         publishedAt,
         authorName?.trim(),
         readTimeMinutes,

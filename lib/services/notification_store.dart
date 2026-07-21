@@ -10,8 +10,9 @@ class NotificationStore {
 
   static const storageKey = 'da_notifications';
   static const deletedKey = 'da_notifications_deleted';
+  static const catalogSeededKey = 'da_notifications_catalog_seeded_v1';
   static const maxItems = 50;
-  static const maxDeletedIds = 200;
+  static const maxDeletedIds = 500;
 
   static Future<List<AppNotification>> readAll() async {
     final prefs = await SharedPreferences.getInstance();
@@ -98,5 +99,17 @@ class NotificationStore {
     current.addAll(ids);
     final trimmed = current.take(maxDeletedIds).toList();
     await prefs.setString(deletedKey, jsonEncode(trimmed));
+  }
+
+  /// True after we have recorded existing catalog IDs so new installs
+  /// do not invent notification history for older posts/lessons.
+  static Future<bool> isCatalogSeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(catalogSeededKey) ?? false;
+  }
+
+  static Future<void> setCatalogSeeded(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(catalogSeededKey, value);
   }
 }

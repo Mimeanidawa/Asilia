@@ -1,10 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
-import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
@@ -49,7 +47,10 @@ class _LearnScreenState extends State<LearnScreen> {
   List<ContentPost> _filtered(ContentService content) {
     if (_selectedCat == 'Zote') return content.jifunzePosts;
     final key = _catKeys[_selectedCat];
-    return content.jifunzePosts.where((p) => p.category == key).toList();
+    if (key == null) return content.jifunzePosts;
+    return content.jifunzePosts
+        .where((p) => (p.category ?? '').trim().toLowerCase() == key)
+        .toList();
   }
 
   @override
@@ -202,7 +203,7 @@ class _LearnScreenState extends State<LearnScreen> {
                               Responsive.horizontalGutter(context),
                               0,
                               Responsive.horizontalGutter(context),
-                              12,
+                              16,
                             ),
                             child: _ArticleTile(
                               post: post,
@@ -266,6 +267,8 @@ class _LearnScreenState extends State<LearnScreen> {
 class _FeaturedCard extends StatelessWidget {
   const _FeaturedCard({required this.post, required this.onRead});
 
+  static const _height = 240.0;
+
   final ContentPost post;
   final VoidCallback onRead;
 
@@ -276,56 +279,85 @@ class _FeaturedCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onRead,
-        child: Stack(
-          children: [
-            if (post.imageUrl.isNotEmpty)
-              HerbImage(url: post.imageUrl, height: 200, borderRadius: 20),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.75)],
+        child: SizedBox(
+          width: double.infinity,
+          height: _height,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (post.imageUrl.isNotEmpty)
+                HerbImage(
+                  url: post.imageUrl,
+                  height: _height,
+                  borderRadius: 0,
+                  fullWidth: true,
+                  fit: BoxFit.cover,
+                )
+              else
+                Container(color: AppColors.emerald50),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.78),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 20,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (post.isPremium)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.amber,
-                        borderRadius: BorderRadius.circular(20),
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 20,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (post.isPremium)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.amber,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          'PREMIUM TZS ${post.price}',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                      child: Text(
-                        'PREMIUM TZS ${post.price}',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
+                    Text(
+                      post.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
                       ),
                     ),
-                  Text(
-                    post.title,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    post.excerpt,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.9)),
-                  ),
-                ],
+                    const SizedBox(height: 6),
+                    Text(
+                      post.excerpt,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ).animate().fadeIn(duration: 500.ms);
@@ -350,16 +382,12 @@ class _ArticleTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              if (post.imageUrl.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: post.imageUrl,
-                    width: 72,
-                    height: 72,
-                    fit: BoxFit.cover,
-                  ),
-                ),
+              HerbImage(
+                url: post.imageUrl,
+                width: 72,
+                height: 72,
+                borderRadius: 12,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -469,9 +497,11 @@ class _ArticleReaderState extends State<_ArticleReader> {
               padding: const EdgeInsets.all(20),
               children: [
                 if (post.imageUrl.isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: CachedNetworkImage(imageUrl: post.imageUrl, height: 200, fit: BoxFit.cover),
+                  HerbImage(
+                    url: post.imageUrl,
+                    height: 200,
+                    borderRadius: 16,
+                    fullWidth: true,
                   ),
                 const SizedBox(height: 16),
                 if (canRead)

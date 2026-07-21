@@ -127,6 +127,13 @@ class AdminProvider extends ChangeNotifier {
 
     final rawUsers = await _contentService.fetchUsers();
     _users = rawUsers.map(AdminDataMapper.userFromJson).toList();
+
+    try {
+      final rawNotifs = await _contentService.fetchNotificationHistory();
+      _notifications = rawNotifs.map(AdminNotification.fromJson).toList();
+    } catch (_) {
+      // Keep existing notification list if history endpoint is unavailable.
+    }
   }
 
   Future<void> refreshData() async {
@@ -295,6 +302,37 @@ class AdminProvider extends ChangeNotifier {
   void addNotification(AdminNotification notification) {
     _notifications.insert(0, notification);
     notifyListeners();
+  }
+
+  Future<String?> deleteNotification(String id) async {
+    try {
+      await _contentService.deleteNotification(id);
+      _notifications.removeWhere((n) => n.id == id);
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  Future<String?> clearNotificationHistory() async {
+    try {
+      await _contentService.clearNotificationHistory();
+      _notifications = [];
+      notifyListeners();
+      return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  Future<void> refreshNotifications() async {
+    if (_authToken == null) return;
+    try {
+      final rawNotifs = await _contentService.fetchNotificationHistory();
+      _notifications = rawNotifs.map(AdminNotification.fromJson).toList();
+      notifyListeners();
+    } catch (_) {}
   }
 
   void setContentTabFilter(String filter) {
