@@ -67,17 +67,29 @@ router.get('/recommended', async (_req, res) => {
     const { rows: lessons } = await db.query(
       `SELECT id, title, excerpt, image_url, 'darasa_huru' AS section,
               'darasa_huru' AS category, read_time_minutes, FALSE AS is_premium, 0 AS price
-       FROM lessons WHERE is_published = TRUE ORDER BY RANDOM() LIMIT 3`,
+       FROM lessons WHERE is_published = TRUE
+       ORDER BY published_at DESC NULLS LAST, updated_at DESC
+       LIMIT 12`,
     );
     const { rows: dodoso } = await db.query(
       `SELECT id, section, category, title, excerpt, image_url, read_time_minutes, is_premium, price
        FROM content_posts
        WHERE is_published = TRUE AND section = 'dodoso'
-       ORDER BY RANDOM() LIMIT 3`,
+       ORDER BY updated_at DESC
+       LIMIT 12`,
     );
 
+    const shuffle = (arr) => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
     const items = [
-      ...lessons.map((r) => ({
+      ...shuffle(lessons).slice(0, 3).map((r) => ({
         id: r.id,
         section: 'darasa_huru',
         category: 'darasa_huru',
@@ -88,7 +100,7 @@ router.get('/recommended', async (_req, res) => {
         isPremium: false,
         price: 0,
       })),
-      ...dodoso.map((r) => ({
+      ...shuffle(dodoso).slice(0, 3).map((r) => ({
         id: r.id,
         section: r.section,
         category: r.category,
@@ -104,6 +116,102 @@ router.get('/recommended', async (_req, res) => {
     res.json({ items });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kupata mapendekezo' });
+  }
+});
+
+/**
+ * Single bootstrap payload for the mobile app (avoids 6 parallel cold-start calls).
+ * GET /api/content/catalog
+ */
+router.get('/catalog', async (_req, res) => {
+  try {
+    const db = getPool();
+    const [carouselResult, postsResult, lessonsResult, dodosoResult] = await Promise.all([
+      db.query(
+        `SELECT * FROM carousels WHERE is_published = TRUE
+         ORDER BY sort_order ASC, created_at DESC`,
+      ),
+      db.query(
+        `SELECT * FROM content_posts WHERE is_published = TRUE
+         ORDER BY sort_order ASC, created_at DESC`,
+      ),
+      db.query(
+        `SELECT id, title, excerpt, image_url, read_time_minutes
+         FROM lessons WHERE is_published = TRUE
+         ORDER BY published_at DESC NULLS LAST, updated_at DESC
+         LIMIT 12`,
+      ),
+      db.query(
+        `SELECT id, section, category, title, excerpt, image_url, read_time_minutes, is_premium, price
+         FROM content_posts
+         WHERE is_published = TRUE AND section = 'dodoso'
+         ORDER BY updated_at DESC
+         LIMIT 12`,
+      ),
+    ]);
+
+    const posts = postsResult.rows.map((r) => rowToPost(r, { includeContent: false }));
+    const bySection = {
+      dodoso: posts.filter((p) => p.section === 'dodoso'),
+      chagua_mada: posts.filter((p) => p.section === 'chagua_mada'),
+      vyakula_matunda: posts.filter((p) => p.section === 'vyakula_matunda'),
+      jitibu_nyumbani: posts.filter((p) => p.section === 'jitibu_nyumbani'),
+      jifunze: posts.filter((p) => p.section === 'jifunze'),
+    };
+
+    const shuffle = (arr) => {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    };
+
+    const recommended = [
+      ...shuffle(lessonsResult.rows).slice(0, 3).map((r) => ({
+        id: r.id,
+        section: 'darasa_huru',
+        category: 'darasa_huru',
+        title: r.title,
+        excerpt: r.excerpt,
+        imageUrl: normalizeImageUrl(r.image_url),
+        readTimeMinutes: r.read_time_minutes,
+        isPremium: false,
+        price: 0,
+      })),
+      ...shuffle(dodosoResult.rows).slice(0, 3).map((r) => ({
+        id: r.id,
+        section: r.section,
+        category: r.category,
+        title: r.title,
+        excerpt: r.excerpt,
+        imageUrl: normalizeImageUrl(r.image_url),
+        readTimeMinutes: r.read_time_minutes,
+        isPremium: r.is_premium,
+        price: r.price,
+      })),
+    ].sort(() => Math.random() - 0.5).slice(0, 6);
+
+    res.json({
+      carousels: carouselResult.rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        subtitle: row.subtitle,
+        imageUrl: normalizeImageUrl(row.image_url),
+        linkSection: row.link_section,
+        linkId: row.link_id,
+        sortOrder: row.sort_order,
+        isPublished: row.is_published,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      posts: bySection,
+      recommended,
+    });
+  } catch (err) {
+    console.error('GET /content/catalog:', err);
+    res.status(500).json({ error: 'Imeshindwa kupata katalogi' });
   }
 });
 

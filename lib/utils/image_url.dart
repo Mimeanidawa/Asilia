@@ -1,7 +1,8 @@
+import 'package:flutter/foundation.dart';
+
 import '../config/app_config.dart';
 
-/// Normalizes image URLs and routes them through the Asilia API image proxy
-/// so ImgBB / Postimages / other hosts always load (no hotlink/CORS failures).
+/// Normalizes image URLs and builds display URLs for network images.
 class ImageUrl {
   ImageUrl._();
 
@@ -30,7 +31,6 @@ class ImageUrl {
     return url;
   }
 
-  /// True when [url] looks like an album/share page, not a binary image.
   static bool needsResolution(String raw) {
     final url = tidy(raw);
     if (url.isEmpty) return false;
@@ -68,7 +68,7 @@ class ImageUrl {
     return _directImagePath.hasMatch(uri.path);
   }
 
-  /// Display URL for [CachedNetworkImage]: always via API proxy for remote http(s).
+  /// Proxy URL through the Asilia API (needed for Flutter web CORS).
   static String proxied(String raw) {
     final url = tidy(raw);
     if (url.isEmpty) return '';
@@ -78,7 +78,6 @@ class ImageUrl {
     if (!(uri.isScheme('http') || uri.isScheme('https'))) return url;
 
     final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/$'), '');
-    // Already pointing at our API host + proxy path.
     if (url.startsWith('$base/api/images/proxy')) return url;
 
     return Uri.parse('$base/api/images/proxy').replace(
@@ -86,6 +85,10 @@ class ImageUrl {
     ).toString();
   }
 
-  /// Alias used by widgets.
-  static String display(String raw) => proxied(raw);
+  /// Best first-choice display URL for the current platform.
+  static String display(String raw) {
+    final url = tidy(raw);
+    if (url.isEmpty) return '';
+    return kIsWeb ? proxied(url) : url;
+  }
 }

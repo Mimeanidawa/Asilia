@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
+
 import '../config/app_config.dart';
 
-/// Normalizes image URLs and routes them through the Asilia API image proxy.
+/// Normalizes image URLs and builds display URLs for network images.
 class ImageUrl {
   ImageUrl._();
 
@@ -39,7 +41,6 @@ class ImageUrl {
     return false;
   }
 
-  /// Display URL: always via API proxy for remote http(s) images.
   static String proxied(String raw) {
     final url = tidy(raw);
     if (url.isEmpty) return '';
@@ -56,5 +57,9 @@ class ImageUrl {
     ).toString();
   }
 
-  static String display(String raw) => proxied(raw);
+  static String display(String raw) {
+    final url = tidy(raw);
+    if (url.isEmpty) return '';
+    return kIsWeb ? proxied(url) : url;
+  }
 }

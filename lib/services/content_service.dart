@@ -52,37 +52,108 @@ class ContentService extends ChangeNotifier {
 
   Future<void> syncFromServer({String? userToken}) async {
     try {
-      final results = await Future.wait([
-        _api.get('/api/carousels'),
-        _api.get('/api/content?section=dodoso'),
-        _api.get('/api/content?section=chagua_mada'),
-        _api.get('/api/content?section=vyakula_matunda'),
-        _api.get('/api/content?section=jifunze'),
-        _api.get('/api/content/recommended'),
-      ]);
-
-      carousels = (results[0]['carousels'] as List)
-          .map((e) => CarouselSlide.fromJson(e as Map<String, dynamic>))
-          .toList();
-      dodosoPosts = _parsePosts(results[1]);
-      chaguaMadaPosts = _parsePosts(results[2]);
-      vyakulaMatundaPosts = _parsePosts(results[3]);
-      // Legacy section fallback
-      if (vyakulaMatundaPosts.isEmpty) {
-        final legacy = await _api.get('/api/content?section=jitibu_nyumbani');
-        vyakulaMatundaPosts = _parsePosts(legacy);
-      }
-      jifunzePosts = _parsePosts(results[4]);
-      recommended = (results[5]['items'] as List)
-          .map((e) => RecommendedItem.fromJson(e as Map<String, dynamic>))
-          .toList();
-
+      // One request is much more reliable than 6 parallel cold-start calls.
+      final catalog = await _api.get('/api/content/catalog');
+      _applyCatalog(catalog);
       await _saveCache();
-    } catch (e) {
-      debugPrint('ContentService sync error: $e');
-      rethrow;
+    } catch (catalogError) {
+      debugPrint('Catalog sync failed, falling back: $catalogError');
+      await _syncLegacy();
     } finally {
       notifyListeners();
+    }
+  }
+
+  void _applyCatalog(Map<String, dynamic> data) {
+    carousels = (data['carousels'] as List? ?? [])
+        .map((e) => CarouselSlide.fromJson(e as Map<String, dynamic>))
+        .toList();
+
+    final posts = data['posts'] as Map<String, dynamic>? ?? {};
+    dodosoPosts = _parsePostsMap(posts['dodoso']);
+    chaguaMadaPosts = _parsePostsMap(posts['chagua_mada']);
+    vyakulaMatundaPosts = _parsePostsMap(posts['vyakula_matunda']);
+    if (vyakulaMatundaPosts.isEmpty) {
+      vyakulaMatundaPosts = _parsePostsMap(posts['jitibu_nyumbani']);
+    }
+    jifunzePosts = _parsePostsMap(posts['jifunze']);
+    recommended = (data['recommended'] as List? ?? [])
+        .map((e) => RecommendedItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  List<ContentPost> _parsePostsMap(dynamic raw) {
+    if (raw is! List) return [];
+    return raw
+        .map((e) => ContentPost.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> _syncLegacy() async {
+    // Resilient: apply whatever succeeds instead of failing the whole sync.
+    final carouselsF = _safeGet('/api/carousels');
+    final dodosoF = _safeGet('/api/content?section=dodoso');
+    final chaguaF = _safeGet('/api/content?section=chagua_mada');
+    final vyakulaF = _safeGet('/api/content?section=vyakula_matunda');
+    final jifunzeF = _safeGet('/api/content?section=jifunze');
+    final recommendedF = _safeGet('/api/content/recommended');
+
+    final results = await Future.wait([
+      carouselsF,
+      dodosoF,
+      chaguaF,
+      vyakulaF,
+      jifunzeF,
+      recommendedF,
+    ]);
+
+    var any = false;
+    if (results[0] != null) {
+      carousels = (results[0]!['carousels'] as List)
+          .map((e) => CarouselSlide.fromJson(e as Map<String, dynamic>))
+          .toList();
+      any = true;
+    }
+    if (results[1] != null) {
+      dodosoPosts = _parsePosts(results[1]!);
+      any = true;
+    }
+    if (results[2] != null) {
+      chaguaMadaPosts = _parsePosts(results[2]!);
+      any = true;
+    }
+    if (results[3] != null) {
+      vyakulaMatundaPosts = _parsePosts(results[3]!);
+      if (vyakulaMatundaPosts.isEmpty) {
+        final legacy = await _safeGet('/api/content?section=jitibu_nyumbani');
+        if (legacy != null) vyakulaMatundaPosts = _parsePosts(legacy);
+      }
+      any = true;
+    }
+    if (results[4] != null) {
+      jifunzePosts = _parsePosts(results[4]!);
+      any = true;
+    }
+    if (results[5] != null) {
+      recommended = (results[5]!['items'] as List)
+          .map((e) => RecommendedItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+      any = true;
+    }
+
+    if (any) {
+      await _saveCache();
+    } else {
+      throw Exception('Content sync failed for all endpoints');
+    }
+  }
+
+  Future<Map<String, dynamic>?> _safeGet(String path) async {
+    try {
+      return await _api.get(path);
+    } catch (e) {
+      debugPrint('Content GET $path failed: $e');
+      return null;
     }
   }
 

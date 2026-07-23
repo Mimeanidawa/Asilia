@@ -1,9 +1,10 @@
+import { Readable } from 'stream';
 import { Router } from 'express';
 import { resolveImageUrl, tidyImageUrl } from '../utils/resolveImageUrl.js';
 
 const router = Router();
 
-const FETCH_TIMEOUT_MS = 12000;
+const FETCH_TIMEOUT_MS = 60000;
 const MAX_BYTES = 15 * 1024 * 1024;
 
 const BLOCKED_HOSTS = new Set([
@@ -54,15 +55,16 @@ router.get('/proxy', async (req, res) => {
   try {
     const resolved = await resolveImageUrl(target);
     const fetchUrl = isAllowedTarget(resolved) || target;
+    const origin = new URL(fetchUrl).origin;
 
     const upstream = await fetch(fetchUrl, {
       redirect: 'follow',
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
-        Referer: new URL(fetchUrl).origin + '/',
+        Referer: `${origin}/`,
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
@@ -75,7 +77,6 @@ router.get('/proxy', async (req, res) => {
     }
 
     const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
-    // Some CDNs return HTML error pages; reject those.
     if (contentType.includes('text/html') || contentType.includes('application/json')) {
       return res.status(502).json({ error: 'URL hairejeshi picha' });
     }
@@ -85,25 +86,50 @@ router.get('/proxy', async (req, res) => {
       return res.status(413).json({ error: 'Picha ni kubwa mno' });
     }
 
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-    if (buffer.length > MAX_BYTES) {
-      return res.status(413).json({ error: 'Picha ni kubwa mno' });
-    }
-
-    const type =
-      contentType.startsWith('image/')
-        ? contentType.split(';')[0]
-        : 'image/jpeg';
+    const type = contentType.startsWith('image/')
+      ? contentType.split(';')[0]
+      : 'image/jpeg';
 
     res.setHeader('Content-Type', type);
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.status(200).send(buffer);
+    if (lengthHeader) res.setHeader('Content-Length', lengthHeader);
+
+    if (!upstream.body) {
+      const buffer = Buffer.from(await upstream.arrayBuffer());
+      if (buffer.length > MAX_BYTES) {
+        return res.status(413).json({ error: 'Picha ni kubwa mno' });
+      }
+      return res.status(200).send(buffer);
+    }
+
+    const nodeStream = Readable.fromWeb(upstream.body);
+    let transferred = 0;
+    nodeStream.on('data', (chunk) => {
+      transferred += chunk.length;
+      if (transferred > MAX_BYTES) {
+        nodeStream.destroy(new Error('too_large'));
+      }
+    });
+    nodeStream.on('error', (err) => {
+      if (!res.headersSent) {
+        const code = err.message === 'too_large' ? 413 : 502;
+        res.status(code).json({
+          error: err.message === 'too_large' ? 'Picha ni kubwa mno' : 'Imeshindwa kupakia picha',
+        });
+      } else {
+        res.destroy(err);
+      }
+    });
+    return nodeStream.pipe(res);
   } catch (err) {
     console.warn('image proxy failed:', target, err.message);
-    return res.status(502).json({ error: 'Imeshindwa kupakia picha' });
+    if (!res.headersSent) {
+      return res.status(502).json({ error: 'Imeshindwa kupakia picha' });
+    }
+    return undefined;
   }
 });
 

@@ -20,7 +20,7 @@ class ApiClient {
 
   final http.Client _client;
   final String _baseUrl;
-  static const _timeout = Duration(seconds: 15);
+  static const _timeout = Duration(seconds: 45);
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
