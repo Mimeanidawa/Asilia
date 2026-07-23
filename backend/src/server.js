@@ -13,6 +13,7 @@ import chatRouter from './routes/chat.js';
 import adminRouter from './routes/admin.js';
 import paymentsRouter from './routes/payments.js';
 import notificationsRouter from './routes/notifications.js';
+import imagesRouter from './routes/images.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -47,6 +48,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/images', imagesRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);

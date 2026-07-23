@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../utils/image_url.dart';
 
-class HerbImage extends StatefulWidget {
+class HerbImage extends StatelessWidget {
   const HerbImage({
     super.key,
     required this.url,
@@ -22,48 +22,7 @@ class HerbImage extends StatefulWidget {
   final BoxFit fit;
   final bool fullWidth;
 
-  @override
-  State<HerbImage> createState() => _HerbImageState();
-}
-
-class _HerbImageState extends State<HerbImage> {
-  String? _resolvedShareUrl;
-  bool _resolving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _maybeResolveShareUrl();
-  }
-
-  @override
-  void didUpdateWidget(covariant HerbImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
-      _resolvedShareUrl = null;
-      _resolving = false;
-      _maybeResolveShareUrl();
-    }
-  }
-
-  void _maybeResolveShareUrl() {
-    final tidy = ImageUrl.tidy(widget.url);
-    if (tidy.isEmpty || !ImageUrl.needsResolution(tidy)) return;
-
-    _resolving = true;
-    ImageUrl.resolve(tidy).then((resolved) {
-      if (!mounted || ImageUrl.tidy(widget.url) != tidy) return;
-      setState(() {
-        _resolvedShareUrl = resolved;
-        _resolving = false;
-      });
-    }).catchError((_) {
-      if (!mounted) return;
-      setState(() => _resolving = false);
-    });
-  }
-
-  int? _cachePx(double? logical) {
+  int? _cachePx(BuildContext context, double? logical) {
     if (logical == null || !logical.isFinite || logical <= 0) return null;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return (logical * dpr).round().clamp(48, 1600);
@@ -71,26 +30,22 @@ class _HerbImageState extends State<HerbImage> {
 
   @override
   Widget build(BuildContext context) {
-    final tidy = ImageUrl.tidy(widget.url);
-    final displayUrl = _resolvedShareUrl ?? tidy;
-    final imageWidth = widget.fullWidth ? double.infinity : widget.width;
+    final displayUrl = ImageUrl.display(url);
+    final imageWidth = fullWidth ? double.infinity : width;
 
     Widget child;
     if (displayUrl.isEmpty) {
       child = _placeholder(imageWidth, icon: Icons.eco);
-    } else if (_resolving && _resolvedShareUrl == null) {
-      child = _placeholder(imageWidth, loading: true);
     } else {
-      // No custom headers — browsers forbid User-Agent and extra Accept
-      // triggers CORS preflight that blocks many image CDNs (incl. admin web).
+      // Always load via API image proxy — avoids ImgBB/Postimages hotlink + CORS blocks.
       child = CachedNetworkImage(
         imageUrl: displayUrl,
         width: imageWidth,
-        height: widget.height,
-        fit: widget.fit,
+        height: height,
+        fit: fit,
         fadeInDuration: const Duration(milliseconds: 120),
-        memCacheWidth: _cachePx(widget.width ?? (widget.fullWidth ? 600 : null)),
-        memCacheHeight: _cachePx(widget.height),
+        memCacheWidth: _cachePx(context, width ?? (fullWidth ? 600 : null)),
+        memCacheHeight: _cachePx(context, height),
         placeholder: (context, url) => _placeholder(imageWidth, loading: true),
         errorWidget: (context, url, error) =>
             _placeholder(imageWidth, icon: Icons.eco),
@@ -98,9 +53,9 @@ class _HerbImageState extends State<HerbImage> {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.borderRadius),
-      child: widget.fullWidth && widget.height != null
-          ? SizedBox(width: double.infinity, height: widget.height, child: child)
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: fullWidth && height != null
+          ? SizedBox(width: double.infinity, height: height, child: child)
           : child,
     );
   }
@@ -108,7 +63,7 @@ class _HerbImageState extends State<HerbImage> {
   Widget _placeholder(double? width, {bool loading = false, IconData? icon}) {
     return Container(
       width: width,
-      height: widget.height,
+      height: height,
       color: AppColors.emerald50,
       alignment: Alignment.center,
       child: loading

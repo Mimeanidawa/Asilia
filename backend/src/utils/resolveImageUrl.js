@@ -1,17 +1,21 @@
 /**
  * Normalize / resolve share-page image URLs (ImgBB, Postimages)
- * into direct CDN URLs that mobile clients can load.
+ * into direct CDN URLs that mobile clients / the image proxy can load.
  */
 
 const OG_IMAGE_RE =
   /(?:property|name)=["']og:image["'][^>]*content=["']([^"']+)["']|content=["']([^"']+)["'][^>]*(?:property|name)=["']og:image["']/i;
 
-const RESOLVE_TIMEOUT_MS = 4000;
+const RESOLVE_TIMEOUT_MS = 8000;
 
-function tidy(raw) {
+export function tidyImageUrl(raw) {
   let url = String(raw || '').trim();
   if (url.startsWith('//')) url = `https:${url}`;
   return url;
+}
+
+function tidy(raw) {
+  return tidyImageUrl(raw);
 }
 
 function looksLikeBlockedPostimgPath(pathname) {
@@ -75,10 +79,20 @@ function looksLikeDirectImage(url) {
       if (looksLikeBlockedPostimgPath(u.pathname)) return false;
       return name.startsWith('image.') || /\.(png|jpe?g|gif|webp|avif|bmp)(\?.*)?$/i.test(u.pathname);
     }
-    return /\.(png|jpe?g|gif|webp|avif|bmp)(\?.*)?$/i.test(u.pathname);
+    if (/\.(png|jpe?g|gif|webp|avif|bmp)(\?.*)?$/i.test(u.pathname)) return true;
+    return false;
   } catch {
     return false;
   }
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 }
 
 /**
@@ -105,7 +119,7 @@ export async function resolveImageUrl(raw) {
     if (res.ok) {
       const html = await res.text();
       const og = html.match(OG_IMAGE_RE);
-      const candidate = tidy(og?.[1] || og?.[2] || '');
+      const candidate = tidy(decodeHtmlEntities(og?.[1] || og?.[2] || ''));
       if (candidate && looksLikeDirectImage(candidate)) return candidate;
 
       const ibb = html.match(/https:\/\/i\.ibb\.co\/[^\s"'<>]+/);

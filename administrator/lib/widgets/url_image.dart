@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import '../theme/admin_colors.dart';
 import '../utils/image_url.dart';
 
-/// Network image that resolves share-page URLs (ibb.co / postimg) like the main app.
-class UrlImage extends StatefulWidget {
+/// Network image that loads URL images via the Asilia API proxy.
+class UrlImage extends StatelessWidget {
   const UrlImage({
     super.key,
     required this.url,
@@ -22,61 +22,18 @@ class UrlImage extends StatefulWidget {
   final BoxFit fit;
 
   @override
-  State<UrlImage> createState() => _UrlImageState();
-}
-
-class _UrlImageState extends State<UrlImage> {
-  String? _resolved;
-  bool _resolving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _maybeResolve();
-  }
-
-  @override
-  void didUpdateWidget(covariant UrlImage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.url != widget.url) {
-      _resolved = null;
-      _resolving = false;
-      _maybeResolve();
-    }
-  }
-
-  void _maybeResolve() {
-    final tidy = ImageUrl.tidy(widget.url);
-    if (tidy.isEmpty || !ImageUrl.needsResolution(tidy)) return;
-    _resolving = true;
-    ImageUrl.resolve(tidy).then((resolved) {
-      if (!mounted || ImageUrl.tidy(widget.url) != tidy) return;
-      setState(() {
-        _resolved = resolved;
-        _resolving = false;
-      });
-    }).catchError((_) {
-      if (!mounted) return;
-      setState(() => _resolving = false);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final tidy = ImageUrl.tidy(widget.url);
-    final displayUrl = _resolved ?? tidy;
+    final displayUrl = ImageUrl.display(url);
 
     Widget child;
     if (displayUrl.isEmpty) {
       child = _placeholder(icon: Icons.image_not_supported_rounded);
-    } else if (_resolving && _resolved == null) {
-      child = _placeholder(loading: true);
     } else {
       child = CachedNetworkImage(
         imageUrl: displayUrl,
-        width: widget.width,
-        height: widget.height,
-        fit: widget.fit,
+        width: width,
+        height: height,
+        fit: fit,
         fadeInDuration: const Duration(milliseconds: 120),
         placeholder: (context, url) => _placeholder(loading: true),
         errorWidget: (context, url, error) =>
@@ -85,15 +42,15 @@ class _UrlImageState extends State<UrlImage> {
     }
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.borderRadius),
+      borderRadius: BorderRadius.circular(borderRadius),
       child: child,
     );
   }
 
   Widget _placeholder({bool loading = false, IconData? icon}) {
     return Container(
-      width: widget.width ?? double.infinity,
-      height: widget.height ?? 120,
+      width: width ?? double.infinity,
+      height: height ?? 120,
       color: AdminColors.card,
       alignment: Alignment.center,
       child: loading

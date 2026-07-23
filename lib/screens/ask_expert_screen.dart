@@ -9,6 +9,7 @@ import '../services/mwalimu_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../utils/image_url.dart';
 import '../services/payment_service.dart';
 import '../utils/tzs_format.dart';
 import '../widgets/sonicpesa_payment_sheet.dart';
@@ -254,7 +255,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                   CircleAvatar(
                     radius: 28,
                     backgroundImage: CachedNetworkImageProvider(
-                      settings.mwalimuImage,
+                      ImageUrl.display(settings.mwalimuImage),
                     ),
                   )
                 else
@@ -459,7 +460,7 @@ class _Bubble extends StatelessWidget {
           if (!isUser && avatarUrl != null && avatarUrl!.isNotEmpty)
             CircleAvatar(
               radius: 16,
-              backgroundImage: CachedNetworkImageProvider(avatarUrl!),
+              backgroundImage: CachedNetworkImageProvider(ImageUrl.display(avatarUrl!)),
             ),
           if (!isUser && (avatarUrl == null || avatarUrl!.isEmpty))
             const CircleAvatar(
