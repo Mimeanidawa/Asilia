@@ -3,8 +3,20 @@ import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendLessonNotification } from '../services/firebase.js';
 import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
+import { ingestImageUrl } from '../utils/mediaCache.js';
 
 const router = Router();
+
+async function persistCoverImage(raw) {
+  const resolved = await resolveImageUrl(raw || '');
+  if (!resolved) return '';
+  try {
+    await ingestImageUrl(resolved);
+  } catch (err) {
+    console.warn('lesson image ingest failed:', resolved, err.message);
+  }
+  return resolved;
+}
 
 function rowToLesson(row) {
   return {
@@ -99,7 +111,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
 
     const lessonId = id || `dh-${Date.now()}`;
     const db = getPool();
-    const resolvedImage = await resolveImageUrl(imageUrl?.trim() || '');
+    const resolvedImage = await persistCoverImage(imageUrl?.trim() || '');
 
     await db.query(
       `INSERT INTO lessons
@@ -160,7 +172,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     const resolvedImage =
       imageUrl === undefined || imageUrl === null
         ? undefined
-        : await resolveImageUrl(String(imageUrl).trim());
+        : await persistCoverImage(String(imageUrl).trim());
 
     await db.query(
       `UPDATE lessons SET

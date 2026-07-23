@@ -23,20 +23,22 @@ function looksLikeBlockedPostimgPath(pathname) {
   return name.startsWith('file-00000000') || /^file-[0-9a-f]{20,}/.test(name);
 }
 
-/** Sync rewrite: i.postimg.cc/CODE/file-....png -> .../CODE/image.png */
+/** Sync rewrite: prefer canonical postimg `image.ext` names. */
 export function normalizeImageUrl(raw) {
   const url = tidy(raw);
   if (!url) return '';
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, '').toLowerCase();
-    if (host === 'i.postimg.cc' && looksLikeBlockedPostimgPath(u.pathname)) {
+    if (host === 'i.postimg.cc') {
       const parts = u.pathname.split('/').filter(Boolean);
       if (parts.length >= 2) {
-        const ext = parts[parts.length - 1].includes('.')
-          ? parts[parts.length - 1].split('.').pop()
-          : 'png';
-        return `${u.protocol}//${u.host}/${parts[0]}/image.${ext}`;
+        const file = parts[1].toLowerCase();
+        if (!file.startsWith('image.')) {
+          const ext = file.includes('.') ? file.split('.').pop() : 'jpg';
+          const safeExt = ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+          return `${u.protocol}//${u.host}/${parts[0]}/image.${safeExt === 'jpeg' ? 'jpg' : safeExt}`;
+        }
       }
     }
   } catch {
@@ -50,7 +52,13 @@ function needsResolution(url) {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, '').toLowerCase();
     if (host === 'ibb.co' || host === 'postimg.cc' || host === 'postimages.org') return true;
-    if (host === 'i.postimg.cc' && looksLikeBlockedPostimgPath(u.pathname)) return true;
+    if (host === 'i.postimg.cc') {
+      const parts = u.pathname.split('/').filter(Boolean);
+      const file = (parts[1] || '').toLowerCase();
+      // Non-canonical filenames often 403; resolve via share page.
+      if (!file.startsWith('image.')) return true;
+      if (looksLikeBlockedPostimgPath(u.pathname)) return true;
+    }
     return false;
   } catch {
     return false;

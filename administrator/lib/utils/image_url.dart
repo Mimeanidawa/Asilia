@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import '../config/app_config.dart';
 
 /// Normalizes image URLs and builds display URLs for network images.
@@ -23,43 +21,30 @@ class ImageUrl {
     return url;
   }
 
-  static bool needsResolution(String raw) {
-    final url = tidy(raw);
-    if (url.isEmpty) return false;
-    final uri = Uri.tryParse(url);
-    if (uri == null) return false;
-    final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
-    if (host == 'ibb.co') return true;
-    if (host == 'postimg.cc' || host == 'postimages.org') return true;
-    if (host == 'i.postimg.cc') {
-      final name = uri.path.split('/').last.toLowerCase();
-      if (name.startsWith('file-00000000') ||
-          RegExp(r'^file-[0-9a-f]{20,}').hasMatch(name)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   static String proxied(String raw) {
     final url = tidy(raw);
     if (url.isEmpty) return '';
 
     final uri = Uri.tryParse(url);
     if (uri == null) return url;
-    if (!(uri.isScheme('http') || uri.isScheme('https'))) return url;
+    if (!(uri.isScheme('http') || uri.isScheme('https'))) {
+      if (url.startsWith('/api/media/') || url.startsWith('/api/images/')) {
+        final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/$'), '');
+        return '$base$url';
+      }
+      return url;
+    }
 
     final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/$'), '');
-    if (url.startsWith('$base/api/images/proxy')) return url;
+    if (url.startsWith('$base/api/media/') ||
+        url.startsWith('$base/api/images/proxy')) {
+      return url;
+    }
 
     return Uri.parse('$base/api/images/proxy').replace(
       queryParameters: {'url': url},
     ).toString();
   }
 
-  static String display(String raw) {
-    final url = tidy(raw);
-    if (url.isEmpty) return '';
-    return kIsWeb ? proxied(url) : url;
-  }
+  static String display(String raw) => proxied(raw);
 }

@@ -1,50 +1,39 @@
-import { Readable } from 'stream';
 import { Router } from 'express';
-import { resolveImageUrl, tidyImageUrl } from '../utils/resolveImageUrl.js';
+import {
+  findCachedMedia,
+  getCachedMediaById,
+  ingestImageUrl,
+  mediaPublicPath,
+} from '../utils/mediaCache.js';
+import { tidyImageUrl } from '../utils/resolveImageUrl.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
-
-const FETCH_TIMEOUT_MS = 60000;
-const MAX_BYTES = 15 * 1024 * 1024;
-
-const BLOCKED_HOSTS = new Set([
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
-  '::1',
-  'metadata.google.internal',
-  'metadata.google',
-]);
-
-function isPrivateHostname(hostname) {
-  const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
-  if (BLOCKED_HOSTS.has(host)) return true;
-  if (host.endsWith('.local') || host.endsWith('.internal')) return true;
-  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-  if (/^100\.(6[4-9]|[7-9]\d|1[0-2]\d)\.\d{1,3}\.\d{1,3}$/.test(host)) return true;
-  return false;
-}
 
 function isAllowedTarget(raw) {
   const url = tidyImageUrl(raw);
   if (!url) return null;
-  let parsed;
   try {
-    parsed = new URL(url);
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    const host = parsed.hostname.toLowerCase();
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local') ||
+      host.endsWith('.internal')
+    ) {
+      return null;
+    }
+    return parsed.toString();
   } catch {
     return null;
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
-  if (isPrivateHostname(parsed.hostname)) return null;
-  return parsed.toString();
 }
 
 /**
- * Public image proxy: resolves share pages and streams binary image bytes.
- * GET /api/images/proxy?url=https://...
+ * Stream a remote image through our API (with server-side cache).
+ * GET /api/images/proxy?url=...
  */
 router.get('/proxy', async (req, res) => {
   const target = isAllowedTarget(req.query.url);
@@ -53,77 +42,33 @@ router.get('/proxy', async (req, res) => {
   }
 
   try {
-    const resolved = await resolveImageUrl(target);
-    const fetchUrl = isAllowedTarget(resolved) || target;
-    const origin = new URL(fetchUrl).origin;
-
-    const upstream = await fetch(fetchUrl, {
-      redirect: 'follow',
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        Referer: `${origin}/`,
-      },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-
-    if (!upstream.ok) {
-      return res.status(upstream.status === 404 ? 404 : 502).json({
-        error: 'Imeshindwa kupata picha',
-        status: upstream.status,
-      });
+    // Fast path: already cached under this exact source URL.
+    const cached = await findCachedMedia(target);
+    if (cached) {
+      const full = await getCachedMediaById(cached.id);
+      if (full?.bytes) {
+        res.setHeader('Content-Type', full.content_type || 'image/jpeg');
+        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-Asilia-Media', full.id);
+        return res.status(200).send(full.bytes);
+      }
     }
 
-    const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
-    if (contentType.includes('text/html') || contentType.includes('application/json')) {
-      return res.status(502).json({ error: 'URL hairejeshi picha' });
+    const ingested = await ingestImageUrl(target, { includeBuffer: true });
+    if (!ingested?.buffer) {
+      return res.status(502).json({ error: 'Imeshindwa kupakia picha' });
     }
 
-    const lengthHeader = upstream.headers.get('content-length');
-    if (lengthHeader && Number(lengthHeader) > MAX_BYTES) {
-      return res.status(413).json({ error: 'Picha ni kubwa mno' });
-    }
-
-    const type = contentType.startsWith('image/')
-      ? contentType.split(';')[0]
-      : 'image/jpeg';
-
-    res.setHeader('Content-Type', type);
-    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('Content-Type', ingested.contentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    if (lengthHeader) res.setHeader('Content-Length', lengthHeader);
-
-    if (!upstream.body) {
-      const buffer = Buffer.from(await upstream.arrayBuffer());
-      if (buffer.length > MAX_BYTES) {
-        return res.status(413).json({ error: 'Picha ni kubwa mno' });
-      }
-      return res.status(200).send(buffer);
-    }
-
-    const nodeStream = Readable.fromWeb(upstream.body);
-    let transferred = 0;
-    nodeStream.on('data', (chunk) => {
-      transferred += chunk.length;
-      if (transferred > MAX_BYTES) {
-        nodeStream.destroy(new Error('too_large'));
-      }
-    });
-    nodeStream.on('error', (err) => {
-      if (!res.headersSent) {
-        const code = err.message === 'too_large' ? 413 : 502;
-        res.status(code).json({
-          error: err.message === 'too_large' ? 'Picha ni kubwa mno' : 'Imeshindwa kupakia picha',
-        });
-      } else {
-        res.destroy(err);
-      }
-    });
-    return nodeStream.pipe(res);
+    res.setHeader('X-Asilia-Media', ingested.id);
+    return res.status(200).send(ingested.buffer);
   } catch (err) {
     console.warn('image proxy failed:', target, err.message);
     if (!res.headersSent) {
@@ -133,21 +78,48 @@ router.get('/proxy', async (req, res) => {
   }
 });
 
-/**
- * Resolve a share/page URL to a direct CDN image URL (JSON).
- * GET /api/images/resolve?url=https://ibb.co/...
- */
 router.get('/resolve', async (req, res) => {
   const target = isAllowedTarget(req.query.url);
   if (!target) {
     return res.status(400).json({ error: 'URL ya picha si sahihi' });
   }
   try {
-    const resolved = await resolveImageUrl(target);
-    res.json({ url: resolved || target });
+    const ingested = await ingestImageUrl(target);
+    if (ingested?.id) {
+      return res.json({
+        url: mediaPublicPath(ingested.id),
+        mediaId: ingested.id,
+        cached: true,
+      });
+    }
+    res.json({ url: target, cached: false });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kutatua URL', url: target });
   }
+});
+
+/** Admin: force-ingest one or many image URLs into media cache. */
+router.post('/ingest', requireAdmin, async (req, res) => {
+  const urls = Array.isArray(req.body?.urls)
+    ? req.body.urls
+    : req.body?.url
+      ? [req.body.url]
+      : [];
+  const results = [];
+  for (const raw of urls.slice(0, 40)) {
+    try {
+      const ingested = await ingestImageUrl(String(raw));
+      results.push({
+        sourceUrl: raw,
+        ok: !!ingested,
+        mediaId: ingested?.id || null,
+        path: ingested ? mediaPublicPath(ingested.id) : null,
+      });
+    } catch (err) {
+      results.push({ sourceUrl: raw, ok: false, error: err.message });
+    }
+  }
+  res.json({ results });
 });
 
 export default router;

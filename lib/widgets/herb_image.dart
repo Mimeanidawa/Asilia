@@ -1,5 +1,4 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -28,7 +27,7 @@ class HerbImage extends StatefulWidget {
 }
 
 class _HerbImageState extends State<HerbImage> {
-  /// 0 = prefer direct (or proxy on web), 1 = fallback to the other.
+  /// 0 = API proxy/media, 1 = direct CDN fallback.
   int _attempt = 0;
 
   @override
@@ -42,18 +41,16 @@ class _HerbImageState extends State<HerbImage> {
   int? _cachePx(BuildContext context, double? logical) {
     if (logical == null || !logical.isFinite || logical <= 0) return null;
     final dpr = MediaQuery.devicePixelRatioOf(context);
-    return (logical * dpr).round().clamp(48, 1600);
+    return (logical * dpr).round().clamp(48, 1200);
   }
 
   String _urlForAttempt() {
     final tidy = ImageUrl.tidy(widget.url);
     if (tidy.isEmpty) return '';
-    // Web needs the API proxy (CORS). Native/desktop load the CDN directly
-    // (Postimages is slow via Railway proxy). Fall back to the other on error.
-    if (kIsWeb) {
-      return _attempt == 0 ? ImageUrl.proxied(tidy) : tidy;
-    }
-    return _attempt == 0 ? tidy : ImageUrl.proxied(tidy);
+    // Prefer our API proxy/media cache — Postimages often returns a tiny 403
+    // placeholder that looks like a black dot when loaded directly.
+    if (_attempt == 0) return ImageUrl.proxied(tidy);
+    return tidy;
   }
 
   @override
@@ -66,20 +63,34 @@ class _HerbImageState extends State<HerbImage> {
       child = _placeholder(imageWidth, icon: Icons.eco);
     } else {
       child = CachedNetworkImage(
+        key: ValueKey('$displayUrl#$_attempt'),
         imageUrl: displayUrl,
         width: imageWidth,
         height: widget.height,
         fit: widget.fit,
         fadeInDuration: const Duration(milliseconds: 120),
-        memCacheWidth: _cachePx(context, widget.width ?? (widget.fullWidth ? 600 : null)),
+        memCacheWidth: _cachePx(
+          context,
+          widget.width ?? (widget.fullWidth ? 600 : null),
+        ),
         memCacheHeight: _cachePx(context, widget.height),
         placeholder: (context, url) => _placeholder(imageWidth, loading: true),
         errorWidget: (context, url, error) {
           if (_attempt == 0) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _attempt = 1);
-            });
-            return _placeholder(imageWidth, loading: true);
+            final host =
+                Uri.tryParse(ImageUrl.tidy(widget.url))?.host.toLowerCase() ??
+                    '';
+            // Direct CDN loads for Postimages/ImgBB often return a tiny 403
+            // placeholder (black dot). Don't fall back to that.
+            final hotlinkHost = host.contains('postimg') ||
+                host.contains('ibb.co') ||
+                host.contains('postimages');
+            if (!hotlinkHost) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _attempt = 1);
+              });
+              return _placeholder(imageWidth, loading: true);
+            }
           }
           return _placeholder(imageWidth, icon: Icons.eco);
         },

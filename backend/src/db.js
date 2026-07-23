@@ -288,5 +288,21 @@ export async function initDb() {
       ON notification_history (created_at DESC)
   `);
 
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS media_assets (
+      id UUID PRIMARY KEY,
+      source_url TEXT NOT NULL UNIQUE,
+      content_type TEXT NOT NULL,
+      bytes BYTEA NOT NULL,
+      byte_size INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_media_assets_updated
+      ON media_assets (updated_at DESC)
+  `);
+
   console.log('Database schema ready');
 }

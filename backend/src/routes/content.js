@@ -4,8 +4,20 @@ import { requireAdmin } from '../middleware/auth.js';
 import { optionalUser } from '../middleware/userAuth.js';
 import { sendContentNotification } from '../services/firebase.js';
 import { resolveImageUrl, normalizeImageUrl, resolveContentImageUrls, normalizeContentImageUrls } from '../utils/resolveImageUrl.js';
+import { ingestImageUrl } from '../utils/mediaCache.js';
 
 const router = Router();
+
+async function persistCoverImage(raw) {
+  const resolved = await resolveImageUrl(raw || '');
+  if (!resolved) return '';
+  try {
+    await ingestImageUrl(resolved);
+  } catch (err) {
+    console.warn('cover image ingest failed:', resolved, err.message);
+  }
+  return resolved;
+}
 
 function rowToPost(row, { includeContent = true } = {}) {
   const post = {
@@ -209,6 +221,15 @@ router.get('/catalog', async (_req, res) => {
       posts: bySection,
       recommended,
     });
+
+    // Warm media cache in background so list thumbnails load from our API.
+    const warmUrls = [
+      ...carouselResult.rows.map((r) => r.image_url),
+      ...postsResult.rows.map((r) => r.image_url),
+      ...lessonsResult.rows.map((r) => r.image_url),
+    ].filter(Boolean);
+    const unique = [...new Set(warmUrls)].slice(0, 30);
+    Promise.allSettled(unique.map((u) => ingestImageUrl(u))).catch(() => {});
   } catch (err) {
     console.error('GET /content/catalog:', err);
     res.status(500).json({ error: 'Imeshindwa kupata katalogi' });
@@ -298,7 +319,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
     const postId = id || `post-${Date.now()}`;
     const db = getPool();
     const [resolvedImage, resolvedContent] = await Promise.all([
-      resolveImageUrl(imageUrl?.trim() || ''),
+      persistCoverImage(imageUrl?.trim() || ''),
       resolveContentImageUrls(content?.trim() || ''),
     ]);
 
@@ -358,7 +379,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     const resolvedImage =
       imageUrl === undefined || imageUrl === null
         ? undefined
-        : await resolveImageUrl(String(imageUrl).trim());
+        : await persistCoverImage(String(imageUrl).trim());
     const resolvedContent =
       content === undefined || content === null
         ? undefined

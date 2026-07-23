@@ -284,16 +284,6 @@ class _PremiumUnlockCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    'Lipa kwa makala hii tu — makala nyingine za Premium zinahitaji malipo yao pekee.',
-                    style: TextStyle(
-                      fontSize: compact ? 12 : 13,
-                      color: Colors.white.withValues(alpha: 0.72),
-                      height: 1.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
                     'Msaada wako unawasaidia wataalamu wetu kuendelea kutuletea makala bora zaidi za dawa asili — yenye utafiti, uzoefu na uangalifu.',
                     style: TextStyle(
                       fontSize: compact ? 13 : 14,
@@ -465,7 +455,7 @@ class _PremiumUnlockCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Malipo salama • Aurax Pay • M-Pesa, Mixx, Airtel',
+                        'Malipo salama • M-Pesa, Mixx, Airtel',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -485,7 +475,7 @@ class _PremiumUnlockCard extends StatelessWidget {
 
   static const _benefits = [
     'Itafunguliwa moja kwa moja — makala hii pekee',
-    'Piga gumzo na mtabibu kuhusu makala hii',
+    'Chat na mtabibu wetu masaa 24',
     'Msaada wako unawasaidia matabibu wetu kuendelea',
   ];
 }
