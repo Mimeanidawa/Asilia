@@ -77,6 +77,61 @@ class DashboardScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                if (provider.mwalimuUnreadCount > 0) ...[
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => provider.setScreen(AdminScreen.mwalimu),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AdminColors.emerald.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AdminColors.emerald.withOpacity(0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.mark_chat_unread_rounded,
+                                color: AdminColors.emerald),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Maswali mapya: ${provider.mwalimuUnreadCount}',
+                                    style: GoogleFonts.inter(
+                                      color: AdminColors.textPrimary,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    provider.mwalimuInbox.isNotEmpty
+                                        ? '${provider.mwalimuInbox.first['userName']}: ${provider.mwalimuInbox.first['preview']}'
+                                        : 'Gusa kuona Mwalimu → Maswali',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      color: AdminColors.textDim,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded,
+                                color: AdminColors.emerald),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 // Primary Stat Cards Grid
                 GridView.count(
                   crossAxisCount: 2,
@@ -259,50 +314,63 @@ class _ActivityTile extends StatelessWidget {
         FadeEffect(duration: Duration(milliseconds: 400)),
         SlideEffect(begin: Offset(0.05, 0), end: Offset.zero, duration: Duration(milliseconds: 400)),
       ],
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: AdminColors.card,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AdminColors.cardBorder),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 16),
+          onTap: activity.type == 'mwalimu'
+              ? () => context.read<AdminProvider>().setScreen(AdminScreen.mwalimu)
+              : null,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AdminColors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AdminColors.cardBorder),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    activity.description,
-                    style: GoogleFonts.inter(
-                      color: AdminColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  if (activity.userName != null)
-                    Text(
-                      activity.userName!,
-                      style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                    ),
-                ],
-              ),
+                  child: Icon(icon, color: color, size: 16),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        activity.description,
+                        style: GoogleFonts.inter(
+                          color: AdminColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (activity.userName != null)
+                        Text(
+                          activity.preview != null && activity.preview!.isNotEmpty
+                              ? '${activity.userName} · ${activity.preview}'
+                              : activity.userName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
+                        ),
+                    ],
+                  ),
+                ),
+                Text(
+                  timeAgo,
+                  style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 10),
+                ),
+              ],
             ),
-            Text(
-              timeAgo,
-              style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 10),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -320,6 +388,8 @@ class _ActivityTile extends StatelessWidget {
         return Icons.block_rounded;
       case 'content':
         return Icons.article_rounded;
+      case 'mwalimu':
+        return Icons.chat_bubble_rounded;
       default:
         return Icons.circle_rounded;
     }
@@ -337,6 +407,8 @@ class _ActivityTile extends StatelessWidget {
         return AdminColors.error;
       case 'content':
         return AdminColors.purple;
+      case 'mwalimu':
+        return AdminColors.emerald;
       default:
         return AdminColors.textDim;
     }

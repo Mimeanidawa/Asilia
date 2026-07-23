@@ -71,9 +71,17 @@ class AdminContentService {
     return List<Map<String, dynamic>>.from(data['conversations'] as List);
   }
 
+  Future<Map<String, dynamic>> fetchUnreadSummary() async {
+    return _api.get('/api/chat/admin/unread-summary', token: _token);
+  }
+
   Future<List<Map<String, dynamic>>> fetchMessages(String convId) async {
     final data = await _api.get('/api/chat/admin/conversations/$convId/messages', token: _token);
     return List<Map<String, dynamic>>.from(data['messages'] as List);
+  }
+
+  Future<void> markConversationRead(String convId) async {
+    await _api.post('/api/chat/admin/conversations/$convId/read', token: _token);
   }
 
   Future<Map<String, dynamic>> replyToConversation(String convId, String content) async {

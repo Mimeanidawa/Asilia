@@ -152,6 +152,8 @@ class RecentActivity {
     required this.type,
     required this.timestamp,
     this.userName,
+    this.conversationId,
+    this.preview,
   });
 
   final String id;
@@ -159,6 +161,8 @@ class RecentActivity {
   final String type;
   final DateTime timestamp;
   final String? userName;
+  final String? conversationId;
+  final String? preview;
 }
 
 class ContentItem {

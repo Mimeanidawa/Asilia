@@ -255,6 +255,23 @@ export async function initDb() {
   `);
 
   await db.query(`
+    ALTER TABLE chat_messages
+      ADD COLUMN IF NOT EXISTS is_read_by_admin BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+  // Existing history should not flood the admin inbox as "unread".
+  await db.query(`
+    UPDATE chat_messages
+    SET is_read_by_admin = TRUE
+    WHERE is_read_by_admin = FALSE
+      AND created_at < NOW() - INTERVAL '1 minute'
+  `);
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_chat_msg_admin_unread
+      ON chat_messages (conversation_id, is_read_by_admin)
+      WHERE sender_type = 'user' AND is_read_by_admin = FALSE
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS notification_history (
       id UUID PRIMARY KEY,
       title TEXT NOT NULL,

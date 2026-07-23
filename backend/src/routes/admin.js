@@ -108,13 +108,18 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
     `);
 
     const { rows: chatActivity } = await db.query(`
-      SELECT m.id, m.created_at, u.full_name
+      SELECT m.id, m.created_at, m.content,
+             COALESCE(u.full_name,
+               CASE WHEN c.guest_session_id IS NOT NULL THEN 'Mgeni' ELSE 'Mtumiaji' END
+             ) AS full_name,
+             c.id AS conversation_id,
+             (c.user_id IS NULL) AS is_guest
       FROM chat_messages m
       JOIN chat_conversations c ON c.id = m.conversation_id
-      JOIN users u ON u.id = c.user_id
+      LEFT JOIN users u ON u.id = c.user_id
       WHERE m.sender_type = 'user'
       ORDER BY m.created_at DESC
-      LIMIT 10
+      LIMIT 15
     `);
 
     const total = userCounts[0].total;
@@ -141,9 +146,13 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
       })),
       ...chatActivity.map((r) => ({
         id: `chat-${r.id}`,
-        type: 'content',
-        description: 'Asked Mwalimu a question',
+        type: 'mwalimu',
+        description: r.is_guest
+          ? 'Mgeni alituma swali kwa Mwalimu'
+          : 'Aliuliza swali kwa Mwalimu',
         userName: r.full_name,
+        preview: r.content,
+        conversationId: r.conversation_id,
         timestamp: r.created_at,
       })),
     ]

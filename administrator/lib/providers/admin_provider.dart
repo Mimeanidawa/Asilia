@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -49,6 +51,12 @@ class AdminProvider extends ChangeNotifier {
   late List<MonthlyMetric> _premiumGrowth;
   late List<RecentActivity> _recentActivities;
 
+  int _mwalimuUnreadCount = 0;
+  int _mwalimuConversationsWithUnread = 0;
+  List<Map<String, dynamic>> _mwalimuInbox = [];
+  Timer? _mwalimuPollTimer;
+  VoidCallback? onMwalimuInboxUpdated;
+
   String _userSearchQuery = '';
   UserPlan? _userPlanFilter;
   UserStatus? _userStatusFilter;
@@ -75,6 +83,9 @@ class AdminProvider extends ChangeNotifier {
   String get contentTabFilter => _contentTabFilter;
   UserPlan? get userPlanFilter => _userPlanFilter;
   UserStatus? get userStatusFilter => _userStatusFilter;
+  int get mwalimuUnreadCount => _mwalimuUnreadCount;
+  int get mwalimuConversationsWithUnread => _mwalimuConversationsWithUnread;
+  List<Map<String, dynamic>> get mwalimuInbox => List.unmodifiable(_mwalimuInbox);
 
   List<AdminUser> get filteredUsers {
     return _users.where((u) {
@@ -134,6 +145,45 @@ class AdminProvider extends ChangeNotifier {
     } catch (_) {
       // Keep existing notification list if history endpoint is unavailable.
     }
+
+    await refreshMwalimuUnread(silent: true);
+  }
+
+  Future<void> refreshMwalimuUnread({bool silent = false}) async {
+    if (_authToken == null || !_isLoggedIn) return;
+    try {
+      final data = await _contentService.fetchUnreadSummary();
+      final next = data['totalUnread'] as int? ?? 0;
+      final convs = data['conversationsWithUnread'] as int? ?? 0;
+      final latest = List<Map<String, dynamic>>.from(data['latest'] as List? ?? []);
+      final changed = next != _mwalimuUnreadCount ||
+          convs != _mwalimuConversationsWithUnread ||
+          latest.length != _mwalimuInbox.length ||
+          (latest.isNotEmpty &&
+              _mwalimuInbox.isNotEmpty &&
+              latest.first['id'] != _mwalimuInbox.first['id']);
+      _mwalimuUnreadCount = next;
+      _mwalimuConversationsWithUnread = convs;
+      _mwalimuInbox = latest;
+      if (!silent || changed) {
+        notifyListeners();
+        if (changed) onMwalimuInboxUpdated?.call();
+      }
+    } catch (e) {
+      debugPrint('Mwalimu unread refresh failed: $e');
+    }
+  }
+
+  void _startMwalimuPolling() {
+    _mwalimuPollTimer?.cancel();
+    _mwalimuPollTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      refreshMwalimuUnread(silent: true);
+    });
+  }
+
+  void _stopMwalimuPolling() {
+    _mwalimuPollTimer?.cancel();
+    _mwalimuPollTimer = null;
   }
 
   Future<void> refreshData() async {
@@ -162,6 +212,7 @@ class AdminProvider extends ChangeNotifier {
         _adminEmail = admin['email'] as String?;
         _isLoggedIn = true;
         await Future.wait([_lessonService.load(), _loadDashboardData()]);
+        _startMwalimuPolling();
       } catch (_) {
         await prefs.remove('admin_auth_token');
         _setAuthTokens(null);
@@ -192,6 +243,7 @@ class AdminProvider extends ChangeNotifier {
       await prefs.setString('admin_auth_token', _authToken!);
 
       await Future.wait([_lessonService.load(), _loadDashboardData()]);
+      _startMwalimuPolling();
 
       _isLoading = false;
       notifyListeners();
@@ -205,11 +257,15 @@ class AdminProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _stopMwalimuPolling();
     _isLoggedIn = false;
     _authToken = null;
     _adminName = null;
     _adminEmail = null;
     _activeScreen = AdminScreen.dashboard;
+    _mwalimuUnreadCount = 0;
+    _mwalimuConversationsWithUnread = 0;
+    _mwalimuInbox = [];
     _setAuthTokens(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('admin_auth_token');
@@ -232,8 +288,9 @@ class AdminProvider extends ChangeNotifier {
       case AdminScreen.settings:
         refreshData();
       case AdminScreen.content:
-      case AdminScreen.mwalimu:
         break;
+      case AdminScreen.mwalimu:
+        refreshMwalimuUnread();
     }
     notifyListeners();
   }

@@ -168,7 +168,8 @@ router.post('/messages', requireUser, async (req, res) => {
     const msgId = uuidv4();
 
     await db.query(
-      'INSERT INTO chat_messages (id, conversation_id, sender_type, content) VALUES ($1,$2,$3,$4)',
+      `INSERT INTO chat_messages (id, conversation_id, sender_type, content, is_read_by_admin)
+       VALUES ($1,$2,$3,$4,FALSE)`,
       [msgId, convId, 'user', content.trim()],
     );
 
@@ -256,7 +257,8 @@ router.post('/guest/messages', async (req, res) => {
 
     const msgId = uuidv4();
     await db.query(
-      'INSERT INTO chat_messages (id, conversation_id, sender_type, content) VALUES ($1,$2,$3,$4)',
+      `INSERT INTO chat_messages (id, conversation_id, sender_type, content, is_read_by_admin)
+       VALUES ($1,$2,$3,$4,FALSE)`,
       [msgId, conv.id, 'user', content.trim()],
     );
 
@@ -338,10 +340,26 @@ router.get('/admin/conversations', requireAdmin, async (_req, res) => {
              u.full_name, u.phone, u.email, u.is_premium, u.message_count,
              c.guest_message_count,
              (SELECT content FROM chat_messages WHERE conversation_id = c.id
-              ORDER BY created_at DESC LIMIT 1) AS last_message
+              ORDER BY created_at DESC LIMIT 1) AS last_message,
+             (SELECT sender_type FROM chat_messages WHERE conversation_id = c.id
+              ORDER BY created_at DESC LIMIT 1) AS last_sender_type,
+             (SELECT COUNT(*)::int FROM chat_messages
+              WHERE conversation_id = c.id
+                AND sender_type = 'user'
+                AND is_read_by_admin = FALSE) AS unread_count
       FROM chat_conversations c
       LEFT JOIN users u ON u.id = c.user_id
-      ORDER BY c.updated_at DESC
+      WHERE EXISTS (
+        SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.id
+      )
+      ORDER BY
+        CASE WHEN (
+          SELECT COUNT(*) FROM chat_messages
+          WHERE conversation_id = c.id
+            AND sender_type = 'user'
+            AND is_read_by_admin = FALSE
+        ) > 0 THEN 0 ELSE 1 END,
+        c.updated_at DESC
     `);
     res.json({
       conversations: rows.map((r) => ({
@@ -357,10 +375,56 @@ router.get('/admin/conversations', requireAdmin, async (_req, res) => {
         isPremium: r.is_premium ?? false,
         messageCount: r.user_id ? r.message_count : r.guest_message_count,
         lastMessage: r.last_message,
+        lastSenderType: r.last_sender_type,
+        unreadCount: r.unread_count || 0,
+        hasUnread: (r.unread_count || 0) > 0,
       })),
     });
   } catch (err) {
+    console.error('GET /chat/admin/conversations:', err);
     res.status(500).json({ error: 'Imeshindwa kupata mazungumzo' });
+  }
+});
+
+// Admin: unread summary for nav badge
+router.get('/admin/unread-summary', requireAdmin, async (_req, res) => {
+  try {
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        COUNT(*) FILTER (
+          WHERE m.sender_type = 'user' AND m.is_read_by_admin = FALSE
+        )::int AS total_unread,
+        COUNT(DISTINCT m.conversation_id) FILTER (
+          WHERE m.sender_type = 'user' AND m.is_read_by_admin = FALSE
+        )::int AS conversations_with_unread
+      FROM chat_messages m
+    `);
+    const { rows: latest } = await db.query(`
+      SELECT m.id, m.content, m.created_at,
+             c.id AS conversation_id,
+             COALESCE(u.full_name, CASE WHEN c.guest_session_id IS NOT NULL THEN 'Mgeni' ELSE 'Mtumiaji' END) AS user_name
+      FROM chat_messages m
+      JOIN chat_conversations c ON c.id = m.conversation_id
+      LEFT JOIN users u ON u.id = c.user_id
+      WHERE m.sender_type = 'user' AND m.is_read_by_admin = FALSE
+      ORDER BY m.created_at DESC
+      LIMIT 20
+    `);
+    res.json({
+      totalUnread: rows[0]?.total_unread || 0,
+      conversationsWithUnread: rows[0]?.conversations_with_unread || 0,
+      latest: latest.map((r) => ({
+        id: r.id,
+        conversationId: r.conversation_id,
+        userName: r.user_name,
+        preview: r.content,
+        createdAt: r.created_at,
+      })),
+    });
+  } catch (err) {
+    console.error('GET /chat/admin/unread-summary:', err);
+    res.status(500).json({ error: 'Imeshindwa kupata muhtasari' });
   }
 });
 
@@ -369,13 +433,33 @@ router.get('/admin/conversations/:id/messages', requireAdmin, async (req, res) =
   try {
     const db = getPool();
     const { rows } = await db.query(
-      `SELECT id, sender_type AS "senderType", content, created_at AS "createdAt"
+      `SELECT id, sender_type AS "senderType", content, created_at AS "createdAt",
+              is_read_by_admin AS "isReadByAdmin"
        FROM chat_messages WHERE conversation_id = $1 ORDER BY created_at ASC`,
       [req.params.id],
     );
     res.json({ messages: rows });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kupata ujumbe' });
+  }
+});
+
+// Admin: mark conversation messages as read
+router.post('/admin/conversations/:id/read', requireAdmin, async (req, res) => {
+  try {
+    const db = getPool();
+    const { rowCount } = await db.query(
+      `UPDATE chat_messages
+       SET is_read_by_admin = TRUE
+       WHERE conversation_id = $1
+         AND sender_type = 'user'
+         AND is_read_by_admin = FALSE`,
+      [req.params.id],
+    );
+    res.json({ ok: true, marked: rowCount || 0 });
+  } catch (err) {
+    console.error('POST /chat/admin/conversations/:id/read:', err);
+    res.status(500).json({ error: 'Imeshindwa kuweka kuwa imesomwa' });
   }
 });
 
@@ -389,8 +473,19 @@ router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => 
     const msgId = uuidv4();
 
     await db.query(
-      'INSERT INTO chat_messages (id, conversation_id, sender_type, content) VALUES ($1,$2,$3,$4)',
+      `INSERT INTO chat_messages (id, conversation_id, sender_type, content, is_read_by_admin)
+       VALUES ($1,$2,$3,$4,TRUE)`,
       [msgId, req.params.id, 'admin', content.trim()],
+    );
+
+    // Opening/replying implies admin has seen the thread.
+    await db.query(
+      `UPDATE chat_messages
+       SET is_read_by_admin = TRUE
+       WHERE conversation_id = $1
+         AND sender_type = 'user'
+         AND is_read_by_admin = FALSE`,
+      [req.params.id],
     );
 
     await db.query(

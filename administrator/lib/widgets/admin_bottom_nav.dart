@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 
@@ -15,6 +16,8 @@ class AdminBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unread = context.watch<AdminProvider>().mwalimuUnreadCount;
+
     return Container(
       decoration: const BoxDecoration(
         color: AdminColors.surface,
@@ -87,6 +90,7 @@ class AdminBottomNav extends StatelessWidget {
                   screen: AdminScreen.mwalimu,
                   current: current,
                   onTap: onTap,
+                  badgeCount: unread,
                 ),
               ),
               Expanded(
@@ -113,6 +117,7 @@ class _NavItem extends StatelessWidget {
     required this.screen,
     required this.current,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -120,6 +125,7 @@ class _NavItem extends StatelessWidget {
   final AdminScreen screen;
   final AdminScreen current;
   final void Function(AdminScreen) onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -138,14 +144,41 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                icon,
-                key: ValueKey(isActive),
-                color: isActive ? AdminColors.emerald : AdminColors.textDim,
-                size: 20,
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    icon,
+                    key: ValueKey(isActive),
+                    color: isActive ? AdminColors.emerald : AdminColors.textDim,
+                    size: 20,
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: -8,
+                    top: -4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      constraints: const BoxConstraints(minWidth: 16),
+                      decoration: BoxDecoration(
+                        color: AdminColors.error,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(

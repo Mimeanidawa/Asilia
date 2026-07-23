@@ -77,6 +77,8 @@ class AdminDataMapper {
             type: e['type'] as String,
             timestamp: DateTime.parse(e['timestamp'] as String),
             userName: e['userName'] as String?,
+            conversationId: e['conversationId'] as String?,
+            preview: e['preview'] as String?,
           ))
       .toList();
 }
