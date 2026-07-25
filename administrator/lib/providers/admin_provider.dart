@@ -20,10 +20,23 @@ class AdminProvider extends ChangeNotifier {
     AdminContentService? contentService,
     AdminAnalyticsService? analyticsService,
     ApiClient? apiClient,
-  })  : _lessonService = lessonService ?? AdminLessonService(),
-        _contentService = contentService ?? AdminContentService(),
-        _analyticsService = analyticsService ?? AdminAnalyticsService(),
-        _api = apiClient ?? ApiClient() {
+  }) : this._(
+          apiClient ?? ApiClient(),
+          lessonService,
+          contentService,
+          analyticsService,
+        );
+
+  AdminProvider._(
+    this._api,
+    AdminLessonService? lessonService,
+    AdminContentService? contentService,
+    AdminAnalyticsService? analyticsService,
+  )   : _lessonService = lessonService ?? AdminLessonService(apiClient: _api),
+        _contentService = contentService ?? AdminContentService(apiClient: _api),
+        _analyticsService =
+            analyticsService ?? AdminAnalyticsService(apiClient: _api) {
+    _api.onUnauthorized = _handleUnauthorized;
     _init();
     _restoreSession();
   }
@@ -124,6 +137,11 @@ class AdminProvider extends ChangeNotifier {
     _lessonService.setToken(token);
     _contentService.setToken(token);
     _analyticsService.setToken(token);
+  }
+
+  void _handleUnauthorized() {
+    if (!_isLoggedIn) return;
+    unawaited(logout());
   }
 
   Future<void> _loadDashboardData() async {

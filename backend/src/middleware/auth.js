@@ -1,15 +1,13 @@
-import jwt from 'jsonwebtoken';
+import { assertAdminSession } from '../routes/auth.js';
 
-export function requireAdmin(req, res, next) {
+export async function requireAdmin(req, res, next) {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing authorization token' });
   }
 
-  const token = header.slice(7);
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.admin = payload;
+    req.admin = await assertAdminSession(header.slice(7));
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

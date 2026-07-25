@@ -22,13 +22,16 @@ class ApiClient {
   final String _baseUrl;
   static const _timeout = Duration(seconds: 45);
 
+  /// Called when any authenticated request returns 401 (e.g. password changed).
+  void Function()? onUnauthorized;
+
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
   Future<Map<String, dynamic>> get(String path, {String? token}) async {
     final res = await _client
         .get(_uri(path), headers: _headers(token))
         .timeout(_timeout);
-    return _decode(res);
+    return _decode(res, token: token);
   }
 
   Future<Map<String, dynamic>> post(
@@ -43,7 +46,7 @@ class ApiClient {
           body: body != null ? jsonEncode(body) : null,
         )
         .timeout(_timeout);
-    return _decode(res);
+    return _decode(res, token: token);
   }
 
   Future<Map<String, dynamic>> put(
@@ -58,7 +61,7 @@ class ApiClient {
           body: body != null ? jsonEncode(body) : null,
         )
         .timeout(_timeout);
-    return _decode(res);
+    return _decode(res, token: token);
   }
 
   Future<Map<String, dynamic>> patch(
@@ -73,7 +76,7 @@ class ApiClient {
           body: body != null ? jsonEncode(body) : null,
         )
         .timeout(_timeout);
-    return _decode(res);
+    return _decode(res, token: token);
   }
 
   Future<void> delete(String path, {String? token}) async {
@@ -81,6 +84,7 @@ class ApiClient {
         .delete(_uri(path), headers: _headers(token))
         .timeout(_timeout);
     if (res.statusCode >= 400) {
+      _maybeUnauthorized(res.statusCode, token);
       throw ApiException(_errorMessage(res), statusCode: res.statusCode);
     }
   }
@@ -91,18 +95,25 @@ class ApiClient {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-  Map<String, dynamic> _decode(http.Response res) {
+  Map<String, dynamic> _decode(http.Response res, {String? token}) {
     Map<String, dynamic> body = {};
     if (res.body.isNotEmpty) {
       body = jsonDecode(res.body) as Map<String, dynamic>;
     }
     if (res.statusCode >= 400) {
+      _maybeUnauthorized(res.statusCode, token);
       throw ApiException(
         body['error'] as String? ?? 'Request failed (${res.statusCode})',
         statusCode: res.statusCode,
       );
     }
     return body;
+  }
+
+  void _maybeUnauthorized(int statusCode, String? token) {
+    if (statusCode == 401 && token != null) {
+      onUnauthorized?.call();
+    }
   }
 
   String _errorMessage(http.Response res) {

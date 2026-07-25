@@ -6,25 +6,46 @@ import { getPool } from '../db.js';
 
 const router = Router();
 
+async function invalidateAllAdminSessions(db) {
+  await db.query('UPDATE admins SET token_version = token_version + 1');
+}
+
 export async function ensureDefaultAdmin() {
   const db = getPool();
   const email = process.env.ADMIN_EMAIL || 'mimeanidawa@gmail.com';
   const password = process.env.ADMIN_PASSWORD || 'unatumia6%';
-  const hash = await bcrypt.hash(password, 12);
 
   await db.query(
     `UPDATE admins SET email = $1 WHERE email = 'admin@asilia.app'`,
     [email],
   );
 
-  const { rows } = await db.query('SELECT COUNT(*)::int AS count FROM admins');
-  if (rows[0].count > 0) {
-    await db.query(
-      'UPDATE admins SET password_hash = $1 WHERE email = $2',
-      [hash, email],
-    );
+  const { rows } = await db.query(
+    'SELECT id, password_hash FROM admins WHERE email = $1',
+    [email],
+  );
+
+  if (rows.length > 0) {
+    const admin = rows[0];
+    const samePassword = await bcrypt.compare(password, admin.password_hash);
+    if (!samePassword) {
+      const hash = await bcrypt.hash(password, 12);
+      await db.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [
+        hash,
+        admin.id,
+      ]);
+      await invalidateAllAdminSessions(db);
+      console.log('Admin password updated; all admin sessions invalidated');
+    }
     return;
   }
+
+  const { rows: countRows } = await db.query(
+    'SELECT COUNT(*)::int AS count FROM admins',
+  );
+  if (countRows[0].count > 0) return;
+
+  const hash = await bcrypt.hash(password, 12);
 
   await db.query(
     'INSERT INTO admins (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
@@ -32,6 +53,41 @@ export async function ensureDefaultAdmin() {
   );
 
   console.log(`Default admin created: ${email}`);
+}
+
+function signAdminToken(admin) {
+  return jwt.sign(
+    {
+      sub: admin.id,
+      email: admin.email,
+      name: admin.name,
+      tv: admin.token_version,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
+  );
+}
+
+export async function assertAdminSession(token) {
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
+  const db = getPool();
+  const { rows } = await db.query(
+    'SELECT id, email, name, token_version FROM admins WHERE id = $1',
+    [payload.sub],
+  );
+
+  if (rows.length === 0 || Number(rows[0].token_version) !== Number(payload.tv)) {
+    const err = new Error('Session expired');
+    err.status = 401;
+    throw err;
+  }
+
+  return {
+    sub: rows[0].id,
+    email: rows[0].email,
+    name: rows[0].name,
+    tv: rows[0].token_version,
+  };
 }
 
 router.post('/login', async (req, res) => {
@@ -43,7 +99,7 @@ router.post('/login', async (req, res) => {
 
     const db = getPool();
     const { rows } = await db.query(
-      'SELECT id, email, password_hash, name FROM admins WHERE email = $1',
+      'SELECT id, email, password_hash, name, token_version FROM admins WHERE email = $1',
       [email.toLowerCase().trim()],
     );
 
@@ -57,11 +113,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      { sub: admin.id, email: admin.email, name: admin.name },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' },
-    );
+    const token = signAdminToken(admin);
 
     res.json({
       token,
@@ -80,8 +132,10 @@ router.get('/me', async (req, res) => {
   }
 
   try {
-    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-    res.json({ admin: { id: payload.sub, email: payload.email, name: payload.name } });
+    const admin = await assertAdminSession(header.slice(7));
+    res.json({
+      admin: { id: admin.sub, email: admin.email, name: admin.name },
+    });
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }

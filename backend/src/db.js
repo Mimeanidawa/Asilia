@@ -304,5 +304,10 @@ export async function initDb() {
       ON media_assets (updated_at DESC)
   `);
 
+  await db.query(`
+    ALTER TABLE admins
+      ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0
+  `);
+
   console.log('Database schema ready');
 }
