@@ -9,7 +9,8 @@ const router = Router();
 export async function ensureDefaultAdmin() {
   const db = getPool();
   const email = process.env.ADMIN_EMAIL || 'mimeanidawa@gmail.com';
-  const password = process.env.ADMIN_PASSWORD || 'Mwampulule6%';
+  const password = process.env.ADMIN_PASSWORD || 'unatumia6%';
+  const hash = await bcrypt.hash(password, 12);
 
   await db.query(
     `UPDATE admins SET email = $1 WHERE email = 'admin@asilia.app'`,
@@ -17,9 +18,13 @@ export async function ensureDefaultAdmin() {
   );
 
   const { rows } = await db.query('SELECT COUNT(*)::int AS count FROM admins');
-  if (rows[0].count > 0) return;
-
-  const hash = await bcrypt.hash(password, 12);
+  if (rows[0].count > 0) {
+    await db.query(
+      'UPDATE admins SET password_hash = $1 WHERE email = $2',
+      [hash, email],
+    );
+    return;
+  }
 
   await db.query(
     'INSERT INTO admins (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
