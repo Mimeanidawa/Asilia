@@ -6,14 +6,38 @@ import { getPool } from '../db.js';
 
 const router = Router();
 
+const DEFAULT_ADMIN_EMAIL = 'mimeanidawa@gmail.com';
+const DEFAULT_ADMIN_PASSWORD = 'unatumia6%';
+
+function resolveAdminEmail() {
+  const fromEnv = process.env.ADMIN_EMAIL?.trim();
+  if (!fromEnv || fromEnv === 'admin@asilia.app') {
+    return DEFAULT_ADMIN_EMAIL;
+  }
+  return fromEnv.toLowerCase();
+}
+
+function resolveAdminPassword() {
+  const fromEnv = process.env.ADMIN_PASSWORD?.trim();
+  // Ignore common placeholders so production doesn't stay on example secrets.
+  if (
+    !fromEnv ||
+    fromEnv === 'change-me-in-production' ||
+    fromEnv === 'change-me'
+  ) {
+    return DEFAULT_ADMIN_PASSWORD;
+  }
+  return fromEnv;
+}
+
 async function invalidateAllAdminSessions(db) {
   await db.query('UPDATE admins SET token_version = token_version + 1');
 }
 
 export async function ensureDefaultAdmin() {
   const db = getPool();
-  const email = process.env.ADMIN_EMAIL || 'mimeanidawa@gmail.com';
-  const password = process.env.ADMIN_PASSWORD || 'unatumia6%';
+  const email = resolveAdminEmail();
+  const password = resolveAdminPassword();
 
   await db.query(
     `UPDATE admins SET email = $1 WHERE email = 'admin@asilia.app'`,
