@@ -112,8 +112,8 @@ class DashboardScreen extends StatelessWidget {
                                   ),
                                   Text(
                                     provider.mwalimuInbox.isNotEmpty
-                                        ? '${provider.mwalimuInbox.first['userName']}: ${provider.mwalimuInbox.first['preview']}'
-                                        : 'Gusa kuona Mwalimu → Maswali',
+                                        ? '${provider.mwalimuInbox.first['userName']}: New message from user'
+                                        : 'Gusa kufungua Maswali',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.inter(

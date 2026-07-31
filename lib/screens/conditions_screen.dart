@@ -7,6 +7,7 @@ import '../providers/app_provider.dart';
 import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../utils/responsive.dart';
 import '../widgets/condition_icon_widget.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/pull_to_refresh.dart';
@@ -92,7 +93,12 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                 onRefresh: () => AppRefresh.catalog(context),
                 child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  8,
+                  20,
+                  Responsive.scrollBottomPadding(context, extra: 8),
+                ),
                 children: [
                   Text(
                     'TARGET HEALTH AREAS',

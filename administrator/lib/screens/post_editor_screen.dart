@@ -37,7 +37,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   late List<String> _categoryOptions;
   late List<ContentBlock> _blocks;
   bool _isPremium = false;
-  bool _isPublished = true;
+  bool _isPublished = false;
   bool _preview = false;
   bool _metaExpanded = false;
   bool _titleValid = false;

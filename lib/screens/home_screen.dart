@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -11,6 +12,7 @@ import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/content_search.dart';
 import '../widgets/api_carousel.dart';
 import '../widgets/carousel_content_picker_sheet.dart';
 import '../widgets/app_drawer.dart';
@@ -88,7 +90,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final content = context.watch<ContentService>();
     final q = _searchQuery.toLowerCase().trim();
 
-    final filteredPosts = q.isEmpty ? <ContentPost>[] : _searchPosts(content, q);
+    final filteredPosts = q.isEmpty
+        ? <ContentPost>[]
+        : ContentSearch.search(query: _searchQuery, content: content)
+            .where((h) => h.post != null)
+            .map((h) => h.post!)
+            .toList();
     final filteredLessons = q.isEmpty
         ? <DailyLesson>[]
         : app.lessonService.publishedLessons.where((lesson) {
@@ -99,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       key: _scaffoldKey,
       drawer: const AppDrawer(),
-      backgroundColor: AppColors.cream,
+      backgroundColor: Colors.transparent,
       body: SizedBox.expand(
       child: Column(
       children: [
@@ -109,7 +116,9 @@ class _HomeScreenState extends State<HomeScreen> {
             onRefresh: () => AppRefresh.catalog(context),
             child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: EdgeInsets.only(
+              bottom: Responsive.scrollBottomPadding(context, extra: 8),
+            ),
             children: [
               _buildGreetingAndSearch(context),
               if (_searchQuery.isNotEmpty)
@@ -125,6 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildLearningPathways(context, app),
                 _buildDarasaHuru(context, app),
                 _buildCategoryGrid(context, app),
+                _buildVyakulaSection(context, app),
                 _buildMakalaSection(context, app),
               ],
             ],
@@ -141,31 +151,53 @@ class _HomeScreenState extends State<HomeScreen> {
     final unread = context.watch<NotificationCenterService>().unreadCount;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceElevated.withValues(alpha: 0.92),
         border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.03)),
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.softShadow,
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.forest, size: 22),
+            icon: const Icon(Icons.menu_rounded, color: AppColors.forest, size: 24),
             onPressed: () => _scaffoldKey.currentState?.openDrawer(),
           ),
           Row(
             children: [
-              const Icon(Icons.eco, color: AppColors.emerald700, size: 18),
-              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  gradient: AppColors.heroGradient,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.forest.withValues(alpha: 0.22),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.eco_rounded, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
               Text(
                 'Dawa Asili',
                 style: TextStyle(
                   fontFamily: kIsWeb ? null : 'Playfair Display',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
                   color: AppColors.forest,
+                  letterSpacing: -0.3,
                 ),
               ),
             ],
@@ -174,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
             clipBehavior: Clip.none,
             children: [
               IconButton(
-                icon: const Icon(Icons.notifications_none, color: AppColors.forest),
+                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.forest),
                 onPressed: () => app.navigate(AppScreen.notifications),
               ),
               if (unread > 0)
@@ -184,9 +216,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(4),
                     constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.amber,
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.amber.withValues(alpha: 0.4),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Text(
                       unread > 9 ? '9+' : '$unread',
@@ -209,13 +248,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildGreetingAndSearch(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.white, AppColors.cream],
-        ),
+        gradient: AppColors.accentGlow,
       ),
       child: Column(
         children: [
@@ -229,21 +264,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Karibu!',
                       style: TextStyle(
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: FontWeight.w900,
                         color: AppColors.forest,
+                        letterSpacing: -0.6,
+                        height: 1.1,
                       ),
-                    ),
-                    const SizedBox(height: 4),
+                    ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.05),
+                    const SizedBox(height: 8),
                     Text(
                       'Jifunze dawa asilia za vyakula, matunda na mimea hapa',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: AppColors.gray500,
                         fontWeight: FontWeight.w500,
-                        height: 1.35,
+                        height: 1.45,
                       ),
-                    ),
+                    ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
                   ],
                 ),
               ),
@@ -251,14 +288,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: AppColors.emerald50,
-                  borderRadius: BorderRadius.circular(16),
+                  gradient: AppColors.heroGradient,
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.forest.withValues(alpha: 0.1),
+                    color: Colors.white.withValues(alpha: 0.35),
+                    width: 1.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.forest.withValues(alpha: 0.28),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.spa, color: AppColors.forest, size: 32),
-              ),
+                child: const Icon(Icons.spa_rounded, color: Colors.white, size: 30),
+              ).animate().fadeIn(delay: 150.ms).scale(begin: const Offset(0.8, 0.8)),
             ],
           ),
           const SizedBox(height: 20),
@@ -274,15 +319,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   hintText: 'Tafuta mimea, mizizi, miti, matunda...',
                   hintStyle: TextStyle(
                     fontSize: 13,
-                    color: AppColors.forest.withValues(alpha: 0.4),
+                    color: AppColors.forest.withValues(alpha: 0.38),
                   ),
                   prefixIcon: Icon(
-                    Icons.search,
-                    size: 18,
-                    color: AppColors.forest.withValues(alpha: 0.6),
+                    Icons.search_rounded,
+                    size: 20,
+                    color: AppColors.forest.withValues(alpha: 0.55),
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: AppColors.surfaceElevated,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide(
+                      color: AppColors.forest.withValues(alpha: 0.06),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: const BorderSide(
+                      color: AppColors.emerald700,
+                      width: 1.5,
+                    ),
+                  ),
                 ),
               ),
               if (_isInputFocused && _recentSearches.isNotEmpty)
@@ -292,14 +350,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   right: 0,
                   child: Material(
                     elevation: 8,
+                    shadowColor: AppColors.cardShadow,
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.surfaceElevated,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: AppColors.forest.withValues(alpha: 0.1),
+                          color: AppColors.forest.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Column(
@@ -370,19 +429,52 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  List<ContentPost> _searchPosts(ContentService content, String q) {
-    final all = [
-      ...content.dodosoPosts,
-      ...content.chaguaMadaPosts,
-      ...content.vyakulaMatundaPosts,
-      ...content.jifunzePosts,
+  Widget _buildVyakulaSection(BuildContext context, AppProvider app) {
+    final content = context.watch<ContentService>();
+    final cats = [
+      ('matunda', 'Matunda', Icons.apple_rounded, const [Color(0xFFF7F1E8), Color(0xFFEDE3D4)]),
+      ('mizizi', 'Mizizi', Icons.grass_rounded, const [Color(0xFFEDF5F0), Color(0xFFD7E8DE)]),
+      ('miti', 'Miti', Icons.park_rounded, const [Color(0xFFEEF4EF), Color(0xFFDCE8DF)]),
+      ('vyakula', 'Vyakula', Icons.restaurant_rounded, const [Color(0xFFEFF5F8), Color(0xFFDDE9F0)]),
+      ('mimea', 'Mimea', Icons.spa_rounded, const [Color(0xFFF0F3EF), Color(0xFFE0E7E2)]),
     ];
-    return all
-        .where((p) =>
-            p.title.toLowerCase().contains(q) ||
-            p.excerpt.toLowerCase().contains(q) ||
-            (p.subtitle.toLowerCase().contains(q)))
-        .toList();
+
+    return Column(
+      children: [
+        SectionHeader(
+          title: 'Vyakula na Matunda',
+          subtitle: 'Makala kuhusu chakula na matunda ya asili',
+          badge: '${content.vyakulaMatundaPosts.length} makala',
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+          actionLabel: 'Zote',
+          onAction: () => app.navigate(
+            AppScreen.contentList,
+            contentSection: ContentSections.vyakulaMatunda,
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: cats.map((cat) {
+              final count = content.countForCategory(cat.$1);
+              return _VyakulaChip(
+                label: cat.$2,
+                icon: cat.$3,
+                colors: cat.$4,
+                count: count,
+                onTap: () => app.navigate(
+                  AppScreen.contentList,
+                  contentSection: ContentSections.vyakulaMatunda,
+                  contentCategory: cat.$1,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildSearchResults(
@@ -514,20 +606,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLearningPathways(BuildContext context, AppProvider app) {
+    final content = context.watch<ContentService>();
     final dodosoCats = [
-      ('darasa_huru', 'Darasa Huru', 'Somo la kila siku', Icons.school_rounded, const [Color(0xFF0C2E1F), Color(0xFF1C4731)]),
-      ('mizizi', 'Mizizi', 'Mizizi ya dawa asili', Icons.grass_rounded, const [Color(0xFF065F46), Color(0xFF047857)]),
-      ('miti', 'Mimea', 'Mimea na Faida zake', Icons.park_rounded, const [Color(0xFF1C4731), Color(0xFF113121)]),
-      ('matunda', 'Matunda', 'Matunda ya asili', Icons.apple_rounded, const [Color(0xFFB45309), Color(0xFF836C45)]),
-      ('mimea', 'Lishe', 'Lishe Bora', Icons.restaurant_menu_rounded, const [Color(0xFF1E40AF), Color(0xFF1E3A8A)]),
+      ('darasa_huru', 'Darasa Huru', 'Somo la kila siku', Icons.school_rounded, const [Color(0xFF0C2A1B), Color(0xFF1A4532)]),
+      ('mizizi', 'Mizizi', 'Mizizi ya dawa asili', Icons.grass_rounded, const [Color(0xFF165338), Color(0xFF1E6A49)]),
+      ('miti', 'Miti', 'Miti na faida zake', Icons.park_rounded, const [Color(0xFF1A4532), Color(0xFF0C2A1B)]),
+      ('matunda', 'Matunda', 'Matunda ya asili', Icons.apple_rounded, const [Color(0xFF8F6A35), Color(0xFFB8894A)]),
+      ('mimea', 'Lishe', 'Lishe bora', Icons.restaurant_menu_rounded, const [Color(0xFF1E4A5C), Color(0xFF2A6278)]),
     ];
 
     return Column(
       children: [
-        const SectionHeader(
+        SectionHeader(
           title: 'Dodoso',
-          subtitle: 'Jifunze kuhusu mizizi, miti na matunda',
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+          subtitle: 'Gusa kategoria ili kuona makala zote',
+          badge: '${content.dodosoPosts.length} makala',
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
         ),
         LearningPathwaysRow(
           pathways: dodosoCats.map((c) => LearningPathway(
@@ -535,6 +629,9 @@ class _HomeScreenState extends State<HomeScreen> {
             subtitle: c.$3,
             icon: c.$4,
             gradient: c.$5,
+            count: c.$1 == 'darasa_huru'
+                ? null
+                : content.countForCategory(c.$1),
             onTap: () {
               if (c.$1 == 'darasa_huru') {
                 app.navigate(AppScreen.darasaHuru);
@@ -584,7 +681,12 @@ class _HomeScreenState extends State<HomeScreen> {
     bool showSectionOnCards = false,
     VoidCallback? onViewAll,
   }) {
-    if (posts.isEmpty) return const SizedBox.shrink();
+    if (posts.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: _EmptySectionHint(title: title, subtitle: subtitle),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,6 +711,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ContentPostCard(
                         post: posts[i],
                         showSectionLabel: showSectionOnCards,
+                        animationIndex: i,
                         onTap: () => openContentPost(context, posts[i]),
                       ),
                   ],
@@ -627,6 +730,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     post: posts[i],
                     showSectionLabel: showSectionOnCards,
                     margin: EdgeInsets.zero,
+                    animationIndex: i,
                     onTap: () => openContentPost(context, posts[i]),
                   ),
                 ),
@@ -678,24 +782,39 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context,
     AppProvider app,
     (IconData, String, String, List<Color>) cat,
+    int count,
+    int index,
   ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(18),
+        elevation: 0,
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           onTap: () => app.navigate(
             AppScreen.contentList,
             contentSection: ContentSections.chaguaMada,
             contentCategory: cat.$3,
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Ink(
+            padding: const EdgeInsets.symmetric(vertical: 16),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.surfaceElevated, cat.$4.first.withValues(alpha: 0.55)],
+              ),
+              border: Border.all(color: AppColors.forest.withValues(alpha: 0.055)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.softShadow,
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               children: [
@@ -703,7 +822,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: cat.$4),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(cat.$1, size: 22, color: AppColors.forest),
                 ),
@@ -717,36 +836,61 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (count > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.emerald800,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
         ),
       ),
-    );
+    ).animate().fadeIn(delay: (index * 60).ms).scale(begin: const Offset(0.92, 0.92));
   }
 
   Widget _buildCategoryGrid(BuildContext context, AppProvider app) {
+    final content = context.watch<ContentService>();
     final cats = [
-      (Icons.spa, 'Mimea', 'mimea', const [Color(0xFFECFDF5), Color(0xFFD1FAE5)]),
-      (Icons.female, 'Wanawake', 'wanawake', const [Color(0xFFFFF7ED), Color(0xFFFFEDD5)]),
-      (Icons.child_care, 'Watoto', 'watoto', const [Color(0xFFEFF6FF), Color(0xFFDBEAFE)]),
-      (Icons.male, 'Wanaume', 'wanaume', const [Color(0xFFF5F3FF), Color(0xFFEDE9FE)]),
+      (Icons.spa, 'Mimea', 'mimea', const [Color(0xFFEDF5F0), Color(0xFFD7E8DE)]),
+      (Icons.female, 'Wanawake', 'wanawake', const [Color(0xFFF7F1E8), Color(0xFFEDE3D4)]),
+      (Icons.child_care, 'Watoto', 'watoto', const [Color(0xFFEFF5F8), Color(0xFFDDE9F0)]),
+      (Icons.male, 'Wanaume', 'wanaume', const [Color(0xFFF0F3EF), Color(0xFFE0E7E2)]),
     ];
 
     return Column(
       children: [
-        const SectionHeader(
+        SectionHeader(
           title: 'Chagua Mada',
           subtitle: 'Gusa mada ili kuanza somo lako',
-          padding: EdgeInsets.fromLTRB(20, 16, 20, 10),
+          badge: '${content.chaguaMadaPosts.length} makala',
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
         ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
           child: Responsive.isPhone(context)
               ? Row(
-                  children: cats
-                      .map((cat) => Expanded(child: _categoryTile(context, app, cat)))
-                      .toList(),
+                  children: [
+                    for (var i = 0; i < cats.length; i++)
+                      Expanded(
+                        child: _categoryTile(
+                          context,
+                          app,
+                          cats[i],
+                          content.chaguaMadaPosts
+                              .where((p) => p.category == cats[i].$3)
+                              .length,
+                          i,
+                        ),
+                      ),
+                  ],
                 )
               : GridView.count(
                   shrinkWrap: true,
@@ -755,10 +899,129 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
                   childAspectRatio: 0.95,
-                  children: cats.map((cat) => _categoryTile(context, app, cat)).toList(),
+                  children: [
+                    for (var i = 0; i < cats.length; i++)
+                      _categoryTile(
+                        context,
+                        app,
+                        cats[i],
+                        content.chaguaMadaPosts
+                            .where((p) => p.category == cats[i].$3)
+                            .length,
+                        i,
+                      ),
+                  ],
                 ),
         ),
       ],
+    );
+  }
+}
+
+class _VyakulaChip extends StatelessWidget {
+  const _VyakulaChip({
+    required this.label,
+    required this.icon,
+    required this.colors,
+    required this.count,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final List<Color> colors;
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceElevated,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(colors: colors),
+            border: Border.all(color: AppColors.forest.withValues(alpha: 0.055)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: AppColors.forest),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.forest,
+                ),
+              ),
+              if (count > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.forest.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.forest,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 350.ms).scale(begin: const Offset(0.95, 0.95));
+  }
+}
+
+class _EmptySectionHint extends StatelessWidget {
+  const _EmptySectionHint({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.055)),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.article_outlined, size: 36, color: AppColors.gray400),
+          const SizedBox(height: 12),
+          Text(
+            'Hakuna makala za $title bado',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.forest,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: AppColors.gray400),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -774,7 +1037,7 @@ class _ContentSearchTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -829,7 +1092,7 @@ class _LessonSearchTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),

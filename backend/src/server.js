@@ -30,13 +30,34 @@ app.use(express.json({
   },
 }));
 
-app.get('/api/health', (_req, res) => {
-  res.json({
+app.get('/api/health', async (_req, res) => {
+  const payload = {
     status: 'ok',
     service: 'asilia-api',
     db: process.env.DATABASE_URL ? 'configured' : 'missing',
     timestamp: new Date().toISOString(),
-  });
+  };
+
+  if (!process.env.DATABASE_URL) {
+    return res.status(503).json({ ...payload, status: 'degraded' });
+  }
+
+  try {
+    const db = getPool();
+    await Promise.race([
+      db.query('SELECT 1'),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('db_timeout')), 4000);
+      }),
+    ]);
+    payload.db = 'ok';
+    return res.json(payload);
+  } catch (err) {
+    payload.status = 'degraded';
+    payload.db = 'unreachable';
+    payload.error = err.message === 'db_timeout' ? 'timeout' : 'query_failed';
+    return res.status(503).json(payload);
+  }
 });
 
 app.use('/api/auth', authRouter);

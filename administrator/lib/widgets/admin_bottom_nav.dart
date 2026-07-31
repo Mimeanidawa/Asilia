@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 
@@ -16,8 +15,6 @@ class AdminBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unread = context.watch<AdminProvider>().mwalimuUnreadCount;
-
     return Container(
       decoration: const BoxDecoration(
         color: AdminColors.surface,
@@ -81,16 +78,6 @@ class AdminBottomNav extends StatelessWidget {
                   screen: AdminScreen.darasaHuru,
                   current: current,
                   onTap: onTap,
-                ),
-              ),
-              Expanded(
-                child: _NavItem(
-                  icon: Icons.medical_services_rounded,
-                  label: 'Mwalimu',
-                  screen: AdminScreen.mwalimu,
-                  current: current,
-                  onTap: onTap,
-                  badgeCount: unread,
                 ),
               ),
               Expanded(

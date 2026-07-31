@@ -8,7 +8,7 @@ class ResponsiveContentList extends StatelessWidget {
     super.key,
     required this.itemCount,
     required this.itemBuilder,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = const EdgeInsets.fromLTRB(20, 20, 20, 0),
     this.mainAxisSpacing = 14,
     this.crossAxisSpacing = 14,
   });
@@ -22,11 +22,14 @@ class ResponsiveContentList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final columns = Responsive.listColumns(context);
+    final resolvedPadding = padding.copyWith(
+      bottom: padding.bottom + Responsive.scrollBottomPadding(context, extra: 8),
+    );
 
     if (columns == 1) {
       return ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: padding,
+        padding: resolvedPadding,
         itemCount: itemCount,
         separatorBuilder: (_, _) => SizedBox(height: mainAxisSpacing),
         itemBuilder: itemBuilder,
@@ -35,7 +38,7 @@ class ResponsiveContentList extends StatelessWidget {
 
     return GridView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: padding,
+      padding: resolvedPadding,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
         crossAxisSpacing: crossAxisSpacing,

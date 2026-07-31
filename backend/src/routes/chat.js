@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db.js';
 import { requireUser } from '../middleware/userAuth.js';
 import { requireAdmin } from '../middleware/auth.js';
-import { sendMwalimuReplyNotification } from '../services/firebase.js';
+import { sendMwalimuReplyNotification, sendAdminNewUserMessageNotification } from '../services/firebase.js';
 
 const router = Router();
 
@@ -183,6 +183,19 @@ router.post('/messages', requireUser, async (req, res) => {
       [convId],
     );
 
+    let userName = 'mtumiaji';
+    try {
+      const { rows: nameRows } = await db.query(
+        'SELECT full_name FROM users WHERE id = $1',
+        [userId],
+      );
+      if (nameRows[0]?.full_name) userName = nameRows[0].full_name;
+    } catch (_) {}
+
+    sendAdminNewUserMessageNotification({ userName }).catch((err) => {
+      console.error('Admin new-message notify failed:', err.message);
+    });
+
     res.status(201).json({
       message: {
         id: msgId,
@@ -206,12 +219,25 @@ router.get('/guest/messages', async (req, res) => {
     }
 
     const db = getPool();
-    const limit = await getFreeMessageLimit(db);
+    let limit = 5;
+    try {
+      limit = await getFreeMessageLimit(db);
+    } catch (limitErr) {
+      console.warn('guest message limit fallback:', limitErr.message);
+    }
 
-    const { rows: convRows } = await db.query(
-      'SELECT id, guest_message_count FROM chat_conversations WHERE guest_session_id = $1',
-      [sessionId],
-    );
+    let convRows = [];
+    try {
+      const result = await db.query(
+        'SELECT id, guest_message_count FROM chat_conversations WHERE guest_session_id = $1',
+        [sessionId],
+      );
+      convRows = result.rows;
+    } catch (dbErr) {
+      console.error('GET /chat/guest/messages db:', dbErr);
+      // Schema may still be migrating — treat as empty guest session.
+      return res.json({ messages: [], messageCount: 0, messageLimit: limit });
+    }
 
     if (!convRows.length) {
       return res.json({ messages: [], messageCount: 0, messageLimit: limit });
@@ -269,6 +295,10 @@ router.post('/guest/messages', async (req, res) => {
        RETURNING guest_message_count`,
       [conv.id],
     );
+
+    sendAdminNewUserMessageNotification({ userName: 'Mgeni' }).catch((err) => {
+      console.error('Admin guest-message notify failed:', err.message);
+    });
 
     res.status(201).json({
       message: {
@@ -418,7 +448,8 @@ router.get('/admin/unread-summary', requireAdmin, async (_req, res) => {
         id: r.id,
         conversationId: r.conversation_id,
         userName: r.user_name,
-        preview: r.content,
+        // Never expose raw user message text in summary/badge surfaces.
+        preview: 'New message from user',
         createdAt: r.created_at,
       })),
     });

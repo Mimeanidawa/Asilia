@@ -52,17 +52,50 @@ class ContentService extends ChangeNotifier {
 
   Future<void> syncFromServer({String? userToken}) async {
     try {
-      // One request is much more reliable than 6 parallel cold-start calls.
+      // Wake Railway cold start before the heavy catalog call.
+      try {
+        final health = await _api.get(
+          '/api/health',
+          timeout: const Duration(seconds: 12),
+        );
+        final db = health['db']?.toString();
+        if (db == 'unreachable' || health['status'] == 'degraded') {
+          throw Exception('API database unreachable ($db)');
+        }
+      } catch (e) {
+        // If health itself fails hard, still try catalog once — then stop.
+        debugPrint('API health check: $e');
+      }
+
       final catalog = await _api.get('/api/content/catalog');
       _applyCatalog(catalog);
       await _saveCache();
     } catch (catalogError) {
       debugPrint('Catalog sync failed, falling back: $catalogError');
-      await _syncLegacy();
+      // Avoid blasting 6 parallel requests when the DB is clearly down —
+      // that only multiplies timeouts and stalls the UI.
+      final msg = catalogError.toString().toLowerCase();
+      final dbDown = msg.contains('timeout') ||
+          msg.contains('unreachable') ||
+          msg.contains('degraded');
+      if (!dbDown) {
+        await _syncLegacy();
+      } else {
+        throw Exception('Server database is unreachable. Using cached content.');
+      }
     } finally {
       notifyListeners();
     }
   }
+
+  /// Categories shared across Dodoso, Jifunze, and Vyakula na Matunda.
+  static const sharedCategories = {
+    'mizizi',
+    'miti',
+    'matunda',
+    'mimea',
+    'vyakula',
+  };
 
   void _applyCatalog(Map<String, dynamic> data) {
     carousels = (data['carousels'] as List? ?? [])
@@ -72,10 +105,10 @@ class ContentService extends ChangeNotifier {
     final posts = data['posts'] as Map<String, dynamic>? ?? {};
     dodosoPosts = _parsePostsMap(posts['dodoso']);
     chaguaMadaPosts = _parsePostsMap(posts['chagua_mada']);
-    vyakulaMatundaPosts = _parsePostsMap(posts['vyakula_matunda']);
-    if (vyakulaMatundaPosts.isEmpty) {
-      vyakulaMatundaPosts = _parsePostsMap(posts['jitibu_nyumbani']);
-    }
+    vyakulaMatundaPosts = _mergeVyakulaPosts(
+      _parsePostsMap(posts['vyakula_matunda']),
+      _parsePostsMap(posts['jitibu_nyumbani']),
+    );
     jifunzePosts = _parsePostsMap(posts['jifunze']);
     recommended = (data['recommended'] as List? ?? [])
         .map((e) => RecommendedItem.fromJson(e as Map<String, dynamic>))
@@ -123,11 +156,12 @@ class ContentService extends ChangeNotifier {
       any = true;
     }
     if (results[3] != null) {
-      vyakulaMatundaPosts = _parsePosts(results[3]!);
-      if (vyakulaMatundaPosts.isEmpty) {
-        final legacy = await _safeGet('/api/content?section=jitibu_nyumbani');
-        if (legacy != null) vyakulaMatundaPosts = _parsePosts(legacy);
+      var vyakula = _parsePosts(results[3]!);
+      final legacy = await _safeGet('/api/content?section=jitibu_nyumbani');
+      if (legacy != null) {
+        vyakula = _mergeVyakulaPosts(vyakula, _parsePosts(legacy));
       }
+      vyakulaMatundaPosts = vyakula;
       any = true;
     }
     if (results[4] != null) {
@@ -167,33 +201,67 @@ class ContentService extends ChangeNotifier {
     }
   }
 
-  List<ContentPost> postsForSection(String section, {String? category}) {
-    if (section == ContentSections.allMakala) return allMakalaPosts;
+  List<ContentPost> _mergeVyakulaPosts(
+    List<ContentPost> primary,
+    List<ContentPost> legacy,
+  ) {
+    final seen = <String>{};
+    final merged = <ContentPost>[];
+    for (final post in [...primary, ...legacy]) {
+      if (seen.add(post.id)) merged.add(post);
+    }
+    return merged;
+  }
 
-    List<ContentPost> posts;
+  List<ContentPost> _postsForSectionOnly(String section) {
     switch (section) {
       case ContentSections.dodoso:
-        posts = dodosoPosts;
-        break;
+        return dodosoPosts;
       case ContentSections.chaguaMada:
-        posts = chaguaMadaPosts;
-        break;
+        return chaguaMadaPosts;
       case ContentSections.vyakulaMatunda:
-        posts = vyakulaMatundaPosts;
-        break;
+        return vyakulaMatundaPosts;
       case ContentSections.jifunze:
-        posts = jifunzePosts;
-        break;
+        return jifunzePosts;
       default:
-        posts = [];
+        return [];
     }
+  }
+
+  List<ContentPost> _filterByCategory(List<ContentPost> posts, String category) {
+    final key = category.trim().toLowerCase();
+    return posts
+        .where((p) => (p.category ?? '').trim().toLowerCase() == key)
+        .toList();
+  }
+
+  /// All posts matching [category] across every section (e.g. all Mizizi posts).
+  List<ContentPost> postsForCategory(String category) {
+    final key = category.trim().toLowerCase();
+    if (key.isEmpty) return allMakalaPosts;
+    return _filterByCategory(allPosts, key);
+  }
+
+  int countForCategory(String category) => postsForCategory(category).length;
+
+  List<ContentPost> postsForSection(String section, {String? category}) {
+    if (section == ContentSections.allMakala) {
+      final posts = allMakalaPosts;
+      if (category != null && category.isNotEmpty) {
+        return _filterByCategory(posts, category);
+      }
+      return posts;
+    }
+
     if (category != null && category.isNotEmpty) {
       final key = category.trim().toLowerCase();
-      return posts
-          .where((p) => (p.category ?? '').trim().toLowerCase() == key)
-          .toList();
+      // Shared categories appear in Dodoso, Jifunze, Vyakula — show all matching posts.
+      if (sharedCategories.contains(key)) {
+        return postsForCategory(key);
+      }
+      return _filterByCategory(_postsForSectionOnly(section), key);
     }
-    return posts;
+    return _postsForSectionOnly(section);
   }
 
   /// Every content post in the app (all sections, deduplicated).
@@ -233,7 +301,7 @@ class ContentService extends ChangeNotifier {
 
   Future<bool> _loadCache() async {
     final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString('da_content_cache_v2');
+    final cached = prefs.getString('da_content_cache_v3');
     if (cached == null) return false;
 
     try {
@@ -265,7 +333,7 @@ class ContentService extends ChangeNotifier {
 
   Future<void> _saveCache() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('da_content_cache_v2', jsonEncode({
+    await prefs.setString('da_content_cache_v3', jsonEncode({
       'carousels': carousels.map((c) => {
             'id': c.id, 'title': c.title, 'subtitle': c.subtitle,
             'imageUrl': c.imageUrl, 'linkSection': c.linkSection,

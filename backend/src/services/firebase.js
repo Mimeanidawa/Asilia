@@ -4,7 +4,9 @@ let initialized = false;
 
 export const FCM_TOPIC_ALL = 'asilia_all';
 export const FCM_TOPIC_LESSONS = 'darasa_huru';
+export const FCM_TOPIC_ADMIN = 'asilia_admin';
 export const FCM_CHANNEL_ID = 'darasa_huru';
+export const FCM_ADMIN_CHANNEL_ID = 'asilia_admin';
 
 export function initFirebase() {
   if (initialized) return admin;
@@ -142,6 +144,41 @@ export async function sendMwalimuReplyNotification({ userId, preview }) {
 
   const tokens = await getUserDeviceTokens(userId);
   return sendToTokens(tokens, { title, body, data });
+}
+
+/** Status-bar alert for admins — never include the user's message text. */
+export async function sendAdminNewUserMessageNotification({ userName } = {}) {
+  const title = 'Ujumbe mpya';
+  const who = userName?.trim() ? userName.trim() : 'mtumiaji';
+  const body = `New message from ${who}`;
+  const data = {
+    type: 'admin_message',
+    title,
+    body,
+    click_action: 'FLUTTER_NOTIFICATION_CLICK',
+  };
+
+  const topicResult = await sendToTopic(FCM_TOPIC_ADMIN, { title, body, data });
+
+  try {
+    const { getPool } = await import('../db.js');
+    const db = getPool();
+    const { rows } = await db.query(
+      'SELECT token FROM admin_device_tokens WHERE token IS NOT NULL',
+    );
+    const tokenResult = await sendToTokens(
+      rows.map((r) => r.token),
+      { title, body, data },
+    );
+    return {
+      sent: topicResult.sent || tokenResult.sent,
+      topic: topicResult,
+      tokens: tokenResult,
+    };
+  } catch (err) {
+    console.error('Admin device token notify failed:', err.message);
+    return topicResult;
+  }
 }
 
 export async function sendBroadcastNotification({ title, body, target = 'all' }) {

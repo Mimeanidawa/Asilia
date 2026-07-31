@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/paid_makala_badge.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/rich_content_view.dart';
@@ -105,6 +106,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
     final post = _post!;
     final canRead = user.canReadContent(post);
+    final paid = user.hasPurchasedContent(post.id);
 
     return SizedBox.expand(
       child: Column(
@@ -133,17 +135,25 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (post.category != null)
-                        Text(
-                          post.categoryLabel.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.emerald800,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (paid) const PaidMakalaBadge(),
+                          if (post.category != null)
+                            Text(
+                              post.categoryLabel.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.emerald800,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                        ],
+                      ),
+                      if (paid || post.category != null) const SizedBox(height: 8),
                       Text(
                         post.title,
                         style: const TextStyle(

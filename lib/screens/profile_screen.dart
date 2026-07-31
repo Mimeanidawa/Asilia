@@ -7,6 +7,7 @@ import '../providers/app_provider.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../utils/responsive.dart';
 import '../services/mwalimu_service.dart';
 import '../services/payment_service.dart';
 import '../utils/tzs_format.dart';
@@ -41,7 +42,12 @@ class ProfileScreen extends StatelessWidget {
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            12,
+            16,
+            Responsive.scrollBottomPadding(context, extra: 12),
+          ),
           children: [
             Container(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
@@ -179,13 +185,13 @@ class _GuestProfileCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.emerald50, Colors.white],
+          colors: [AppColors.emerald50, AppColors.surfaceElevated],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.forest.withValues(alpha: 0.05),
+            color: AppColors.softShadow,
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -264,12 +270,12 @@ class _ProfileCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFF4FBF8), Colors.white],
+          colors: [AppColors.emerald50, AppColors.surfaceElevated],
         ),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.forest.withValues(alpha: 0.07),
+            color: AppColors.softShadow,
             blurRadius: 22,
             offset: const Offset(0, 12),
           ),
@@ -401,7 +407,7 @@ class _MetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.gray200),
       ),

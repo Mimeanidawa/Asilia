@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
+import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/content_tag_style.dart';
 import 'herb_image.dart';
+import 'paid_makala_badge.dart';
 
 class ContentPostCard extends StatelessWidget {
   const ContentPostCard({
@@ -14,6 +18,7 @@ class ContentPostCard extends StatelessWidget {
     this.showSectionLabel = false,
     this.compact = false,
     this.margin = const EdgeInsets.only(bottom: 16),
+    this.animationIndex = 0,
   });
 
   static const _imageWidth = 112.0;
@@ -25,10 +30,13 @@ class ContentPostCard extends StatelessWidget {
   final bool showSectionLabel;
   final bool compact;
   final EdgeInsets margin;
+  final int animationIndex;
 
   @override
   Widget build(BuildContext context) {
     final category = post.category;
+    final user = context.watch<UserService>();
+    final paid = post.isPremium && user.hasPurchasedContent(post.id);
 
     return Container(
       width: double.infinity,
@@ -37,20 +45,20 @@ class ContentPostCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.forest.withValues(alpha: 0.12),
-            blurRadius: 24,
+            color: AppColors.cardShadow,
+            blurRadius: 22,
             offset: const Offset(0, 10),
             spreadRadius: -4,
           ),
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            color: AppColors.softShadow,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Material(
-        color: Colors.white,
+        color: AppColors.surfaceElevated,
         borderRadius: BorderRadius.circular(20),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -59,11 +67,42 @@ class ContentPostCard extends StatelessWidget {
             height: _imageHeight,
             child: Row(
               children: [
-                HerbImage(
-                  url: post.imageUrl,
-                  width: _imageWidth,
-                  height: _imageHeight,
-                  borderRadius: 0,
+                Stack(
+                  children: [
+                    HerbImage(
+                      url: post.imageUrl,
+                      width: _imageWidth,
+                      height: _imageHeight,
+                      borderRadius: 0,
+                    ),
+                    if (paid)
+                      const Positioned(
+                        top: 8,
+                        left: 8,
+                        child: PaidMakalaBadge(compact: true),
+                      )
+                    else if (post.isPremium)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.amber,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'PRO',
+                            style: TextStyle(
+                              fontSize: 7,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 Expanded(
                   child: Padding(
@@ -72,42 +111,42 @@ class ContentPostCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        if (post.isPremium)
+                        if (showSectionLabel || (category != null && category.isNotEmpty) || paid)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.amber.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'PREMIUM TZS ${post.price}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w900,
-                                  color: AppColors.amber,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (showSectionLabel || (category != null && category.isNotEmpty))
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 3),
-                            child: Text(
-                              _metaLabel(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: showSectionLabel
-                                    ? AppColors.forest.withValues(alpha: 0.55)
-                                    : ContentTagStyle.colorFor(category ?? ''),
-                                letterSpacing: 0.4,
-                              ),
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                if (showSectionLabel ||
+                                    (category != null && category.isNotEmpty))
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 7,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: ContentTagStyle.colorFor(category ?? '')
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      _metaLabel(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: showSectionLabel
+                                            ? AppColors.forest.withValues(alpha: 0.65)
+                                            : ContentTagStyle.colorFor(category ?? ''),
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                if (paid) const PaidMakalaBadge(compact: true),
+                              ],
                             ),
                           ),
                         Text(
@@ -134,14 +173,25 @@ class ContentPostCard extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (!compact) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            post.readTimeLabel,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.gray400,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
                 if (showChevron) ...[
-                  const Icon(
+                  Icon(
                     Icons.chevron_right_rounded,
-                    color: AppColors.gray400,
+                    color: AppColors.forest.withValues(alpha: 0.35),
                     size: 22,
                   ),
                   const SizedBox(width: 8),
@@ -151,7 +201,10 @@ class ContentPostCard extends StatelessWidget {
           ),
         ),
       ),
-    );
+    )
+        .animate()
+        .fadeIn(delay: (animationIndex * 60).ms, duration: 350.ms)
+        .slideY(begin: 0.04, end: 0, curve: Curves.easeOutCubic);
   }
 
   String _metaLabel() {

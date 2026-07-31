@@ -21,6 +21,12 @@ export function getPool() {
     pool = new Pool({
       connectionString,
       ssl: useSsl(connectionString) ? { rejectUnauthorized: false } : false,
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+    pool.on('error', (err) => {
+      console.error('Unexpected PG pool error:', err.message);
     });
   }
   return pool;
@@ -58,6 +64,15 @@ export async function initDb() {
       token TEXT UNIQUE NOT NULL,
       platform TEXT NOT NULL DEFAULT 'unknown',
       user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_device_tokens (
+      id UUID PRIMARY KEY,
+      token TEXT UNIQUE NOT NULL,
+      platform TEXT NOT NULL DEFAULT 'unknown',
+      admin_id UUID REFERENCES admins(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );

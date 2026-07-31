@@ -53,7 +53,7 @@ class Responsive {
     return viewPadding(context).bottom + 10;
   }
 
-  /// Space reserved above system navigation so content is never hidden.
+  /// Space reserved so scroll content can clear the floating nav.
   static double bottomContentReserve(
     BuildContext context, {
     required bool showBottomNav,
@@ -61,10 +61,17 @@ class Responsive {
     final safeBottom = viewPadding(context).bottom;
     if (!showBottomNav) return safeBottom + 8;
 
-    const navBarHeight = 78.0;
+    // Nav visual height (~72) + center FAB lift (~16) + float gap + breathing room
+    const navBarHeight = 72.0;
+    const fabLift = 16.0;
     const floatGap = 10.0;
-    const extraClearance = 8.0;
-    return navBarHeight + floatGap + safeBottom + extraClearance;
+    const extraClearance = 12.0;
+    return navBarHeight + fabLift + floatGap + safeBottom + extraClearance;
+  }
+
+  /// Bottom padding for ListViews / scrollables under the floating nav.
+  static double scrollBottomPadding(BuildContext context, {double extra = 16}) {
+    return MediaQuery.paddingOf(context).bottom + extra;
   }
 
   static int listColumns(BuildContext context) {

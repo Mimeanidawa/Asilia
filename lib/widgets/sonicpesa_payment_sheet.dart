@@ -548,7 +548,7 @@ class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
             Icon(Icons.lock_rounded, size: 18),
             SizedBox(width: 8),
             Text(
-              'Lipa Sasa kwa Aurax Pay',
+              'Lipia Sasa',
               style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
             ),
           ],

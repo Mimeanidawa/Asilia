@@ -46,6 +46,33 @@ router.post('/register', optionalUser, async (req, res) => {
   }
 });
 
+/** Admin app FCM token registration (for Maswali alerts). */
+router.post('/admin/register', requireAdmin, async (req, res) => {
+  try {
+    const { token, platform } = req.body;
+    if (!token?.trim()) {
+      return res.status(400).json({ error: 'FCM token required' });
+    }
+
+    const db = getPool();
+    const adminId = req.admin?.sub ?? null;
+    await db.query(
+      `INSERT INTO admin_device_tokens (id, token, platform, admin_id, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT (token) DO UPDATE SET
+         platform = EXCLUDED.platform,
+         admin_id = COALESCE(EXCLUDED.admin_id, admin_device_tokens.admin_id),
+         updated_at = NOW()`,
+      [uuidv4(), token.trim(), platform || 'unknown', adminId],
+    );
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin device register:', err);
+    res.status(500).json({ error: 'Failed to register admin device' });
+  }
+});
+
 router.get('/count', async (_req, res) => {
   try {
     const db = getPool();

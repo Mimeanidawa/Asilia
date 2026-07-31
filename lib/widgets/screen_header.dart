@@ -11,7 +11,7 @@ class ScreenHeader extends StatelessWidget {
     required this.onBack,
     this.subtitle,
     this.trailing,
-    this.backgroundColor = Colors.white,
+    this.backgroundColor = AppColors.surfaceElevated,
     this.showBottomBorder = false,
     this.titleStyle,
     this.subtitleStyle,

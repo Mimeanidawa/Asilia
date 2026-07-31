@@ -26,23 +26,37 @@ class AppBottomNav extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.forest.withValues(alpha: 0.96),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF163B2C),
+            AppColors.forest,
+            Color(0xFF081A11),
+          ],
+        ),
         borderRadius: BorderRadius.circular(_navRadius),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.forest.withValues(alpha: 0.28),
+            color: Colors.black.withValues(alpha: 0.28),
             blurRadius: 28,
-            offset: const Offset(0, 12),
+            spreadRadius: -2,
+            offset: const Offset(0, 16),
+          ),
+          BoxShadow(
+            color: AppColors.forest.withValues(alpha: 0.45),
+            blurRadius: 40,
+            offset: const Offset(0, 18),
           ),
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 10,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+      padding: const EdgeInsets.fromLTRB(8, 9, 8, 11),
       child: Row(
         children: [
           _NavItem(
@@ -64,18 +78,28 @@ class AppBottomNav extends StatelessWidget {
                 child: Material(
                   color: isExploreActive ? AppColors.amber : AppColors.emerald50,
                   borderRadius: BorderRadius.circular(_navRadius),
-                  elevation: isExploreActive ? 8 : 5,
+                  elevation: isExploreActive ? 10 : 6,
+                  shadowColor: AppColors.forest.withValues(alpha: 0.4),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(_navRadius),
-                    onTap: () => app.navigate(
-                      AppScreen.contentList,
-                      contentSection: ContentSections.chaguaMada,
-                      contentCategory: 'mimea',
-                    ),
+                    onTap: () {
+                      app.selectedContentCategory = null;
+                      app.navigate(
+                        AppScreen.contentList,
+                        contentSection: ContentSections.allMakala,
+                      );
+                    },
                     child: Container(
                       width: 54,
                       height: 54,
                       alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(_navRadius),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: isExploreActive ? 0.2 : 0.55),
+                          width: 1.5,
+                        ),
+                      ),
                       child: AnimatedScale(
                         scale: isExploreActive ? 1.07 : 1,
                         duration: 220.ms,
@@ -139,7 +163,7 @@ class _UlizaNavItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             decoration: BoxDecoration(
               color: selected
-                  ? Colors.white.withValues(alpha: 0.12)
+                  ? Colors.white.withValues(alpha: 0.14)
                   : hasUnread
                       ? _goldBadge.withValues(alpha: 0.14)
                       : Colors.transparent,
@@ -147,7 +171,9 @@ class _UlizaNavItem extends StatelessWidget {
               border: Border.all(
                 color: hasUnread && !selected
                     ? _goldBadge.withValues(alpha: 0.35)
-                    : Colors.transparent,
+                    : selected
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.transparent,
               ),
             ),
             child: Column(
@@ -365,8 +391,11 @@ class _NavItem extends StatelessWidget {
             curve: Curves.easeOutCubic,
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
             decoration: BoxDecoration(
-              color: selected ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+              color: selected ? Colors.white.withValues(alpha: 0.14) : Colors.transparent,
               borderRadius: BorderRadius.circular(_navRadius),
+              border: selected
+                  ? Border.all(color: Colors.white.withValues(alpha: 0.08))
+                  : null,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

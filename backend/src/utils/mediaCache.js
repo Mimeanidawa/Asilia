@@ -134,7 +134,7 @@ async function storeMedia(sourceUrl, buffer, contentType) {
  * @returns {Promise<{id, contentType, byteSize, sourceUrl, buffer?} | null>}
  */
 export async function ingestImageUrl(raw, { includeBuffer = false } = {}) {
-  const original = tidyImageUrl(raw);
+  const original = normalizeImageUrl(tidyImageUrl(raw));
   if (!original) return null;
 
   const existing = await findCachedMedia(original);

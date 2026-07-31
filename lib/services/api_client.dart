@@ -20,14 +20,29 @@ class ApiClient {
 
   final http.Client _client;
   final String _baseUrl;
-  static const _timeout = Duration(seconds: 45);
+
+  /// Default for normal API calls.
+  static const _timeout = Duration(seconds: 25);
+
+  /// Catalog can be heavy on cold Railway start.
+  static const catalogTimeout = Duration(seconds: 60);
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
-  Future<Map<String, dynamic>> get(String path, {String? token}) async {
+  Duration _timeoutFor(String path) {
+    if (path.contains('/catalog')) return catalogTimeout;
+    if (path.contains('/images/')) return const Duration(seconds: 35);
+    return _timeout;
+  }
+
+  Future<Map<String, dynamic>> get(
+    String path, {
+    String? token,
+    Duration? timeout,
+  }) async {
     final res = await _client
         .get(_uri(path), headers: _headers(token))
-        .timeout(_timeout);
+        .timeout(timeout ?? _timeoutFor(path));
     return _decode(res);
   }
 
@@ -35,6 +50,7 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     String? token,
+    Duration? timeout,
   }) async {
     final res = await _client
         .post(
@@ -42,7 +58,7 @@ class ApiClient {
           headers: _headers(token),
           body: body != null ? jsonEncode(body) : null,
         )
-        .timeout(_timeout);
+        .timeout(timeout ?? _timeout);
     return _decode(res);
   }
 

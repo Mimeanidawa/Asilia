@@ -83,7 +83,12 @@ class MwalimuService extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _guestSyncInFlight = false;
+
   Future<void> loadGuestMessages() async {
+    if (_guestSyncInFlight) return;
+    _guestSyncInFlight = true;
+
     await _loadState();
     isLoading = true;
     notifyListeners();
@@ -92,6 +97,7 @@ class MwalimuService extends ChangeNotifier {
       final sessionId = await getGuestSessionId();
       final data = await _api.get(
         '/api/chat/guest/messages?sessionId=${Uri.encodeComponent(sessionId)}',
+        timeout: const Duration(seconds: 12),
       );
       guestMessages = (data['messages'] as List)
           .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
@@ -100,9 +106,14 @@ class MwalimuService extends ChangeNotifier {
       messageLimit = data['messageLimit'] as int?;
       await _saveGuestState();
       _recomputeUnreadFromMessages(guestMessages);
+      error = null;
     } catch (e) {
-      debugPrint('Guest messages sync error: $e');
+      // Offline or server busy — keep locally cached guest chat.
+      if (guestMessages.isEmpty) {
+        debugPrint('Guest messages sync error: $e');
+      }
     } finally {
+      _guestSyncInFlight = false;
       isLoading = false;
       notifyListeners();
     }
@@ -219,12 +230,16 @@ class MwalimuService extends ChangeNotifier {
 
   Future<void> loadSettings() async {
     try {
-      final data = await _api.get('/api/chat/settings');
+      final data = await _api.get(
+        '/api/chat/settings',
+        timeout: const Duration(seconds: 15),
+      );
       settings = MwalimuSettings.fromJson(
         data['settings'] as Map<String, dynamic>,
       );
       notifyListeners();
     } catch (e) {
+      // Keep defaults when API/DB is slow — not fatal for browsing content.
       debugPrint('Mwalimu settings error: $e');
     }
   }

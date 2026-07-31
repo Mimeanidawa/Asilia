@@ -151,6 +151,10 @@ class UserService extends ChangeNotifier {
     return purchasedContentIds.contains(post.id);
   }
 
+  /// True when this makala was unlocked by a direct content purchase.
+  bool hasPurchasedContent(String contentId) =>
+      purchasedContentIds.contains(contentId);
+
   Future<void> logout() async {
     token = null;
     user = null;

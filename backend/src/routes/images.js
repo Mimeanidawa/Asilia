@@ -5,7 +5,7 @@ import {
   ingestImageUrl,
   mediaPublicPath,
 } from '../utils/mediaCache.js';
-import { tidyImageUrl } from '../utils/resolveImageUrl.js';
+import { resolveImageUrl, normalizeImageUrl, tidyImageUrl } from '../utils/resolveImageUrl.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
@@ -36,28 +36,41 @@ function isAllowedTarget(raw) {
  * GET /api/images/proxy?url=...
  */
 router.get('/proxy', async (req, res) => {
-  const target = isAllowedTarget(req.query.url);
-  if (!target) {
+  const rawTarget = isAllowedTarget(req.query.url);
+  if (!rawTarget) {
     return res.status(400).json({ error: 'URL ya picha si sahihi' });
   }
 
+  const target = normalizeImageUrl(rawTarget);
+
+  async function streamCached(sourceUrl) {
+    const cached = await findCachedMedia(sourceUrl);
+    if (!cached) return false;
+    const full = await getCachedMediaById(cached.id);
+    if (!full?.bytes) return false;
+    res.setHeader('Content-Type', full.content_type || 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Asilia-Media', full.id);
+    res.status(200).send(full.bytes);
+    return true;
+  }
+
   try {
-    // Fast path: already cached under this exact source URL.
-    const cached = await findCachedMedia(target);
-    if (cached) {
-      const full = await getCachedMediaById(cached.id);
-      if (full?.bytes) {
-        res.setHeader('Content-Type', full.content_type || 'image/jpeg');
-        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-Asilia-Media', full.id);
-        return res.status(200).send(full.bytes);
+    for (const candidate of [target, rawTarget]) {
+      if (await streamCached(candidate)) return undefined;
+    }
+
+    let ingested = await ingestImageUrl(target, { includeBuffer: true });
+    if (!ingested?.buffer) {
+      const resolved = await resolveImageUrl(target);
+      if (resolved && resolved !== target) {
+        ingested = await ingestImageUrl(resolved, { includeBuffer: true });
       }
     }
 
-    const ingested = await ingestImageUrl(target, { includeBuffer: true });
     if (!ingested?.buffer) {
       return res.status(502).json({ error: 'Imeshindwa kupakia picha' });
     }
@@ -79,22 +92,49 @@ router.get('/proxy', async (req, res) => {
 });
 
 router.get('/resolve', async (req, res) => {
-  const target = isAllowedTarget(req.query.url);
-  if (!target) {
+  const rawTarget = isAllowedTarget(req.query.url);
+  if (!rawTarget) {
     return res.status(400).json({ error: 'URL ya picha si sahihi' });
   }
+
+  const apiBase = `${req.protocol}://${req.get('host')}`;
+  const target = normalizeImageUrl(rawTarget);
+
   try {
-    const ingested = await ingestImageUrl(target);
+    for (const candidate of [target, rawTarget]) {
+      const cached = await findCachedMedia(candidate);
+      if (cached?.id) {
+        return res.json({
+          url: `${apiBase}${mediaPublicPath(cached.id)}`,
+          mediaId: cached.id,
+          cached: true,
+        });
+      }
+    }
+
+    let ingested = await ingestImageUrl(target);
+    if (!ingested?.id) {
+      const resolved = await resolveImageUrl(target);
+      if (resolved && resolved !== target) {
+        ingested = await ingestImageUrl(resolved);
+      }
+    }
+
     if (ingested?.id) {
       return res.json({
-        url: mediaPublicPath(ingested.id),
+        url: `${apiBase}${mediaPublicPath(ingested.id)}`,
         mediaId: ingested.id,
         cached: true,
       });
     }
-    res.json({ url: target, cached: false });
+
+    return res.json({
+      url: `${apiBase}/api/images/proxy?url=${encodeURIComponent(target)}`,
+      cached: false,
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Imeshindwa kutatua URL', url: target });
+    console.warn('image resolve failed:', target, err.message);
+    return res.status(500).json({ error: 'Imeshindwa kutatua URL', url: target });
   }
 });
 

@@ -135,7 +135,7 @@ router.get('/recommended', async (_req, res) => {
  * Single bootstrap payload for the mobile app (avoids 6 parallel cold-start calls).
  * GET /api/content/catalog
  */
-router.get('/catalog', async (_req, res) => {
+router.get('/catalog', async (req, res) => {
   try {
     const db = getPool();
     const [carouselResult, postsResult, lessonsResult, dodosoResult] = await Promise.all([
@@ -162,11 +162,17 @@ router.get('/catalog', async (_req, res) => {
       ),
     ]);
 
-    const posts = postsResult.rows.map((r) => rowToPost(r, { includeContent: false }));
+    // Return normalized URLs immediately — do NOT await media cache lookups
+    // per row (that stalls the whole catalog and blocks other API routes).
+    const posts = postsResult.rows.map((r) =>
+      rowToPost(r, { includeContent: false }),
+    );
     const bySection = {
       dodoso: posts.filter((p) => p.section === 'dodoso'),
       chagua_mada: posts.filter((p) => p.section === 'chagua_mada'),
-      vyakula_matunda: posts.filter((p) => p.section === 'vyakula_matunda'),
+      vyakula_matunda: posts.filter(
+        (p) => p.section === 'vyakula_matunda' || p.section === 'jitibu_nyumbani',
+      ),
       jitibu_nyumbani: posts.filter((p) => p.section === 'jitibu_nyumbani'),
       jifunze: posts.filter((p) => p.section === 'jifunze'),
     };
@@ -205,31 +211,38 @@ router.get('/catalog', async (_req, res) => {
       })),
     ].sort(() => Math.random() - 0.5).slice(0, 6);
 
+    const carousels = carouselResult.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      subtitle: row.subtitle,
+      imageUrl: normalizeImageUrl(row.image_url),
+      linkSection: row.link_section,
+      linkId: row.link_id,
+      sortOrder: row.sort_order,
+      isPublished: row.is_published,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
     res.json({
-      carousels: carouselResult.rows.map((row) => ({
-        id: row.id,
-        title: row.title,
-        subtitle: row.subtitle,
-        imageUrl: normalizeImageUrl(row.image_url),
-        linkSection: row.link_section,
-        linkId: row.link_id,
-        sortOrder: row.sort_order,
-        isPublished: row.is_published,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      })),
+      carousels,
       posts: bySection,
       recommended,
     });
 
-    // Warm media cache in background so list thumbnails load from our API.
+    // Warm media cache in background (limited concurrency) so thumbnails load fast.
     const warmUrls = [
       ...carouselResult.rows.map((r) => r.image_url),
       ...postsResult.rows.map((r) => r.image_url),
       ...lessonsResult.rows.map((r) => r.image_url),
     ].filter(Boolean);
-    const unique = [...new Set(warmUrls)].slice(0, 30);
-    Promise.allSettled(unique.map((u) => ingestImageUrl(u))).catch(() => {});
+    const unique = [...new Set(warmUrls.map((u) => normalizeImageUrl(u)).filter(Boolean))].slice(0, 40);
+    (async () => {
+      const chunk = 4;
+      for (let i = 0; i < unique.length; i += chunk) {
+        await Promise.allSettled(unique.slice(i, i + chunk).map((u) => ingestImageUrl(u)));
+      }
+    })().catch(() => {});
   } catch (err) {
     console.error('GET /content/catalog:', err);
     res.status(500).json({ error: 'Imeshindwa kupata katalogi' });

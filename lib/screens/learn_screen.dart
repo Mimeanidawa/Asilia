@@ -11,6 +11,7 @@ import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
 import '../utils/responsive.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/paid_makala_badge.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/screen_header.dart';
@@ -48,9 +49,7 @@ class _LearnScreenState extends State<LearnScreen> {
     if (_selectedCat == 'Zote') return content.jifunzePosts;
     final key = _catKeys[_selectedCat];
     if (key == null) return content.jifunzePosts;
-    return content.jifunzePosts
-        .where((p) => (p.category ?? '').trim().toLowerCase() == key)
-        .toList();
+    return content.postsForCategory(key);
   }
 
   @override
@@ -94,10 +93,15 @@ class _LearnScreenState extends State<LearnScreen> {
         children: [
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated.withValues(alpha: 0.94),
+              border: Border(
+                bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
+              ),
+            ),
             child: const Row(
               children: [
-                Icon(Icons.menu_book, color: AppColors.emerald800, size: 20),
+                Icon(Icons.menu_book_rounded, color: AppColors.emerald800, size: 20),
                 SizedBox(width: 8),
                 Text(
                   'JIFUNZE',
@@ -108,7 +112,12 @@ class _LearnScreenState extends State<LearnScreen> {
           ),
           Container(
             height: 52,
-            color: Colors.white,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated.withValues(alpha: 0.88),
+              border: Border(
+                bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
+              ),
+            ),
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -127,17 +136,21 @@ class _LearnScreenState extends State<LearnScreen> {
                     ),
                     selected: selected,
                     onSelected: (_) => setState(() => _selectedCat = cat),
-                    backgroundColor: AppColors.emerald50.withValues(alpha: 0.5),
+                    backgroundColor: AppColors.emerald50,
                     selectedColor: AppColors.forest,
                     showCheckmark: false,
-                    side: BorderSide(color: AppColors.forest.withValues(alpha: 0.1)),
+                    side: BorderSide(
+                      color: selected
+                          ? Colors.transparent
+                          : AppColors.forest.withValues(alpha: 0.08),
+                    ),
                   ),
                 );
               }).toList(),
             ),
           ),
           Expanded(
-            child: content.jifunzePosts.isEmpty
+            child: content.jifunzePosts.isEmpty && _selectedCat == 'Zote'
                 ? PullToRefresh(
                     onRefresh: () => AppRefresh.catalog(context),
                     child: ListView(
@@ -148,17 +161,46 @@ class _LearnScreenState extends State<LearnScreen> {
                           child: Center(
                             child: content.isLoading
                                 ? const CircularProgressIndicator(color: AppColors.forest)
-                                : Text('Hakuna makala bado', style: TextStyle(color: AppColors.gray400)),
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.menu_book_outlined, size: 48, color: AppColors.gray400),
+                                      const SizedBox(height: 12),
+                                      Text('Hakuna makala bado', style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w600)),
+                                      const SizedBox(height: 4),
+                                      Text('Vuta chini kusasisha', style: TextStyle(color: AppColors.gray400, fontSize: 11)),
+                                    ],
+                                  ),
                           ),
                         ),
                       ],
                     ),
                   )
-                : PullToRefresh(
+                : filtered.isEmpty
+                    ? PullToRefresh(
+                        onRefresh: () => AppRefresh.catalog(context),
+                        child: ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.sizeOf(context).height * 0.35,
+                              child: Center(
+                                child: Text(
+                                  'Hakuna makala za $_selectedCat bado',
+                                  style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : PullToRefresh(
                     onRefresh: () => AppRefresh.catalog(context),
                     child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: EdgeInsets.only(
+                      bottom: Responsive.scrollBottomPadding(context, extra: 8),
+                    ),
                     children: [
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -274,6 +316,8 @@ class _FeaturedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paid = context.watch<UserService>().hasPurchasedContent(post.id);
+
     return Material(
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
@@ -316,7 +360,12 @@ class _FeaturedCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (post.isPremium)
+                    if (paid)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: PaidMakalaBadge(onDark: true),
+                      )
+                    else if (post.isPremium)
                       Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -372,6 +421,8 @@ class _ArticleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final paid = context.watch<UserService>().hasPurchasedContent(post.id);
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -395,7 +446,12 @@ class _ArticleTile extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        if (post.isPremium)
+                        if (paid)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 6),
+                            child: PaidMakalaBadge(compact: true),
+                          )
+                        else if (post.isPremium)
                           Container(
                             margin: const EdgeInsets.only(right: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -405,19 +461,31 @@ class _ArticleTile extends StatelessWidget {
                             ),
                             child: Text(
                               'TZS ${post.price}',
-                              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: AppColors.amber),
+                              style: const TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.amber,
+                              ),
                             ),
                           ),
                         Text(
                           post.categoryLabel,
-                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.emerald800),
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.emerald800,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       post.title,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.forest),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.forest,
+                      ),
                     ),
                     Text(
                       '${post.readTimeLabel} • ${post.excerpt}',

@@ -9,6 +9,7 @@ import '../models/daily_lesson.dart';
 import '../services/admin_analytics_service.dart';
 import '../services/admin_lesson_service.dart';
 import '../services/admin_content_service.dart';
+import '../services/admin_notification_service.dart';
 import '../services/api_client.dart';
 import '../utils/admin_data_mapper.dart';
 
@@ -45,6 +46,7 @@ class AdminProvider extends ChangeNotifier {
   final AdminContentService _contentService;
   final AdminAnalyticsService _analyticsService;
   final ApiClient _api;
+  final AdminNotificationService _push = AdminNotificationService();
 
   AdminScreen _activeScreen = AdminScreen.dashboard;
   bool _isLoggedIn = false;
@@ -180,9 +182,20 @@ class AdminProvider extends ChangeNotifier {
           (latest.isNotEmpty &&
               _mwalimuInbox.isNotEmpty &&
               latest.first['id'] != _mwalimuInbox.first['id']);
+      final previousUnread = _mwalimuUnreadCount;
       _mwalimuUnreadCount = next;
       _mwalimuConversationsWithUnread = convs;
       _mwalimuInbox = latest;
+
+      if (next > previousUnread) {
+        final who = latest.isNotEmpty
+            ? latest.first['userName'] as String?
+            : null;
+        unawaited(_push.onUnreadCountChanged(unread: next, userName: who));
+      } else {
+        _push.syncBaselineUnread(next);
+      }
+
       if (!silent || changed) {
         notifyListeners();
         if (changed) onMwalimuInboxUpdated?.call();
@@ -231,6 +244,7 @@ class AdminProvider extends ChangeNotifier {
         _isLoggedIn = true;
         await Future.wait([_lessonService.load(), _loadDashboardData()]);
         _startMwalimuPolling();
+        unawaited(_initPush());
       } catch (_) {
         await prefs.remove('admin_auth_token');
         _setAuthTokens(null);
@@ -238,6 +252,12 @@ class AdminProvider extends ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  Future<void> _initPush() async {
+    _push.onTap = () => setScreen(AdminScreen.mwalimu);
+    await _push.init(authToken: _authToken);
+    _push.syncBaselineUnread(_mwalimuUnreadCount);
   }
 
   Future<bool> login(String email, String password) async {
@@ -262,6 +282,7 @@ class AdminProvider extends ChangeNotifier {
 
       await Future.wait([_lessonService.load(), _loadDashboardData()]);
       _startMwalimuPolling();
+      unawaited(_initPush());
 
       _isLoading = false;
       notifyListeners();

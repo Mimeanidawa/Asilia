@@ -10,9 +10,12 @@ class NotificationStore {
 
   static const storageKey = 'da_notifications';
   static const deletedKey = 'da_notifications_deleted';
-  static const catalogSeededKey = 'da_notifications_catalog_seeded_v1';
+  /// v2: install baseline + burst protection (replaces fragile v1 seed-only).
+  static const catalogSeededKey = 'da_notifications_catalog_seeded_v2';
+  static const installBaselineKey = 'da_notifications_install_baseline_v1';
+  static const legacySeededKey = 'da_notifications_catalog_seeded_v1';
   static const maxItems = 50;
-  static const maxDeletedIds = 500;
+  static const maxDeletedIds = 2000;
 
   static Future<List<AppNotification>> readAll() async {
     final prefs = await SharedPreferences.getInstance();
@@ -97,12 +100,14 @@ class NotificationStore {
     final prefs = await SharedPreferences.getInstance();
     final current = await readDeletedIds();
     current.addAll(ids);
-    final trimmed = current.take(maxDeletedIds).toList();
+    // Keep newest-ish IDs by dropping from the front of an ordered list.
+    final ordered = current.toList();
+    final trimmed = ordered.length <= maxDeletedIds
+        ? ordered
+        : ordered.sublist(ordered.length - maxDeletedIds);
     await prefs.setString(deletedKey, jsonEncode(trimmed));
   }
 
-  /// True after we have recorded existing catalog IDs so new installs
-  /// do not invent notification history for older posts/lessons.
   static Future<bool> isCatalogSeeded() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(catalogSeededKey) ?? false;
@@ -111,5 +116,31 @@ class NotificationStore {
   static Future<void> setCatalogSeeded(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(catalogSeededKey, value);
+  }
+
+  /// First-open timestamp for this install. Used to ignore historical catalog.
+  static Future<DateTime> ensureInstallBaseline() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(installBaselineKey);
+    if (raw != null) {
+      final parsed = DateTime.tryParse(raw);
+      if (parsed != null) return parsed;
+    }
+    final now = DateTime.now().toUtc();
+    await prefs.setString(installBaselineKey, now.toIso8601String());
+    return now;
+  }
+
+  static Future<DateTime?> readInstallBaseline() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(installBaselineKey);
+    if (raw == null) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  /// Clears legacy v1 seed flag after v2 migration.
+  static Future<void> clearLegacySeedFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(legacySeededKey);
   }
 }

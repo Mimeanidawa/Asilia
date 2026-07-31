@@ -16,8 +16,13 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _premiumPriceCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _imageCtrl = TextEditingController();
+  final _welcomeCtrl = TextEditingController();
+  final _limitCtrl = TextEditingController();
   bool _loadingSettings = true;
   bool _savingPremium = false;
+  bool _savingMwalimu = false;
   String? _loadError;
 
   @override
@@ -29,6 +34,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _premiumPriceCtrl.dispose();
+    _nameCtrl.dispose();
+    _imageCtrl.dispose();
+    _welcomeCtrl.dispose();
+    _limitCtrl.dispose();
     super.dispose();
   }
 
@@ -44,11 +53,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           .fetchMwalimuSettings();
       final settings = data['settings'] as Map<String, dynamic>? ?? {};
       _premiumPriceCtrl.text = '${settings['premiumPrice'] ?? 15000}';
+      _nameCtrl.text =
+          '${settings['mwalimuName'] ?? settings['mtabibuName'] ?? ''}';
+      _imageCtrl.text =
+          '${settings['mwalimuImage'] ?? settings['mtabibuImage'] ?? ''}';
+      _welcomeCtrl.text =
+          '${settings['mwalimuWelcome'] ?? settings['mtabibuWelcome'] ?? ''}';
+      _limitCtrl.text = '${settings['freeMessageLimit'] ?? 5}';
     } catch (_) {
-      _loadError = 'Imeshindwa kupakia bei ya Premium';
+      _loadError = 'Imeshindwa kupakia mipangilio';
       if (_premiumPriceCtrl.text.isEmpty) {
         _premiumPriceCtrl.text = '15000';
       }
+      if (_limitCtrl.text.isEmpty) _limitCtrl.text = '5';
     }
     if (mounted) setState(() => _loadingSettings = false);
   }
@@ -80,6 +97,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingPremium = false);
+    }
+  }
+
+  Future<void> _saveMwalimuDetails() async {
+    setState(() => _savingMwalimu = true);
+    try {
+      await context.read<AdminProvider>().contentService.updateMwalimuSettings({
+        'mwalimuName': _nameCtrl.text.trim(),
+        'mwalimuImage': _imageCtrl.text.trim(),
+        'mwalimuWelcome': _welcomeCtrl.text.trim(),
+        'freeMessageLimit': int.tryParse(_limitCtrl.text.trim()) ?? 5,
+        'premiumPrice': int.tryParse(_premiumPriceCtrl.text.trim()) ?? 15000,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mipangilio ya Mwalimu imehifadhiwa')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imeshindwa kuhifadhi mipangilio')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingMwalimu = false);
     }
   }
 
@@ -221,6 +262,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 20),
                   Animate(
+                    delay: const Duration(milliseconds: 90),
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 400)),
+                    ],
+                    child: _MwalimuDetailsCard(
+                      nameCtrl: _nameCtrl,
+                      imageCtrl: _imageCtrl,
+                      welcomeCtrl: _welcomeCtrl,
+                      limitCtrl: _limitCtrl,
+                      loading: _loadingSettings,
+                      saving: _savingMwalimu,
+                      onSave: _saveMwalimuDetails,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Animate(
                     delay: const Duration(milliseconds: 100),
                     effects: const [
                       FadeEffect(duration: Duration(milliseconds: 400)),
@@ -348,6 +405,160 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MwalimuDetailsCard extends StatelessWidget {
+  const _MwalimuDetailsCard({
+    required this.nameCtrl,
+    required this.imageCtrl,
+    required this.welcomeCtrl,
+    required this.limitCtrl,
+    required this.loading,
+    required this.saving,
+    required this.onSave,
+  });
+
+  final TextEditingController nameCtrl;
+  final TextEditingController imageCtrl;
+  final TextEditingController welcomeCtrl;
+  final TextEditingController limitCtrl;
+  final bool loading;
+  final bool saving;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'MWALIMU',
+            style: GoogleFonts.inter(
+              color: AdminColors.textDim,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AdminColors.cardBorder),
+          ),
+          child: loading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AdminColors.emerald,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Maelezo ya Mwalimu',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Jina, picha, ujumbe wa karibu na kikomo cha maswali bure',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textDim,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _settingsField(nameCtrl, 'Jina la Mwalimu'),
+                    _settingsField(imageCtrl, 'URL ya Picha'),
+                    _settingsField(
+                      welcomeCtrl,
+                      'Ujumbe wa Karibu (elimu tu)',
+                      maxLines: 3,
+                    ),
+                    _settingsField(
+                      limitCtrl,
+                      'Kikomo cha Maswali (Bure)',
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: saving ? null : onSave,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AdminColors.emerald,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AdminColors.emerald.withOpacity(0.4),
+                        ),
+                        child: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Hifadhi Mwalimu',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _settingsField(
+    TextEditingController ctrl,
+    String label, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: ctrl,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        style: GoogleFonts.inter(color: AdminColors.textPrimary),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: GoogleFonts.inter(color: AdminColors.textDim),
+          filled: true,
+          fillColor: AdminColors.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+        ),
       ),
     );
   }

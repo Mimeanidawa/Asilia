@@ -17,5 +17,15 @@ Future<void> main() async {
     ]);
   }
 
+  // Suppress known Flutter Linux desktop MouseTracker assertion noise.
+  if (defaultTargetPlatform == TargetPlatform.linux) {
+    final previousHandler = FlutterError.onError;
+    FlutterError.onError = (details) {
+      final message = details.exceptionAsString();
+      if (message.contains('MouseTracker')) return;
+      previousHandler?.call(details);
+    };
+  }
+
   runApp(const AsiliaApp());
 }

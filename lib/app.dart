@@ -118,15 +118,15 @@ class _AsiliaAppState extends State<AsiliaApp> {
       debugPrint('Notifications unavailable: $e');
     }
 
-    await Future.wait([
-      _loadUserAndMwalimu(),
-      _contentService.syncFromServer().then<void>((_) {}, onError: (Object e) {
-        debugPrint('Content sync error: $e');
-      }),
-      _appProvider.syncLessons().then<void>((_) {}, onError: (Object e) {
-        debugPrint('Lesson sync error: $e');
-      }),
-    ]);
+    // Sequence network work so a sleeping Railway DB isn't hit by 4 heavy
+    // parallel queries (that can exhaust the pool and time everything out).
+    await _contentService.syncFromServer().then<void>((_) {}, onError: (Object e) {
+      debugPrint('Content sync error: $e');
+    });
+    await _appProvider.syncLessons().then<void>((_) {}, onError: (Object e) {
+      debugPrint('Lesson sync error: $e');
+    });
+    await _loadUserAndMwalimu();
 
     await _notificationCenter.syncFromCatalog(
       posts: [

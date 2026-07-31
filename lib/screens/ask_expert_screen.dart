@@ -145,8 +145,18 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
               Navigator.pop(ctx);
               context.read<AppProvider>().navigate(AppScreen.auth);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.forest),
-            child: const Text('Jisajili / Ingia'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.forest,
+              foregroundColor: Colors.white,
+              disabledForegroundColor: Colors.white70,
+            ),
+            child: const Text(
+              'Jisajili / Ingia',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -199,8 +209,18 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.forest),
-            child: const Text('Lipia Premium'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.forest,
+              foregroundColor: Colors.white,
+              disabledForegroundColor: Colors.white70,
+            ),
+            child: const Text(
+              'Lipia Premium',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -242,7 +262,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [Colors.white, AppColors.cream]),
+              gradient: LinearGradient(colors: [AppColors.surfaceElevated, AppColors.cream]),
               border: Border(
                 bottom: BorderSide(
                   color: AppColors.forest.withValues(alpha: 0.03),
@@ -315,7 +335,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
               child: ListView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                 children: [
                   _Bubble(
                     isUser: false,
@@ -346,8 +366,12 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
           if (guestLimitReached)
             Container(
               width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: AppColors.amber.withValues(alpha: 0.12),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Row(
                 children: [
                   const Icon(
@@ -377,57 +401,78 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                 ],
               ),
             ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    enabled: !guestLimitReached,
-                    decoration: InputDecoration(
-                      hintText: guestLimitReached
-                          ? 'Jisajili ili uendelee kuuliza...'
-                          : user.isLoggedIn
-                          ? 'Uliza kuhusu mimea, mizizi, miti...'
-                          : 'Uliza Hapa...',
-                      filled: true,
-                      fillColor: AppColors.emerald50.withValues(alpha: 0.4),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 12,
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              12,
+              0,
+              12,
+              MediaQuery.paddingOf(context).bottom + 4,
+            ),
+            child: Material(
+              color: AppColors.surfaceElevated.withValues(alpha: 0.97),
+              elevation: 10,
+              shadowColor: AppColors.forest.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(28),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        enabled: !guestLimitReached,
+                        decoration: InputDecoration(
+                          hintText: guestLimitReached
+                              ? 'Jisajili ili uendelee kuuliza...'
+                              : user.isLoggedIn
+                              ? 'Uliza kuhusu mimea, mizizi, miti...'
+                              : 'Uliza Hapa...',
+                          filled: true,
+                          fillColor: AppColors.emerald50.withValues(alpha: 0.45),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
+                        ),
+                        onSubmitted: (_) => _send(),
                       ),
                     ),
-                    onSubmitted: (_) => _send(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Material(
-                  color: guestLimitReached
-                      ? AppColors.gray400
-                      : AppColors.forest,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: guestLimitReached
-                        ? _showSignupRequiredDialog
-                        : _send,
-                    child: const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 20,
+                    const SizedBox(width: 8),
+                    Material(
+                      color: guestLimitReached
+                          ? AppColors.gray400
+                          : AppColors.forest,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: guestLimitReached
+                            ? _showSignupRequiredDialog
+                            : _send,
+                        child: const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],

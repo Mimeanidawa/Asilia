@@ -21,6 +21,9 @@ class AppRefresh {
         content.syncFromServer(userToken: user.token),
         app.refreshLessons(silent: true),
       ]);
+      // Always baseline/sync notifications AFTER catalog is fresh to avoid
+      // seeding from a partial list and inventing the rest as "new".
+      if (context.mounted) await notifications(context);
     } catch (_) {}
   }
 
@@ -70,7 +73,7 @@ class AppRefresh {
       final center = context.read<NotificationCenterService>();
       final content = context.read<ContentService>();
       final lessons = context.read<LessonService>();
-      await center.load();
+      if (!center.isLoaded) await center.load();
       await center.syncFromCatalog(
         posts: [
           ...content.dodosoPosts,
@@ -84,11 +87,12 @@ class AppRefresh {
   }
 
   static Future<void> all(BuildContext context) async {
+    // Catalog (includes notification sync) first, then user/mwalimu in parallel.
+    await catalog(context);
+    if (!context.mounted) return;
     await Future.wait([
-      catalog(context),
       user(context),
       mwalimu(context),
-      notifications(context),
     ]);
   }
 
