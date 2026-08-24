@@ -155,88 +155,85 @@ class _MaswaliSlot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Transform.translate(
-        offset: const Offset(0, -14),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        gradient: active
-                            ? AdminColors.primaryGradient
-                            : LinearGradient(
-                                colors: [
-                                  AdminColors.card,
-                                  AdminColors.cardHover,
-                                ],
-                              ),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: active
-                              ? AdminColors.emerald.withValues(alpha: 0.5)
-                              : AdminColors.cardBorder,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AdminColors.emerald.withValues(alpha: active ? 0.35 : 0.1),
-                            blurRadius: 16,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: active
+                          ? AdminColors.primaryGradient
+                          : LinearGradient(
+                              colors: [
+                                AdminColors.card,
+                                AdminColors.cardHover,
+                              ],
+                            ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: active
+                            ? AdminColors.emerald.withValues(alpha: 0.5)
+                            : AdminColors.cardBorder,
                       ),
-                      child: Icon(
-                        Icons.forum_rounded,
-                        color: active ? const Color(0xFF052E16) : AdminColors.emerald,
-                        size: 24,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AdminColors.emerald.withValues(alpha: active ? 0.3 : 0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.forum_rounded,
+                      color: active ? const Color(0xFF052E16) : AdminColors.emerald,
+                      size: 22,
+                    ),
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: -4,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        decoration: BoxDecoration(
+                          color: AdminColors.rose,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AdminColors.surface, width: 2),
+                        ),
+                        child: Text(
+                          unread > 99 ? '99+' : '$unread',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                          ),
+                        ),
                       ),
                     ),
-                    if (unread > 0)
-                      Positioned(
-                        right: -4,
-                        top: -4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                          decoration: BoxDecoration(
-                            color: AdminColors.rose,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AdminColors.surface, width: 2),
-                          ),
-                          child: Text(
-                            unread > 99 ? '99+' : '$unread',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Maswali',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  color: active ? AdminColors.emerald : AdminColors.textDim,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Maswali',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                    color: active ? AdminColors.emerald : AdminColors.textDim,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
