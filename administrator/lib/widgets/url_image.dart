@@ -13,6 +13,7 @@ class UrlImage extends StatefulWidget {
     this.height,
     this.borderRadius = 12,
     this.fit = BoxFit.cover,
+    this.showBorder = false,
   });
 
   final String url;
@@ -20,6 +21,7 @@ class UrlImage extends StatefulWidget {
   final double? height;
   final double borderRadius;
   final BoxFit fit;
+  final bool showBorder;
 
   @override
   State<UrlImage> createState() => _UrlImageState();
@@ -43,9 +45,17 @@ class _UrlImageState extends State<UrlImage> {
     return '$proxied&_retry=$_attempt';
   }
 
+  int? _memCacheSize(double? logicalSize) {
+    if (logicalSize == null || !logicalSize.isFinite) return null;
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    return (logicalSize * ratio).round().clamp(64, 2048);
+  }
+
   @override
   Widget build(BuildContext context) {
     final displayUrl = _displayUrl();
+    final w = widget.width;
+    final h = widget.height;
 
     Widget child;
     if (displayUrl.isEmpty) {
@@ -54,10 +64,13 @@ class _UrlImageState extends State<UrlImage> {
       child = CachedNetworkImage(
         key: ValueKey('$displayUrl#$_attempt'),
         imageUrl: displayUrl,
-        width: widget.width,
-        height: widget.height,
+        width: w,
+        height: h,
         fit: widget.fit,
-        fadeInDuration: const Duration(milliseconds: 200),
+        memCacheWidth: _memCacheSize(w),
+        memCacheHeight: _memCacheSize(h),
+        fadeInDuration: const Duration(milliseconds: 220),
+        fadeOutDuration: const Duration(milliseconds: 120),
         placeholder: (context, url) => _placeholder(loading: true),
         errorWidget: (context, url, error) {
           if (_attempt < 2) {
@@ -71,9 +84,27 @@ class _UrlImageState extends State<UrlImage> {
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.borderRadius),
-      child: child,
+    final radius = BorderRadius.circular(widget.borderRadius);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        border: widget.showBorder
+            ? Border.all(color: AdminColors.textDim.withValues(alpha: 0.12))
+            : null,
+        boxShadow: widget.showBorder
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: child,
+      ),
     );
   }
 
@@ -83,9 +114,11 @@ class _UrlImageState extends State<UrlImage> {
       height: widget.height ?? 120,
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
             AdminColors.card,
-            AdminColors.card.withValues(alpha: 0.7),
+            AdminColors.card.withValues(alpha: 0.65),
           ],
         ),
       ),
@@ -99,7 +132,11 @@ class _UrlImageState extends State<UrlImage> {
                 strokeWidth: 2,
               ),
             )
-          : Icon(icon ?? Icons.image_outlined, color: AdminColors.textDim, size: 28),
+          : Icon(
+              icon ?? Icons.image_outlined,
+              color: AdminColors.textDim,
+              size: 28,
+            ),
     );
   }
 }

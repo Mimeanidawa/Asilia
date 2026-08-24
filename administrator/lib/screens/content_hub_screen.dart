@@ -7,6 +7,7 @@ import '../models/content_sections.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../widgets/admin_ui.dart';
+import '../widgets/url_image.dart';
 import 'post_editor_screen.dart';
 
 class ContentHubScreen extends StatefulWidget {
@@ -247,6 +248,25 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                           child: Material(
                             color: Colors.transparent,
                             child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: SizedBox(
+                                  width: 52,
+                                  height: 52,
+                                  child: (p['imageUrl'] as String? ?? '').isNotEmpty
+                                      ? UrlImage(
+                                          url: p['imageUrl'] as String,
+                                          borderRadius: 10,
+                                          showBorder: true,
+                                        )
+                                      : Container(
+                                          color: AdminColors.emerald.withValues(alpha: 0.12),
+                                          alignment: Alignment.center,
+                                          child: const Icon(Icons.article_outlined,
+                                              color: AdminColors.emerald, size: 22),
+                                        ),
+                                ),
+                              ),
                               title: Text(p['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
                               subtitle: Text(
                                 '$catLabel${p['isPremium'] == true ? ' • PREMIUM TZS ${p['price']}' : ''}${p['isPublished'] == true ? ' • Published' : ' • Draft'}',

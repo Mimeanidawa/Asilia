@@ -583,32 +583,71 @@ class _TextPart extends _MessagePart {
 }
 
 class _ArticlePart extends _MessagePart {
-  const _ArticlePart({required this.id, required this.title});
+  const _ArticlePart({
+    required this.id,
+    required this.title,
+    this.imageUrl,
+  });
   final String id;
   final String title;
+  final String? imageUrl;
 }
 
 class _SharedArticleTagParser {
-  static final RegExp _pattern = RegExp(r'\[MAKALA:([^|\]]+)\|([^\]]+)\]');
+  static final RegExp _pattern = RegExp(
+    r'\[MAKALA:([^|\]]+)\|([^|\]]+)(?:\|([^\]]*))?\]',
+  );
+  static final RegExp _urlLine = RegExp(r'^https?://[^\s]+/makala/[^\s]+$');
 
   static List<_MessagePart> parse(String input) {
     final parts = <_MessagePart>[];
     var cursor = 0;
+    String? linkedUrl;
+
     for (final m in _pattern.allMatches(input)) {
       if (m.start > cursor) {
-        parts.add(_TextPart(input.substring(cursor, m.start)));
+        _appendText(parts, input.substring(cursor, m.start));
       }
       final id = (m.group(1) ?? '').trim();
       final title = (m.group(2) ?? 'Makala').trim();
+      final imageUrl = (m.group(3) ?? '').trim();
       if (id.isNotEmpty) {
-        parts.add(_ArticlePart(id: id, title: title));
+        parts.add(
+          _ArticlePart(
+            id: id,
+            title: title,
+            imageUrl: imageUrl.isEmpty ? null : imageUrl,
+          ),
+        );
+        linkedUrl = '/makala/$id';
       }
       cursor = m.end;
     }
+
     if (cursor < input.length) {
-      parts.add(_TextPart(input.substring(cursor)));
+      final tail = input.substring(cursor);
+      final lines = tail.split('\n');
+      final kept = <String>[];
+      for (final line in lines) {
+        final trimmed = line.trim();
+        if (trimmed.isEmpty) {
+          kept.add(line);
+          continue;
+        }
+        if (_urlLine.hasMatch(trimmed) &&
+            (linkedUrl == null || trimmed.contains(linkedUrl))) {
+          continue;
+        }
+        kept.add(line);
+      }
+      _appendText(parts, kept.join('\n'));
     }
     return parts;
+  }
+
+  static void _appendText(List<_MessagePart> parts, String raw) {
+    final text = raw.trim();
+    if (text.isNotEmpty) parts.add(_TextPart(text));
   }
 }
 
@@ -619,54 +658,108 @@ class _SharedArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImage = part.imageUrl != null && part.imageUrl!.isNotEmpty;
+
     return Material(
       color: AppColors.emerald50.withValues(alpha: 0.55),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => context.read<AppProvider>().navigate(
           AppScreen.contentDetail,
           contentId: part.id,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.menu_book_rounded,
-                size: 18,
-                color: AppColors.forest,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  part.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.forest,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                    height: 1.3,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (hasImage)
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: CachedNetworkImage(
+                  imageUrl: ImageUrl.display(part.imageUrl!),
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(
+                    color: AppColors.emerald50,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.forest,
+                      ),
+                    ),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.emerald50,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.menu_book_rounded,
+                      color: AppColors.forest,
+                      size: 28,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Soma',
-                style: TextStyle(
-                  color: AppColors.forest,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 11,
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  if (!hasImage)
+                    const Icon(
+                      Icons.menu_book_rounded,
+                      size: 18,
+                      color: AppColors.forest,
+                    ),
+                  if (!hasImage) const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Makala',
+                          style: TextStyle(
+                            color: AppColors.forest,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          part.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.forest,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Soma',
+                    style: TextStyle(
+                      color: AppColors.forest,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 16,
+                    color: AppColors.forest,
+                  ),
+                ],
               ),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                size: 16,
-                color: AppColors.forest,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

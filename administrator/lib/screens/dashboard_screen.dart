@@ -77,12 +77,13 @@ class DashboardScreen extends StatelessWidget {
                         delay: Duration.zero,
                       ),
                       StatCard(
-                        label: 'Monthly Revenue',
-                        value: TzsFormat.compact(stats.monthlyRevenue),
+                        label: "Today's Revenue",
+                        value: TzsFormat.compact(stats.todayRevenue),
                         icon: Icons.payments_rounded,
                         accentColor: AdminColors.amber,
-                        trend: '+${stats.revenueGrowthRate}%',
-                        trendPositive: true,
+                        trend: '${stats.todayRevenueGrowthRate >= 0 ? '+' : ''}${stats.todayRevenueGrowthRate.toStringAsFixed(1)}%',
+                        trendPositive: stats.todayRevenueGrowthRate >= 0,
+                        subtitle: 'vs yesterday',
                         delay: const Duration(milliseconds: 60),
                       ),
                       StatCard(

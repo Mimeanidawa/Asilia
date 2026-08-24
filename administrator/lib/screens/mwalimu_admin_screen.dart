@@ -6,6 +6,9 @@ import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../utils/makala_share.dart';
+import '../widgets/makala_message.dart';
+import '../widgets/makala_picker_sheet.dart';
 
 /// Maswali inbox — opened from the dashboard floating message button.
 class MwalimuAdminScreen extends StatefulWidget {
@@ -104,6 +107,14 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
     _refreshTimer?.cancel();
     _replyCtrl.dispose();
     super.dispose();
+  }
+
+  String _previewMessage(String? raw) {
+    final text = raw ?? '';
+    if (text.contains('[MAKALA:')) {
+      return '📄 Makala imeshirikiwa';
+    }
+    return text;
   }
 
   int get _unreadTotal => _conversations.fold<int>(
@@ -296,8 +307,8 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
           ),
           subtitle: Text(
             c['isGuest'] == true
-                ? 'Mgeni · ${c['lastMessage'] as String? ?? ''}'
-                : (c['lastMessage'] as String? ?? ''),
+                ? 'Mgeni · ${_previewMessage(c['lastMessage'] as String?)}'
+                : _previewMessage(c['lastMessage'] as String?),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
@@ -356,10 +367,15 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
                                 : AdminColors.surface,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: Text(m['content'] as String,
-                              style: GoogleFonts.inter(
-                                  color: AdminColors.textPrimary,
-                                  fontSize: 13)),
+                          child: MakalaMessageContent(
+                            content: m['content'] as String? ?? '',
+                            compact: true,
+                            textStyle: GoogleFonts.inter(
+                              color: AdminColors.textPrimary,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
                         ),
                       );
                     },
@@ -428,36 +444,36 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
     }
     final selected = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
-      backgroundColor: AdminColors.surface,
-      builder: (ctx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text('Chagua makala ya kushiriki',
-                  style: GoogleFonts.inter(
-                      color: AdminColors.textPrimary,
-                      fontWeight: FontWeight.w700)),
-            ),
-            ..._publishedArticles.map((p) => ListTile(
-                  title: Text(p['title'] as String? ?? '',
-                      style: GoogleFonts.inter(color: AdminColors.textPrimary)),
-                  onTap: () => Navigator.pop(ctx, p),
-                )),
-          ],
-        ),
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => MakalaPickerSheet(articles: _publishedArticles),
     );
     if (selected == null || _selectedConvId == null) return;
+
+    final id = selected['id'] as String? ?? '';
+    if (id.isEmpty) return;
+
     final title = selected['title'] as String? ?? 'Makala';
-    final excerpt = selected['excerpt'] as String? ?? '';
-    final body =
-        'Soma makala: $title${excerpt.isNotEmpty ? '\n\n$excerpt' : ''}';
+    final imageUrl = selected['imageUrl'] as String? ?? '';
+    final body = MakalaShare.formatMessage(
+      id: id,
+      title: title,
+      imageUrl: imageUrl.isNotEmpty ? imageUrl : null,
+    );
+
     await context
         .read<AdminProvider>()
         .contentService
         .replyToConversation(_selectedConvId!, body);
     await _reloadMessages();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Makala imeshirikiwa: $title',
+              style: GoogleFonts.inter()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

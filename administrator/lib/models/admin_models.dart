@@ -77,9 +77,11 @@ class DashboardStats {
     required this.premiumUsers,
     required this.freeUsers,
     required this.monthlyRevenue,
+    required this.todayRevenue,
     required this.totalRevenue,
     required this.userGrowthRate,
     required this.revenueGrowthRate,
+    required this.todayRevenueGrowthRate,
     required this.premiumConversionRate,
     required this.activeToday,
     required this.churnRate,
@@ -89,9 +91,11 @@ class DashboardStats {
   final int premiumUsers;
   final int freeUsers;
   final double monthlyRevenue;
+  final double todayRevenue;
   final double totalRevenue;
   final double userGrowthRate;
   final double revenueGrowthRate;
+  final double todayRevenueGrowthRate;
   final double premiumConversionRate;
   final int activeToday;
   final double churnRate;

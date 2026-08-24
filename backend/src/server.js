@@ -15,6 +15,7 @@ import paymentsRouter from './routes/payments.js';
 import notificationsRouter from './routes/notifications.js';
 import imagesRouter from './routes/images.js';
 import mediaRouter from './routes/media.js';
+import makalaRouter from './routes/makala.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -73,6 +74,7 @@ app.use('/api/payments', paymentsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/images', imagesRouter);
 app.use('/api/media', mediaRouter);
+app.use('/makala', makalaRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);

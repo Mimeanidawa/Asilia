@@ -58,7 +58,14 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
         COALESCE(SUM(amount) FILTER (
           WHERE created_at >= date_trunc('month', NOW()) - INTERVAL '1 month'
             AND created_at < date_trunc('month', NOW())
-        ), 0)::int AS last_month
+        ), 0)::int AS last_month,
+        COALESCE(SUM(amount) FILTER (
+          WHERE created_at >= CURRENT_DATE
+        ), 0)::int AS today,
+        COALESCE(SUM(amount) FILTER (
+          WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
+            AND created_at < CURRENT_DATE
+        ), 0)::int AS yesterday
       FROM user_purchases
     `);
 
@@ -126,6 +133,7 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
     const premium = userCounts[0].premium;
     const free = userCounts[0].free;
     const monthlyRevenue = revenueCounts[0].monthly;
+    const todayRevenue = revenueCounts[0].today;
     const totalRevenue = revenueCounts[0].total;
     const conversion = total > 0 ? Math.round((premium / total) * 1000) / 10 : 0;
 
@@ -165,9 +173,11 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
         premiumUsers: premium,
         freeUsers: free,
         monthlyRevenue,
+        todayRevenue,
         totalRevenue,
         userGrowthRate: pctChange(userCounts[0].new_this_month, userCounts[0].new_last_month),
         revenueGrowthRate: pctChange(revenueCounts[0].monthly, revenueCounts[0].last_month),
+        todayRevenueGrowthRate: pctChange(revenueCounts[0].today, revenueCounts[0].yesterday),
         premiumConversionRate: conversion,
         activeToday: userCounts[0].active_today,
         churnRate: 0,
