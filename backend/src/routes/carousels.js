@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
-import { ingestImageUrl } from '../utils/mediaCache.js';
+import { ingestImageUrl, lookupCachedMediaIds, displayUrlFromCache } from '../utils/mediaCache.js';
+import { publicApiBase } from '../utils/publicUrl.js';
 
 const router = Router();
 
@@ -32,14 +33,25 @@ function rowToCarousel(row) {
   };
 }
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
     const db = getPool();
     const { rows } = await db.query(
       `SELECT * FROM carousels WHERE is_published = TRUE
        ORDER BY sort_order ASC, created_at DESC`,
     );
-    res.json({ carousels: rows.map(rowToCarousel) });
+    const apiBase = publicApiBase(req);
+    let cachedIds = new Map();
+    try {
+      cachedIds = await lookupCachedMediaIds(rows.map((r) => r.image_url));
+    } catch (_) {}
+    res.json({
+      carousels: rows.map((row) => {
+        const item = rowToCarousel(row);
+        item.imageUrl = displayUrlFromCache(row.image_url, cachedIds, apiBase) || item.imageUrl;
+        return item;
+      }),
+    });
   } catch (err) {
     console.error('GET /carousels:', err);
     res.status(500).json({ error: 'Imeshindwa kupata carousel' });

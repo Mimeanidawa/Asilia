@@ -17,7 +17,7 @@ import '../widgets/api_carousel.dart';
 import '../widgets/carousel_content_picker_sheet.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/content_post_card.dart';
-import '../widgets/darasa_huru_card.dart';
+import '../widgets/darasa_huru_carousel.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/learning_pathways_row.dart';
 import '../utils/app_refresh.dart';
@@ -619,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         SectionHeader(
           title: 'Dodoso',
-          subtitle: 'Gusa kategoria ili kuona makala zote',
+          subtitle: 'Gusa Aina ili kuona makala zote',
           badge: '${content.dodosoPosts.length} makala',
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
         ),
@@ -757,19 +757,21 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final lesson = lessons.todayLesson;
-    if (lesson == null) return const SizedBox.shrink();
+    final published = lessons.publishedLessons;
+    if (published.isEmpty) return const SizedBox.shrink();
 
     return Column(
       children: [
-        const SectionHeader(
+        SectionHeader(
           title: 'Darasa Huru',
-          subtitle: 'Masomo ya kila siku kutoka kwa wataalamu wetu',
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
+          subtitle: 'Masomo kutoka kwa wataalamu — yanazunguka kila mara',
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+          actionLabel: 'Zote',
+          onAction: () => app.navigate(AppScreen.darasaHuru),
         ),
-        DarasaHuruCard(
-          lesson: lesson,
-          onTap: () => app.navigate(
+        DarasaHuruCarousel(
+          lessons: published,
+          onOpen: (lesson) => app.navigate(
             AppScreen.darasaHuru,
             lessonId: lesson.id,
           ),

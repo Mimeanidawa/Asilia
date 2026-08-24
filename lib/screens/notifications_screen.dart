@@ -64,8 +64,7 @@ class NotificationsScreen extends StatelessWidget {
     final app = context.read<AppProvider>();
     center.markRead(n.id);
 
-    final hasTarget = n.contentId != null || n.lessonId != null || n.type == 'message';
-    if (!hasTarget) return;
+    if (!_hasTarget(n)) return;
 
     app.openFromNotification(
       lessonId: n.lessonId,
@@ -79,8 +78,8 @@ class NotificationsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Futa arifa zote?'),
-        content: const Text('Arifa zote zitafutwa kabisa kutoka kwenye kifaa chako.'),
+        title: const Text('Futa taarifa zote?'),
+        content: const Text('Taarifa zote zitafutwa kabisa kutoka kwenye kifaa chako.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -104,7 +103,7 @@ class NotificationsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Futa arifa?'),
+        title: const Text('Futa taarifa?'),
         content: Text('Una uhakika unataka kufuta "${n.title}"?'),
         actions: [
           TextButton(
@@ -124,8 +123,18 @@ class NotificationsScreen extends StatelessWidget {
     if (confirmed == true) await center.delete(n.id);
   }
 
-  bool _hasTarget(AppNotification n) =>
-      n.contentId != null || n.lessonId != null || n.type == 'message';
+  bool _hasTarget(AppNotification n) {
+    if (n.contentId != null && n.contentId!.isNotEmpty) return true;
+    if (n.lessonId != null && n.lessonId!.isNotEmpty) return true;
+    switch (n.type) {
+      case 'article':
+      case 'lesson':
+      case 'message':
+        return true;
+      default:
+        return false;
+    }
+  }
 
   String? _resolveImageUrl(BuildContext context, AppNotification n) {
     if (n.imageUrl.isNotEmpty) return n.imageUrl;
@@ -138,8 +147,8 @@ class NotificationsScreen extends StatelessWidget {
         ...content.vyakulaMatundaPosts,
         ...content.jifunzePosts,
       ]) {
-        if (post.id == n.contentId && post.imageUrl.isNotEmpty) {
-          return post.imageUrl;
+        if (post.id == n.contentId && post.displayImageUrl.isNotEmpty) {
+          return post.displayImageUrl;
         }
       }
     }
@@ -187,7 +196,7 @@ class NotificationsScreen extends StatelessWidget {
       child: Column(
         children: [
           ScreenHeader(
-            title: 'ARIFA',
+            title: 'TAARIFA',
             onBack: () => context.read<AppProvider>().goBack(),
             trailing: (center.unreadCount > 0 || items.isNotEmpty)
                 ? Row(
@@ -219,7 +228,7 @@ class NotificationsScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               color: AppColors.amber.withValues(alpha: 0.08),
               child: Text(
-                'Una arifa ${center.unreadCount} ambazo hazijasomwa',
+                'Una taarifa ${center.unreadCount} ambazo hazijasomwa',
                 style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.amber),
               ),
             ),
@@ -237,7 +246,7 @@ class NotificationsScreen extends StatelessWidget {
                             children: [
                               Icon(Icons.notifications_off_outlined, size: 48, color: AppColors.gray400),
                               const SizedBox(height: 12),
-                              Text('Hakuna arifa bado', style: TextStyle(color: AppColors.gray400, fontSize: 14)),
+                              Text('Hakuna taarifa bado', style: TextStyle(color: AppColors.gray400, fontSize: 14)),
                             ],
                           ),
                         ),

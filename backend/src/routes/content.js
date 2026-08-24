@@ -4,7 +4,9 @@ import { requireAdmin } from '../middleware/auth.js';
 import { optionalUser } from '../middleware/userAuth.js';
 import { sendContentNotification } from '../services/firebase.js';
 import { resolveImageUrl, normalizeImageUrl, resolveContentImageUrls, normalizeContentImageUrls } from '../utils/resolveImageUrl.js';
-import { ingestImageUrl } from '../utils/mediaCache.js';
+import { ingestImageUrl, lookupCachedMediaIds, displayUrlFromCache, toDisplayImageUrl, toDisplayContent, collectContentImageUrls, coverSourceFromRow, firstContentImageUrl } from '../utils/mediaCache.js';
+import { publicApiBase } from '../utils/publicUrl.js';
+import { recordNotificationHistory } from './notifications.js';
 
 const router = Router();
 
@@ -19,6 +21,19 @@ async function persistCoverImage(raw) {
   return resolved;
 }
 
+async function persistContentImages(raw) {
+  const resolved = await resolveContentImageUrls(raw || '');
+  const urls = collectContentImageUrls(resolved);
+  await Promise.all(
+    urls.map((url) =>
+      ingestImageUrl(url).catch((err) => {
+        console.warn('content image ingest failed:', url, err.message);
+      }),
+    ),
+  );
+  return resolved;
+}
+
 function rowToPost(row, { includeContent = true } = {}) {
   const post = {
     id: row.id,
@@ -27,7 +42,7 @@ function rowToPost(row, { includeContent = true } = {}) {
     title: row.title,
     subtitle: row.subtitle,
     excerpt: row.excerpt,
-    imageUrl: normalizeImageUrl(row.image_url),
+    imageUrl: normalizeImageUrl(coverSourceFromRow(row)),
     isPremium: row.is_premium,
     price: row.price,
     isPublished: row.is_published,
@@ -65,7 +80,19 @@ router.get('/', optionalUser, async (req, res) => {
     }
 
     const { rows } = await db.query(sql, params);
-    res.json({ posts: rows.map((r) => rowToPost(r, { includeContent: false })) });
+    const apiBase = publicApiBase(req);
+    const covers = rows.map((r) => coverSourceFromRow(r));
+    let cachedIds = new Map();
+    try {
+      cachedIds = await lookupCachedMediaIds(covers);
+    } catch (_) {}
+    res.json({
+      posts: rows.map((r, i) => {
+        const post = rowToPost(r, { includeContent: false });
+        post.imageUrl = displayUrlFromCache(covers[i], cachedIds, apiBase) || post.imageUrl;
+        return post;
+      }),
+    });
   } catch (err) {
     console.error('GET /content:', err);
     res.status(500).json({ error: 'Imeshindwa kupata maudhui' });
@@ -73,7 +100,7 @@ router.get('/', optionalUser, async (req, res) => {
 });
 
 // Public: recommended (random from darasa_huru dodoso + dodoso posts)
-router.get('/recommended', async (_req, res) => {
+router.get('/recommended', async (req, res) => {
   try {
     const db = getPool();
     const { rows: lessons } = await db.query(
@@ -91,6 +118,16 @@ router.get('/recommended', async (_req, res) => {
        LIMIT 12`,
     );
 
+    const apiBase = publicApiBase(req);
+    let cachedIds = new Map();
+    try {
+      cachedIds = await lookupCachedMediaIds([
+        ...lessons.map((r) => r.image_url),
+        ...dodoso.map((r) => r.image_url),
+      ]);
+    } catch (_) {}
+    const display = (raw) => displayUrlFromCache(raw, cachedIds, apiBase);
+
     const shuffle = (arr) => {
       const copy = [...arr];
       for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -107,7 +144,7 @@ router.get('/recommended', async (_req, res) => {
         category: 'darasa_huru',
         title: r.title,
         excerpt: r.excerpt,
-        imageUrl: normalizeImageUrl(r.image_url),
+        imageUrl: display(r.image_url) || normalizeImageUrl(r.image_url),
         readTimeMinutes: r.read_time_minutes,
         isPremium: false,
         price: 0,
@@ -118,7 +155,7 @@ router.get('/recommended', async (_req, res) => {
         category: r.category,
         title: r.title,
         excerpt: r.excerpt,
-        imageUrl: normalizeImageUrl(r.image_url),
+        imageUrl: display(r.image_url) || normalizeImageUrl(r.image_url),
         readTimeMinutes: r.read_time_minutes,
         isPremium: r.is_premium,
         price: r.price,
@@ -162,11 +199,30 @@ router.get('/catalog', async (req, res) => {
       ),
     ]);
 
-    // Return normalized URLs immediately — do NOT await media cache lookups
-    // per row (that stalls the whole catalog and blocks other API routes).
-    const posts = postsResult.rows.map((r) =>
-      rowToPost(r, { includeContent: false }),
-    );
+    const apiBase = publicApiBase(req);
+    const postCovers = postsResult.rows.map((r) => coverSourceFromRow(r));
+    const coverUrls = [
+      ...carouselResult.rows.map((r) => r.image_url),
+      ...postCovers,
+      ...lessonsResult.rows.map((r) => r.image_url),
+      ...dodosoResult.rows.map((r) => r.image_url),
+    ];
+    let cachedIds = new Map();
+    try {
+      cachedIds = await lookupCachedMediaIds(coverUrls);
+    } catch (err) {
+      console.warn('catalog media lookup failed:', err.message);
+    }
+
+    const display = (raw) => displayUrlFromCache(raw, cachedIds, apiBase);
+
+    // Return cached /api/media URLs when we already ingested the file so the
+    // app never has to wait on the live proxy for thumbnails.
+    const posts = postsResult.rows.map((r, i) => {
+      const post = rowToPost(r, { includeContent: false });
+      post.imageUrl = display(postCovers[i]) || post.imageUrl;
+      return post;
+    });
     const bySection = {
       dodoso: posts.filter((p) => p.section === 'dodoso'),
       chagua_mada: posts.filter((p) => p.section === 'chagua_mada'),
@@ -193,7 +249,7 @@ router.get('/catalog', async (req, res) => {
         category: 'darasa_huru',
         title: r.title,
         excerpt: r.excerpt,
-        imageUrl: normalizeImageUrl(r.image_url),
+        imageUrl: display(r.image_url) || normalizeImageUrl(r.image_url),
         readTimeMinutes: r.read_time_minutes,
         isPremium: false,
         price: 0,
@@ -204,7 +260,7 @@ router.get('/catalog', async (req, res) => {
         category: r.category,
         title: r.title,
         excerpt: r.excerpt,
-        imageUrl: normalizeImageUrl(r.image_url),
+        imageUrl: display(r.image_url) || normalizeImageUrl(r.image_url),
         readTimeMinutes: r.read_time_minutes,
         isPremium: r.is_premium,
         price: r.price,
@@ -215,7 +271,7 @@ router.get('/catalog', async (req, res) => {
       id: row.id,
       title: row.title,
       subtitle: row.subtitle,
-      imageUrl: normalizeImageUrl(row.image_url),
+      imageUrl: display(row.image_url) || normalizeImageUrl(row.image_url),
       linkSection: row.link_section,
       linkId: row.link_id,
       sortOrder: row.sort_order,
@@ -233,10 +289,11 @@ router.get('/catalog', async (req, res) => {
     // Warm media cache in background (limited concurrency) so thumbnails load fast.
     const warmUrls = [
       ...carouselResult.rows.map((r) => r.image_url),
-      ...postsResult.rows.map((r) => r.image_url),
+      ...postCovers,
+      ...postsResult.rows.flatMap((r) => collectContentImageUrls(r.content).slice(0, 2)),
       ...lessonsResult.rows.map((r) => r.image_url),
     ].filter(Boolean);
-    const unique = [...new Set(warmUrls.map((u) => normalizeImageUrl(u)).filter(Boolean))].slice(0, 40);
+    const unique = [...new Set(warmUrls.map((u) => normalizeImageUrl(u)).filter(Boolean))].slice(0, 80);
     (async () => {
       const chunk = 4;
       for (let i = 0; i < unique.length; i += chunk) {
@@ -260,6 +317,24 @@ router.get('/:id', optionalUser, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Maudhui hayapatikani' });
 
     const post = rowToPost(rows[0]);
+    const apiBase = publicApiBase(req);
+    try {
+      const displayCover = await toDisplayImageUrl(post.imageUrl, apiBase);
+      if (displayCover) post.imageUrl = displayCover;
+    } catch (_) {}
+    try {
+      post.content = await toDisplayContent(post.content, apiBase);
+    } catch (_) {}
+    const bodyUrls = collectContentImageUrls(rows[0].content).filter(
+      (url) => url && !String(url).includes('/api/media/'),
+    );
+    if (bodyUrls.length) {
+      (async () => {
+        for (const url of bodyUrls.slice(0, 16)) {
+          await ingestImageUrl(url).catch(() => {});
+        }
+      })().catch(() => {});
+    }
     const userId = req.user?.sub;
 
     if (post.isPremium && userId) {
@@ -331,10 +406,9 @@ router.post('/admin', requireAdmin, async (req, res) => {
 
     const postId = id || `post-${Date.now()}`;
     const db = getPool();
-    const [resolvedImage, resolvedContent] = await Promise.all([
-      persistCoverImage(imageUrl?.trim() || ''),
-      resolveContentImageUrls(content?.trim() || ''),
-    ]);
+    const resolvedContent = await persistContentImages(content?.trim() || '');
+    const cover = String(imageUrl || '').trim() || firstContentImageUrl(resolvedContent);
+    const resolvedImage = await persistCoverImage(cover);
 
     await db.query(
       `INSERT INTO content_posts
@@ -389,14 +463,18 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     );
     if (!existing.length) return res.status(404).json({ error: 'Maudhui hayapatikani' });
     const wasPublished = existing[0].is_published;
-    const resolvedImage =
-      imageUrl === undefined || imageUrl === null
-        ? undefined
-        : await persistCoverImage(String(imageUrl).trim());
     const resolvedContent =
       content === undefined || content === null
         ? undefined
-        : await resolveContentImageUrls(String(content).trim());
+        : await persistContentImages(String(content).trim());
+    let resolvedImage;
+    if (imageUrl !== undefined && imageUrl !== null) {
+      const cover = String(imageUrl).trim() || firstContentImageUrl(resolvedContent || '');
+      resolvedImage = await persistCoverImage(cover);
+    } else if (resolvedContent) {
+      const cover = firstContentImageUrl(resolvedContent);
+      if (cover) resolvedImage = await persistCoverImage(cover);
+    }
 
     const result = await db.query(
       `UPDATE content_posts SET
@@ -434,6 +512,66 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     res.json({ post, notification });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kusasisha maudhui' });
+  }
+});
+
+async function notifyUsersAboutPost(post, { title, body, source = 'makala' } = {}) {
+  const notification = await sendContentNotification(post, { title, body });
+  let history = null;
+  try {
+    history = await recordNotificationHistory({
+      title: title?.trim() || post.title,
+      body: body?.trim() || post.excerpt || post.title,
+      target: 'all',
+      status: notification?.sent ? 'sent' : 'failed',
+      sentCount: notification?.sent ? 1 : 0,
+      source,
+    });
+  } catch (err) {
+    console.warn('makala notification history failed:', err.message);
+  }
+  return { ...notification, ...(history || {}) };
+}
+
+router.post('/admin/:id/share', requireAdmin, async (req, res) => {
+  try {
+    const db = getPool();
+    const { rows } = await db.query(
+      'SELECT * FROM content_posts WHERE id = $1',
+      [req.params.id],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Maudhui hayapatikani' });
+
+    const post = rowToPost(rows[0]);
+    if (!post.isPublished) {
+      return res.status(400).json({ error: 'Chapisha makala kwanza kabla ya kuituma' });
+    }
+
+    const title = req.body?.title?.trim() || post.title;
+    const body = req.body?.body?.trim() ||
+      post.excerpt ||
+      'Gusa kusoma makala kamili';
+
+    const notification = await notifyUsersAboutPost(post, {
+      title,
+      body,
+      source: 'makala',
+    });
+
+    res.json({
+      ok: true,
+      post,
+      notification: {
+        ...notification,
+        title,
+        body,
+        target: 'all',
+        status: notification?.sent ? 'sent' : 'failed',
+      },
+    });
+  } catch (err) {
+    console.error('POST /content/admin/:id/share:', err);
+    res.status(500).json({ error: 'Imeshindwa kutuma makala' });
   }
 });
 

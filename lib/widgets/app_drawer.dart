@@ -112,7 +112,7 @@ class AppDrawer extends StatelessWidget {
                     Navigator.pop(context);
                     app.navigate(AppScreen.askExpert);
                   }, 5),
-                  _item(context, Icons.notifications_rounded, 'Arifa', () {
+                  _item(context, Icons.notifications_rounded, 'Taarifa', () {
                     Navigator.pop(context);
                     app.navigate(AppScreen.notifications);
                   }, 6),

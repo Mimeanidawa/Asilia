@@ -301,7 +301,7 @@ class ContentService extends ChangeNotifier {
 
   Future<bool> _loadCache() async {
     final prefs = await SharedPreferences.getInstance();
-    final cached = prefs.getString('da_content_cache_v3');
+    final cached = prefs.getString('da_content_cache_v5');
     if (cached == null) return false;
 
     try {
@@ -333,7 +333,7 @@ class ContentService extends ChangeNotifier {
 
   Future<void> _saveCache() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('da_content_cache_v3', jsonEncode({
+    await prefs.setString('da_content_cache_v5', jsonEncode({
       'carousels': carousels.map((c) => {
             'id': c.id, 'title': c.title, 'subtitle': c.subtitle,
             'imageUrl': c.imageUrl, 'linkSection': c.linkSection,

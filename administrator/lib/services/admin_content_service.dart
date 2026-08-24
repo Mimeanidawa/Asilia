@@ -108,10 +108,33 @@ class AdminContentService {
     required String title,
     required String body,
     required String target,
+    String? contentId,
+    String? imageUrl,
   }) async {
     return _api.post(
       '/api/devices/broadcast',
-      body: {'title': title, 'body': body, 'target': target},
+      body: {
+        'title': title,
+        'body': body,
+        'target': target,
+        if (contentId != null && contentId.isNotEmpty) 'contentId': contentId,
+        if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+      },
+      token: _token,
+    );
+  }
+
+  Future<Map<String, dynamic>> sharePost(
+    String id, {
+    String? title,
+    String? body,
+  }) async {
+    return _api.post(
+      '/api/content/admin/$id/share',
+      body: {
+        if (title != null && title.isNotEmpty) 'title': title,
+        if (body != null && body.isNotEmpty) 'body': body,
+      },
       token: _token,
     );
   }

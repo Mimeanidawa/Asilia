@@ -40,12 +40,17 @@ class AppProvider extends ChangeNotifier {
   }
 
   void openFromNotification({String? lessonId, String? contentId, String? type}) {
-    if (type == 'message') {
+    final kind = (type ?? '').toLowerCase();
+    if (kind == 'message' || kind == 'admin_message') {
       navigate(AppScreen.askExpert);
       return;
     }
     if (contentId != null && contentId.isNotEmpty) {
       openContentFromNotification(contentId);
+      return;
+    }
+    if (kind == 'article') {
+      navigate(AppScreen.notifications);
       return;
     }
     if (lessonId != null && lessonId.isNotEmpty) {

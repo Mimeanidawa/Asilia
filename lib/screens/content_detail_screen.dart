@@ -40,9 +40,17 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final content = context.read<ContentService>();
     final user = context.read<UserService>();
     final id = app.selectedContentId;
-    if (id == null) return;
+    if (id == null || id.isEmpty) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
 
-    final post = await content.fetchPost(id, userToken: user.token);
+    var post = await content.fetchPost(id, userToken: user.token);
+    if (post == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
+      post = await content.fetchPost(id, userToken: user.token);
+    }
     if (!mounted) return;
 
     setState(() {
@@ -119,17 +127,20 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(bottom: 32),
               children: [
-                if (post.imageUrl.isNotEmpty)
-                  GestureDetector(
-                    onTap: () => openFullscreenImage(context, post.imageUrl, caption: post.title),
-                    child: HerbImage(
-                      url: post.imageUrl,
-                      height: 220,
-                      fullWidth: true,
-                      borderRadius: 0,
-                      fit: BoxFit.cover,
-                    ),
-                  ).animate().fadeIn(),
+                GestureDetector(
+                  onTap: post.displayImageUrl.isEmpty
+                      ? null
+                      : () => openFullscreenImage(context, post.displayImageUrl, caption: post.title),
+                  child: HerbImage(
+                    url: post.displayImageUrl,
+                    fullWidth: true,
+                    fitToImage: true,
+                    fit: BoxFit.fitWidth,
+                    borderRadius: 0,
+                    fallbackLabel: post.title,
+                    category: post.category ?? post.section,
+                  ),
+                ).animate().fadeIn(),
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -163,11 +174,13 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                           height: 1.2,
                         ),
                       ).animate().fadeIn(delay: 100.ms),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${post.readTimeLabel} • ${post.subtitle}',
-                        style: TextStyle(fontSize: 12, color: AppColors.gray400),
-                      ),
+                      if (post.subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          post.subtitle,
+                          style: TextStyle(fontSize: 13, color: AppColors.gray500, height: 1.35),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       if (post.isPremium && !canRead)
                         PremiumMakalaGate(

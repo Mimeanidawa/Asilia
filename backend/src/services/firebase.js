@@ -1,4 +1,5 @@
 import admin from 'firebase-admin';
+import { publicApiBase } from '../utils/publicUrl.js';
 
 let initialized = false;
 
@@ -7,6 +8,35 @@ export const FCM_TOPIC_LESSONS = 'darasa_huru';
 export const FCM_TOPIC_ADMIN = 'asilia_admin';
 export const FCM_CHANNEL_ID = 'darasa_huru';
 export const FCM_ADMIN_CHANNEL_ID = 'asilia_admin';
+
+function apiOrigin() {
+  return publicApiBase(null);
+}
+
+/** FCM data values must be strings. Skip empty entries. */
+function stringifyData(obj = {}) {
+  const data = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (!text) continue;
+    data[key] = text;
+  }
+  return data;
+}
+
+/** Public URL FCM servers can fetch for BigPicture / iOS rich notifications. */
+function fcmImageUrl(raw) {
+  const url = String(raw || '').trim();
+  if (!url) return undefined;
+  if (/^https:\/\//i.test(url) && (url.includes('/api/media/') || url.includes('/api/images/'))) {
+    return url;
+  }
+  if (/^https:\/\//i.test(url) && url.includes('/api/media/')) return url;
+  const base = apiOrigin();
+  if (url.startsWith('/api/')) return `${base}${url}`;
+  return `${base}/api/images/proxy?url=${encodeURIComponent(url)}`;
+}
 
 export function initFirebase() {
   if (initialized) return admin;
@@ -31,30 +61,55 @@ export function initFirebase() {
   }
 }
 
-function androidConfig() {
+function androidConfig(channelId, { imageUrl } = {}) {
+  const notification = {
+    channelId,
+    sound: 'default',
+    defaultSound: true,
+    defaultVibrateTimings: true,
+    priority: 'high',
+    visibility: 'public',
+    clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+  };
+  if (imageUrl) notification.imageUrl = imageUrl;
   return {
     priority: 'high',
-    notification: { channelId: FCM_CHANNEL_ID, sound: 'default' },
+    ttl: 86400000,
+    notification,
   };
 }
 
-function apnsConfig() {
-  return {
-    payload: { aps: { sound: 'default', badge: 1 } },
+function apnsConfig({ imageUrl } = {}) {
+  const config = {
+    headers: { 'apns-priority': '10' },
+    payload: {
+      aps: {
+        sound: 'default',
+        badge: 1,
+        'content-available': 1,
+        'mutable-content': 1,
+      },
+    },
   };
+  if (imageUrl) config.fcmOptions = { imageUrl };
+  return config;
 }
 
-async function sendToTopic(topic, { title, body, data }) {
+async function sendToTopic(topic, { title, body, data, channelId, imageUrl }) {
   const fb = initFirebase();
   if (!fb) return { sent: false, reason: 'firebase_not_configured' };
+
+  const image = fcmImageUrl(imageUrl);
+  const notification = { title, body };
+  if (image) notification.imageUrl = image;
 
   try {
     const messageId = await fb.messaging().send({
       topic,
-      notification: { title, body },
-      data,
-      android: androidConfig(),
-      apns: apnsConfig(),
+      notification,
+      data: stringifyData(data),
+      android: androidConfig(channelId || FCM_CHANNEL_ID, { imageUrl: image }),
+      apns: apnsConfig({ imageUrl: image }),
     });
     return { sent: true, messageId };
   } catch (err) {
@@ -63,12 +118,16 @@ async function sendToTopic(topic, { title, body, data }) {
   }
 }
 
-async function sendToTokens(tokens, { title, body, data }) {
+async function sendToTokens(tokens, { title, body, data, channelId, imageUrl }) {
   const fb = initFirebase();
   if (!fb) return { sent: false, reason: 'firebase_not_configured' };
   if (!tokens?.length) return { sent: false, reason: 'no_tokens' };
 
   const unique = [...new Set(tokens.filter(Boolean))];
+  const image = fcmImageUrl(imageUrl);
+  const notification = { title, body };
+  if (image) notification.imageUrl = image;
+
   let success = 0;
   const errors = [];
 
@@ -76,10 +135,10 @@ async function sendToTokens(tokens, { title, body, data }) {
     try {
       await fb.messaging().send({
         token,
-        notification: { title, body },
-        data,
-        android: androidConfig(),
-        apns: apnsConfig(),
+        notification,
+        data: stringifyData(data),
+        android: androidConfig(channelId || FCM_CHANNEL_ID, { imageUrl: image }),
+        apns: apnsConfig({ imageUrl: image }),
       });
       success += 1;
     } catch (err) {
@@ -109,26 +168,40 @@ export async function sendLessonNotification(lesson) {
     lessonId: lesson.id,
     title,
     body,
+    imageUrl: lesson.imageUrl || '',
     click_action: 'FLUTTER_NOTIFICATION_CLICK',
   };
 
-  const topicResult = await sendToTopic(FCM_TOPIC_LESSONS, { title, body, data });
+  const topicResult = await sendToTopic(FCM_TOPIC_LESSONS, {
+    title,
+    body,
+    data,
+    channelId: FCM_CHANNEL_ID,
+    imageUrl: lesson.imageUrl,
+  });
   return { sent: topicResult.sent, ...topicResult };
 }
 
-export async function sendContentNotification(post) {
-  const title = 'Makala Mpya — Dawa Asili';
-  const body = post.title;
+export async function sendContentNotification(post, { title, body } = {}) {
+  const notifTitle = title?.trim() || 'Makala Mpya — Dawa Asili';
+  const notifBody = body?.trim() || post.title;
   const data = {
     type: 'article',
-    contentId: post.id,
+    contentId: String(post.id || ''),
     section: post.section ?? '',
-    title,
-    body,
+    title: notifTitle,
+    body: notifBody,
+    imageUrl: post.imageUrl || '',
     click_action: 'FLUTTER_NOTIFICATION_CLICK',
   };
 
-  const topicResult = await sendToTopic(FCM_TOPIC_ALL, { title, body, data });
+  const topicResult = await sendToTopic(FCM_TOPIC_ALL, {
+    title: notifTitle,
+    body: notifBody,
+    data,
+    channelId: FCM_CHANNEL_ID,
+    imageUrl: post.imageUrl,
+  });
   return { sent: topicResult.sent, ...topicResult };
 }
 
@@ -143,7 +216,12 @@ export async function sendMwalimuReplyNotification({ userId, preview }) {
   };
 
   const tokens = await getUserDeviceTokens(userId);
-  return sendToTokens(tokens, { title, body, data });
+  return sendToTokens(tokens, {
+    title,
+    body,
+    data,
+    channelId: FCM_CHANNEL_ID,
+  });
 }
 
 /** Status-bar alert for admins — never include the user's message text. */
@@ -158,7 +236,15 @@ export async function sendAdminNewUserMessageNotification({ userName } = {}) {
     click_action: 'FLUTTER_NOTIFICATION_CLICK',
   };
 
-  const topicResult = await sendToTopic(FCM_TOPIC_ADMIN, { title, body, data });
+  const payload = {
+    title,
+    body,
+    data,
+    channelId: FCM_ADMIN_CHANNEL_ID,
+  };
+
+  let tokenResult = { sent: false, reason: 'no_tokens' };
+  let topicResult = { sent: false, reason: 'not_attempted' };
 
   try {
     const { getPool } = await import('../db.js');
@@ -166,31 +252,59 @@ export async function sendAdminNewUserMessageNotification({ userName } = {}) {
     const { rows } = await db.query(
       'SELECT token FROM admin_device_tokens WHERE token IS NOT NULL',
     );
-    const tokenResult = await sendToTokens(
-      rows.map((r) => r.token),
-      { title, body, data },
-    );
-    return {
-      sent: topicResult.sent || tokenResult.sent,
-      topic: topicResult,
-      tokens: tokenResult,
-    };
+    const tokens = rows.map((r) => r.token).filter(Boolean);
+    if (tokens.length) {
+      tokenResult = await sendToTokens(tokens, payload);
+    }
   } catch (err) {
     console.error('Admin device token notify failed:', err.message);
-    return topicResult;
+    tokenResult = { sent: false, error: err.message };
   }
+
+  // Topic delivery works even when token registration failed (e.g. app never logged in
+  // after install but topic was subscribed at bootstrap). Skip topic only when every
+  // token send succeeded to avoid double notifications on the same device.
+  const allTokensSucceeded =
+    tokenResult.sent &&
+    (!tokenResult.errors || tokenResult.errors.length === 0) &&
+    (tokenResult.successCount ?? 0) > 0;
+
+  if (!allTokensSucceeded) {
+    topicResult = await sendToTopic(FCM_TOPIC_ADMIN, payload);
+  }
+
+  const sent = tokenResult.sent || topicResult.sent;
+  if (!sent) {
+    console.warn('Admin new-message push not delivered', { tokenResult, topicResult });
+  }
+
+  return { sent, tokens: tokenResult, topic: topicResult };
 }
 
-export async function sendBroadcastNotification({ title, body, target = 'all' }) {
+export async function sendBroadcastNotification({
+  title,
+  body,
+  target = 'all',
+  contentId,
+  imageUrl,
+} = {}) {
   const data = {
-    type: 'general',
+    type: contentId ? 'article' : 'general',
     title,
     body,
+    contentId: contentId || '',
+    imageUrl: imageUrl || '',
     click_action: 'FLUTTER_NOTIFICATION_CLICK',
   };
 
   if (target === 'all') {
-    return sendToTopic(FCM_TOPIC_ALL, { title, body, data });
+    return sendToTopic(FCM_TOPIC_ALL, {
+      title,
+      body,
+      data,
+      channelId: FCM_CHANNEL_ID,
+      imageUrl,
+    });
   }
 
   const { getPool } = await import('../db.js');
@@ -208,5 +322,11 @@ export async function sendBroadcastNotification({ title, body, target = 'all' })
 
   const { rows } = await db.query(query);
   const tokens = rows.map((r) => r.token);
-  return sendToTokens(tokens, { title, body, data });
+  return sendToTokens(tokens, {
+    title,
+    body,
+    data,
+    channelId: FCM_CHANNEL_ID,
+    imageUrl,
+  });
 }

@@ -23,21 +23,49 @@ typedef PushNotificationHandler = void Function({
   String? lessonId,
   String? contentId,
   String? type,
+  String? imageUrl,
 });
 
-const _androidChannelId = 'darasa_huru';
-const _androidChannelName = 'Dawa Asili Arifa';
+const androidChannelId = 'darasa_huru';
+const androidChannelName = 'Dawa Asili Taarifa';
+
+class _PendingTap {
+  const _PendingTap({this.lessonId, this.contentId, this.type});
+  final String? lessonId;
+  final String? contentId;
+  final String? type;
+}
+
+String? fcmDataString(Map<String, dynamic> data, String key) {
+  final value = data[key] ?? data[key.toLowerCase()];
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+String? fcmImageUrl(RemoteMessage message) {
+  return message.notification?.android?.imageUrl ??
+      message.notification?.apple?.imageUrl ??
+      fcmDataString(message.data, 'imageUrl');
+}
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (!AppConfig.hasFirebase) return;
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    }
+  } catch (_) {}
   await NotificationStore.appendFromPush(
-    title: message.notification?.title ?? message.data['title'] as String? ?? 'Arifa mpya',
-    body: message.notification?.body ?? message.data['body'] as String? ?? '',
-    lessonId: message.data['lessonId'] as String?,
-    contentId: message.data['contentId'] as String?,
-    type: message.data['type'] as String?,
+    title: message.notification?.title ??
+        fcmDataString(message.data, 'title') ??
+        'Taarifa mpya',
+    body: message.notification?.body ?? fcmDataString(message.data, 'body') ?? '',
+    lessonId: fcmDataString(message.data, 'lessonId'),
+    contentId: fcmDataString(message.data, 'contentId'),
+    type: fcmDataString(message.data, 'type'),
+    imageUrl: fcmImageUrl(message),
   );
   debugPrint('Background FCM stored: ${message.notification?.title}');
 }
@@ -52,23 +80,42 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   String? _lastRegisteredToken;
+  _PendingTap? _pendingTap;
 
-  NotificationTapHandler? onNotificationTap;
+  NotificationTapHandler? _onNotificationTap;
   PushNotificationHandler? onPushReceived;
+
+  NotificationTapHandler? get onNotificationTap => _onNotificationTap;
+
+  set onNotificationTap(NotificationTapHandler? handler) {
+    _onNotificationTap = handler;
+    final pending = _pendingTap;
+    if (handler != null && pending != null) {
+      _pendingTap = null;
+      handler(
+        lessonId: pending.lessonId,
+        contentId: pending.contentId,
+        type: pending.type,
+      );
+    }
+  }
 
   bool get isSupported =>
       (kIsWeb && AppConfig.hasFirebase) ||
       (!kIsWeb && (Platform.isAndroid || Platform.isIOS));
 
   Future<void> init() async {
-    if (!AppConfig.hasFirebase || !isSupported || _initialized) return;
+    if (!DefaultFirebaseOptions.isSupported || !isSupported || _initialized) {
+      return;
+    }
 
     try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
       _messaging = FirebaseMessaging.instance;
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       await _initLocalNotifications();
 
@@ -76,12 +123,19 @@ class NotificationService {
         alert: true,
         badge: true,
         sound: true,
+        announcement: true,
       );
 
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         debugPrint('FCM permission denied');
         return;
       }
+
+      await _messaging!.setForegroundNotificationPresentationOptions(
+        alert: false,
+        badge: true,
+        sound: true,
+      );
 
       await _messaging!.subscribeToTopic('darasa_huru');
       await _messaging!.subscribeToTopic(AppConfig.fcmTopicAll);
@@ -116,9 +170,9 @@ class NotificationService {
         try {
           final data = jsonDecode(payload) as Map<String, dynamic>;
           _dispatchTap(
-            lessonId: _dataString(data, 'lessonId'),
-            contentId: _dataString(data, 'contentId'),
-            type: _dataString(data, 'type'),
+            lessonId: fcmDataString(data, 'lessonId'),
+            contentId: fcmDataString(data, 'contentId'),
+            type: fcmDataString(data, 'type'),
           );
         } catch (_) {}
       },
@@ -126,15 +180,17 @@ class NotificationService {
 
     if (!kIsWeb && Platform.isAndroid) {
       const channel = AndroidNotificationChannel(
-        _androidChannelId,
-        _androidChannelName,
-        description: 'Arifa za masomo, makala na ujumbe kutoka Mwalimu',
+        androidChannelId,
+        androidChannelName,
+        description: 'Taarifa za masomo, makala na ujumbe kutoka Mwalimu',
         importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
       );
-      await _localNotifications
+      final android = _localNotifications
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+              AndroidFlutterLocalNotificationsPlugin>();
+      await android?.createNotificationChannel(channel);
     }
   }
 
@@ -183,8 +239,8 @@ class NotificationService {
 
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final title = notification?.title ?? message.data['title'] as String?;
-    final body = notification?.body ?? message.data['body'] as String?;
+    final title = notification?.title ?? fcmDataString(message.data, 'title');
+    final body = notification?.body ?? fcmDataString(message.data, 'body');
     if (title == null || title.isEmpty) return;
 
     final dataJson = jsonEncode(message.data);
@@ -195,9 +251,9 @@ class NotificationService {
       body ?? '',
       NotificationDetails(
         android: AndroidNotificationDetails(
-          _androidChannelId,
-          _androidChannelName,
-          channelDescription: 'Arifa za masomo, makala na ujumbe',
+          androidChannelId,
+          androidChannelName,
+          channelDescription: 'Taarifa za masomo, makala na ujumbe',
           importance: Importance.high,
           priority: Priority.high,
           icon: '@drawable/ic_notification',
@@ -215,17 +271,10 @@ class NotificationService {
   void _handleMessage(RemoteMessage message) {
     _storePush(message);
     _dispatchTap(
-      lessonId: _dataString(message.data, 'lessonId'),
-      contentId: _dataString(message.data, 'contentId'),
-      type: _dataString(message.data, 'type'),
+      lessonId: fcmDataString(message.data, 'lessonId'),
+      contentId: fcmDataString(message.data, 'contentId'),
+      type: fcmDataString(message.data, 'type'),
     );
-  }
-
-  String? _dataString(Map<String, dynamic> data, String key) {
-    final value = data[key];
-    if (value == null) return null;
-    final text = value.toString().trim();
-    return text.isEmpty ? null : text;
   }
 
   void _dispatchTap({
@@ -233,8 +282,16 @@ class NotificationService {
     String? contentId,
     String? type,
   }) {
-    if (onNotificationTap == null) return;
-    onNotificationTap!(
+    final handler = _onNotificationTap;
+    if (handler == null) {
+      _pendingTap = _PendingTap(
+        lessonId: lessonId,
+        contentId: contentId,
+        type: type,
+      );
+      return;
+    }
+    handler(
       lessonId: lessonId,
       contentId: contentId,
       type: type,
@@ -243,13 +300,15 @@ class NotificationService {
 
   void _storePush(RemoteMessage message) {
     if (onPushReceived == null) return;
-    final title =
-        message.notification?.title ?? message.data['title'] as String? ?? 'Arifa mpya';
+    final title = message.notification?.title ??
+        fcmDataString(message.data, 'title') ??
+        'Taarifa mpya';
     final body =
-        message.notification?.body ?? message.data['body'] as String? ?? '';
-    final lessonId = _dataString(message.data, 'lessonId');
-    final contentId = _dataString(message.data, 'contentId');
-    final type = _dataString(message.data, 'type');
+        message.notification?.body ?? fcmDataString(message.data, 'body') ?? '';
+    final lessonId = fcmDataString(message.data, 'lessonId');
+    final contentId = fcmDataString(message.data, 'contentId');
+    final type = fcmDataString(message.data, 'type');
+    final imageUrl = fcmImageUrl(message);
     if (title.isEmpty && body.isEmpty) return;
     onPushReceived!(
       title: title,
@@ -257,6 +316,7 @@ class NotificationService {
       lessonId: lessonId,
       contentId: contentId,
       type: type,
+      imageUrl: imageUrl,
     );
   }
 }

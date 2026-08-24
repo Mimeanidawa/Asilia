@@ -6,6 +6,7 @@ import {
   mediaPublicPath,
 } from '../utils/mediaCache.js';
 import { resolveImageUrl, normalizeImageUrl, tidyImageUrl } from '../utils/resolveImageUrl.js';
+import { publicApiBase } from '../utils/publicUrl.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
@@ -97,7 +98,7 @@ router.get('/resolve', async (req, res) => {
     return res.status(400).json({ error: 'URL ya picha si sahihi' });
   }
 
-  const apiBase = `${req.protocol}://${req.get('host')}`;
+  const apiBase = publicApiBase(req);
   const target = normalizeImageUrl(rawTarget);
 
   try {

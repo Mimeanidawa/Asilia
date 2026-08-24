@@ -117,11 +117,11 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
     final badge = providerUnread > 0 ? providerUnread : _unreadTotal;
 
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AdminColors.bg,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AdminColors.emerald),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () {
             if (_selectedConvId != null) {
               setState(() => _selectedConvId = null);
@@ -135,19 +135,19 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
           children: [
             Text(
               'Maswali',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 20),
             ),
             if (badge > 0) ...[
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AdminColors.error,
+                  color: AdminColors.rose,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   badge > 99 ? '99+' : '$badge',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.plusJakartaSans(
                     color: Colors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,

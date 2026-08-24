@@ -142,27 +142,50 @@ export async function resolveImageUrl(raw) {
   return normalized;
 }
 
+function mapContentImageBlocks(parsed, mapper) {
+  const mapBlock = (block) => {
+    if (!block || typeof block !== 'object') return block;
+    if (block.type === 'image' && block.url) {
+      return mapper(block);
+    }
+    return block;
+  };
+  if (Array.isArray(parsed)) return parsed.map(mapBlock);
+  if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+    return { ...parsed, blocks: parsed.blocks.map(mapBlock) };
+  }
+  return null;
+}
+
+async function mapContentImageBlocksAsync(parsed, mapper) {
+  const mapBlock = async (block) => {
+    if (!block || typeof block !== 'object') return block;
+    if (block.type === 'image' && block.url) {
+      return mapper(block);
+    }
+    return block;
+  };
+  if (Array.isArray(parsed)) return Promise.all(parsed.map(mapBlock));
+  if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+    return { ...parsed, blocks: await Promise.all(parsed.blocks.map(mapBlock)) };
+  }
+  return null;
+}
+
 /**
  * Resolve every image URL inside a rich-content JSON string.
- * @param {string} content
- * @returns {Promise<string>}
+ * Supports both `[blocks]` and `{ version, blocks }` payloads.
  */
 export async function resolveContentImageUrls(content) {
   const raw = String(content || '');
   if (!raw.trim()) return raw;
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return raw;
-    const next = await Promise.all(
-      parsed.map(async (block) => {
-        if (!block || typeof block !== 'object') return block;
-        if (block.type === 'image' && block.url) {
-          return { ...block, url: await resolveImageUrl(block.url) };
-        }
-        return block;
-      }),
-    );
-    return JSON.stringify(next);
+    const next = await mapContentImageBlocksAsync(parsed, async (block) => ({
+      ...block,
+      url: await resolveImageUrl(block.url),
+    }));
+    return next == null ? raw : JSON.stringify(next);
   } catch {
     return raw;
   }
@@ -170,23 +193,17 @@ export async function resolveContentImageUrls(content) {
 
 /**
  * Sync-normalize image URLs inside content JSON (no network).
- * @param {string} content
- * @returns {string}
  */
 export function normalizeContentImageUrls(content) {
   const raw = String(content || '');
   if (!raw.trim()) return raw;
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return raw;
-    const next = parsed.map((block) => {
-      if (!block || typeof block !== 'object') return block;
-      if (block.type === 'image' && block.url) {
-        return { ...block, url: normalizeImageUrl(block.url) };
-      }
-      return block;
-    });
-    return JSON.stringify(next);
+    const next = mapContentImageBlocks(parsed, (block) => ({
+      ...block,
+      url: normalizeImageUrl(block.url),
+    }));
+    return next == null ? raw : JSON.stringify(next);
   } catch {
     return raw;
   }

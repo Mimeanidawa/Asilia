@@ -8,6 +8,7 @@ import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
+import '../widgets/admin_ui.dart';
 import '../widgets/chart_card.dart';
 import '../widgets/stat_card.dart';
 
@@ -28,56 +29,23 @@ class AnalyticsScreen extends StatelessWidget {
     final activePct = stats.totalUsers > 0 ? stats.activeToday / stats.totalUsers : 0.0;
 
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
+        backgroundColor: AdminColors.card,
         onRefresh: provider.refreshData,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              backgroundColor: AdminColors.bg,
-              pinned: true,
-              elevation: 0,
-              toolbarHeight: 80,
-              titleSpacing: 0,
-              title: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Analytics',
-                            style: GoogleFonts.inter(
-                              color: AdminColors.textPrimary,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Performance overview · Last 12 months',
-                            style: GoogleFonts.inter(
-                              color: AdminColors.textDim,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _LiveBadge(isRefreshing: provider.isRefreshing),
-                  ],
-                ),
-              ),
+            AdminPageHeader(
+              title: 'Analytics',
+              subtitle: 'Performance overview · Last 12 months',
+              actions: [
+                _LiveBadge(isRefreshing: provider.isRefreshing),
+              ],
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _OverviewBanner(stats: stats, fmt: fmt),
@@ -94,8 +62,7 @@ class AnalyticsScreen extends StatelessWidget {
                         label: 'User Growth',
                         value: '+${stats.userGrowthRate.toStringAsFixed(1)}%',
                         icon: Icons.trending_up_rounded,
-                        gradient: AdminColors.emeraldGradient,
-                        glowColor: AdminColors.emerald,
+                        accentColor: AdminColors.emerald,
                         subtitle: '${fmt.format(stats.totalUsers)} total',
                         delay: const Duration(milliseconds: 60),
                       ),
@@ -103,8 +70,7 @@ class AnalyticsScreen extends StatelessWidget {
                         label: 'Revenue Growth',
                         value: '+${stats.revenueGrowthRate.toStringAsFixed(1)}%',
                         icon: Icons.payments_rounded,
-                        gradient: AdminColors.amberGradient,
-                        glowColor: AdminColors.amber,
+                        accentColor: AdminColors.amber,
                         subtitle: TzsFormat.compact(stats.monthlyRevenue),
                         delay: const Duration(milliseconds: 120),
                       ),
@@ -112,8 +78,7 @@ class AnalyticsScreen extends StatelessWidget {
                         label: 'Premium Rate',
                         value: '${stats.premiumConversionRate.toStringAsFixed(1)}%',
                         icon: Icons.workspace_premium_rounded,
-                        gradient: AdminColors.purpleGradient,
-                        glowColor: AdminColors.purple,
+                        accentColor: AdminColors.purple,
                         subtitle: '${fmt.format(stats.premiumUsers)} subscribers',
                         delay: const Duration(milliseconds: 180),
                       ),
@@ -121,12 +86,7 @@ class AnalyticsScreen extends StatelessWidget {
                         label: 'Churn Rate',
                         value: '${stats.churnRate.toStringAsFixed(1)}%',
                         icon: Icons.trending_down_rounded,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF991B1B), Color(0xFFEF4444)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        glowColor: AdminColors.error,
+                        accentColor: AdminColors.error,
                         trendPositive: false,
                         subtitle: '${fmt.format(stats.activeToday)} active today',
                         delay: const Duration(milliseconds: 240),
@@ -264,28 +224,9 @@ class _OverviewBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AdminSurface(
+      accentColor: AdminColors.emerald,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AdminColors.forest,
-            AdminColors.forestLight,
-            AdminColors.emerald.withValues(alpha: 0.25),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: AdminColors.emerald.withValues(alpha: 0.15),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -294,10 +235,10 @@ class _OverviewBanner extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: AdminColors.emeraldGlow,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.insights_rounded, color: Colors.white, size: 22),
+                child: const Icon(Icons.insights_rounded, color: AdminColors.emerald, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -306,16 +247,16 @@ class _OverviewBanner extends StatelessWidget {
                   children: [
                     Text(
                       'Platform Snapshot',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
                       'Real-time metrics from your user base',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.65),
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.textMuted,
                         fontSize: 11,
                       ),
                     ),
@@ -333,14 +274,14 @@ class _OverviewBanner extends StatelessWidget {
                   value: fmt.format(stats.totalUsers),
                 ),
               ),
-              Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
+              Container(width: 1, height: 36, color: AdminColors.cardBorder),
               Expanded(
                 child: _OverviewStat(
                   label: 'Total Revenue',
                   value: TzsFormat.compact(stats.totalRevenue),
                 ),
               ),
-              Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
+              Container(width: 1, height: 36, color: AdminColors.cardBorder),
               Expanded(
                 child: _OverviewStat(
                   label: 'Premium',
@@ -367,8 +308,8 @@ class _OverviewStat extends StatelessWidget {
       children: [
         Text(
           value,
-          style: GoogleFonts.inter(
-            color: Colors.white,
+          style: GoogleFonts.plusJakartaSans(
+            color: AdminColors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.3,
@@ -378,8 +319,8 @@ class _OverviewStat extends StatelessWidget {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: Colors.white.withValues(alpha: 0.6),
+          style: GoogleFonts.plusJakartaSans(
+            color: AdminColors.textMuted,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),

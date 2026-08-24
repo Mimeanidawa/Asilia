@@ -7,6 +7,7 @@ import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
+import '../widgets/admin_ui.dart';
 import '../widgets/user_list_tile.dart';
 
 class UsersScreen extends StatelessWidget {
@@ -18,105 +19,43 @@ class UsersScreen extends StatelessWidget {
     final users = provider.filteredUsers;
 
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
+        backgroundColor: AdminColors.card,
         onRefresh: provider.refreshData,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-          SliverAppBar(
-            backgroundColor: AdminColors.bg,
-            pinned: true,
-            elevation: 0,
-            toolbarHeight: 72,
-            titleSpacing: 0,
-            title: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Users',
-                        style: GoogleFonts.inter(
-                          color: AdminColors.textPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      Text(
-                        '${provider.filteredUsers.length} of ${provider.stats.totalUsers}',
-                        style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                  GestureDetector(
-                    onTap: () => _showFilterSheet(context, provider),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: AdminColors.emeraldGlow,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AdminColors.emerald.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.filter_list_rounded, color: AdminColors.emerald, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Filter',
-                            style: GoogleFonts.inter(
-                              color: AdminColors.emerald,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+          AdminPageHeader(
+            title: 'Users',
+            subtitle: '${provider.filteredUsers.length} of ${provider.stats.totalUsers}',
+            actions: [
+              AdminIconButton(
+                icon: Icons.tune_rounded,
+                label: 'Filter',
+                onTap: () => _showFilterSheet(context, provider),
               ),
-            ),
+            ],
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(60),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: TextField(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: AdminSearchField(
+                  hint: 'Search by name, email, or phone...',
                   onChanged: provider.setUserSearch,
-                  style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14),
-                  decoration: const InputDecoration(
-                    hintText: 'Search by name, email, or phone...',
-                    prefixIcon: Icon(Icons.search_rounded, color: AdminColors.textDim, size: 18),
-                  ),
                 ),
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
             sliver: users.isEmpty
                 ? SliverToBoxAdapter(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 80),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.search_off_rounded, color: AdminColors.textDim, size: 48),
-                            const SizedBox(height: 12),
-                            Text(
-                              'No users found',
-                              style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: AdminEmptyState(
+                      icon: Icons.search_off_rounded,
+                      title: 'No users found',
+                      subtitle: 'Try adjusting your search or filters',
                     ),
                   )
                 : SliverList(

@@ -85,7 +85,7 @@ router.get('/count', async (_req, res) => {
 
 router.post('/broadcast', requireAdmin, async (req, res) => {
   try {
-    const { title, body, target } = req.body;
+    const { title, body, target, contentId, imageUrl } = req.body;
     if (!title?.trim() || !body?.trim()) {
       return res.status(400).json({ error: 'Title and body required' });
     }
@@ -95,6 +95,8 @@ router.post('/broadcast', requireAdmin, async (req, res) => {
       title: title.trim(),
       body: body.trim(),
       target: audience,
+      contentId: contentId ? String(contentId).trim() : undefined,
+      imageUrl: imageUrl ? String(imageUrl).trim() : undefined,
     });
 
     const sent = !!result?.sent;
@@ -113,7 +115,7 @@ router.post('/broadcast', requireAdmin, async (req, res) => {
         target: audience,
         status: sent ? 'sent' : 'failed',
         sentCount,
-        source: 'broadcast',
+        source: contentId ? 'makala' : 'broadcast',
       });
     } catch (historyErr) {
       console.error('Failed to save notification history:', historyErr);

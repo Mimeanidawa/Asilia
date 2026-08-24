@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_ui.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -129,9 +130,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final provider = context.watch<AdminProvider>();
 
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
+        backgroundColor: AdminColors.card,
         onRefresh: () async {
           await provider.refreshData();
           await _loadPremiumSettings();
@@ -139,63 +141,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            SliverAppBar(
-              backgroundColor: AdminColors.bg,
-              pinned: true,
-              elevation: 0,
-              toolbarHeight: 72,
-              titleSpacing: 0,
-              title: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Settings',
-                  style: GoogleFonts.inter(
-                    color: AdminColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-              ),
+            const AdminPageHeader(
+              title: 'Settings',
+              subtitle: 'App configuration & pricing',
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   Animate(
                     effects: const [
                       FadeEffect(duration: Duration(milliseconds: 400)),
                     ],
-                    child: Container(
+                    child: AdminSurface(
+                      accentColor: AdminColors.emerald,
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AdminColors.forest, AdminColors.forestLight],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AdminColors.emerald.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
                       child: Row(
                         children: [
                           Container(
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              shape: BoxShape.circle,
+                              color: AdminColors.emeraldGlow,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.25)),
                             ),
                             child: const Center(
                               child: Icon(
                                 Icons.admin_panel_settings_rounded,
-                                color: Colors.white,
+                                color: AdminColors.emerald,
                                 size: 28,
                               ),
                             ),
@@ -206,18 +180,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Super Admin',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
+                                  provider.adminName ?? 'Super Admin',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: AdminColors.textPrimary,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 Text(
-                                  provider.adminEmail ??
-                                      'mimeanidawa@gmail.com',
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white.withOpacity(0.7),
+                                  provider.adminEmail ?? 'mimeanidawa@gmail.com',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: AdminColors.textMuted,
                                     fontSize: 13,
                                   ),
                                 ),
@@ -230,13 +203,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: AdminColors.emeraldGlow,
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.25)),
                             ),
                             child: Text(
                               'Admin',
-                              style: GoogleFonts.inter(
-                                color: Colors.white,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.emerald,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -288,7 +262,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _SettingsTile(
                           icon: Icons.info_outline_rounded,
                           label: 'App Version',
-                          trailing: '1.0.0',
+                          trailing: '1.0.1',
                           color: AdminColors.blue,
                         ),
                         _SettingsTile(

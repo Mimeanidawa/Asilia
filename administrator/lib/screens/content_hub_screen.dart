@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/content_sections.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_ui.dart';
 import 'post_editor_screen.dart';
 
 class ContentHubScreen extends StatefulWidget {
@@ -66,24 +67,23 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
+        backgroundColor: AdminColors.card,
         onRefresh: _load,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-          SliverAppBar(
-            backgroundColor: AdminColors.bg,
-            pinned: true,
-            toolbarHeight: 72,
-            title: Text('Maudhui', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800)),
+          AdminPageHeader(
+            title: 'Maudhui',
+            subtitle: 'Carousel & makala',
             bottom: TabBar(
               controller: _tabs,
-              indicatorColor: AdminColors.emerald,
-              labelColor: AdminColors.emerald,
-              unselectedLabelColor: AdminColors.textDim,
-              tabs: const [Tab(text: 'Carousel'), Tab(text: 'Makala')],
+              tabs: const [
+                Tab(text: 'Carousel'),
+                Tab(text: 'Makala'),
+              ],
             ),
           ),
           SliverFillRemaining(
@@ -101,7 +101,9 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _tabs.index == 0 ? _showCarouselForm() : _showPostForm(),
         backgroundColor: AdminColors.emerald,
-        icon: const Icon(Icons.add),
+        foregroundColor: const Color(0xFF052E16),
+        elevation: 0,
+        icon: const Icon(Icons.add_rounded),
         label: Text(_tabs.index == 0 ? 'Carousel' : 'Makala'),
       ),
     );
@@ -114,19 +116,20 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
       itemCount: _carousels.length,
       itemBuilder: (_, i) {
         final c = _carousels[i];
-        return Card(
-          color: AdminColors.surface,
-          margin: const EdgeInsets.only(bottom: 10),
-          child: Material(
-            color: Colors.transparent,
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: AdminSurface(
+            accentColor: AdminColors.emerald,
+            padding: EdgeInsets.zero,
             child: ListTile(
-              title: Text(c['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-              subtitle: Text(c['subtitle'] as String? ?? '', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              title: Text(c['title'] as String, style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
+              subtitle: Text(c['subtitle'] as String? ?? '', style: GoogleFonts.plusJakartaSans(color: AdminColors.textMuted, fontSize: 12)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showCarouselForm(existing: c)),
-                  IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deleteCarousel(c['id'] as String)),
+                  IconButton(icon: const Icon(Icons.edit_rounded, color: AdminColors.emerald, size: 18), onPressed: () => _showCarouselForm(existing: c)),
+                  IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AdminColors.error, size: 18), onPressed: () => _deleteCarousel(c['id'] as String)),
                 ],
               ),
             ),
@@ -223,7 +226,7 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                         child: Text(
                           _categoryFilter == null
                               ? 'Hakuna makala katika sehemu hii.\nBonyeza + Makala kuongeza.'
-                              : 'Hakuna makala katika kategoria hii bado.',
+                              : 'Hakuna makala katika Aina hii bado.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
                         ),
@@ -252,6 +255,12 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  if (p['isPublished'] == true)
+                                    IconButton(
+                                      tooltip: 'Tuma kwa watumiaji',
+                                      icon: const Icon(Icons.send_rounded, color: AdminColors.emerald, size: 18),
+                                      onPressed: () => _sharePost(p),
+                                    ),
                                   IconButton(
                                     icon: Icon(p['isPublished'] == true ? Icons.visibility : Icons.visibility_off, color: AdminColors.emerald, size: 18),
                                     onPressed: () => _togglePublish(p['id'] as String),
@@ -410,6 +419,55 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
       await _load();
     } catch (e) {
       _showMessage('Imeshindwa kubadilisha hali: ${_errorText(e)}', isError: true);
+    }
+  }
+
+  Future<void> _sharePost(Map<String, dynamic> post) async {
+    final title = post['title'] as String? ?? 'Makala';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AdminColors.surface,
+        title: Text('Tuma makala?', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        content: Text(
+          'Watumiaji watapokea taarifa ya "$title" na wataweza kubofya kuisoma.',
+          style: GoogleFonts.inter(color: AdminColors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Ghairi', style: GoogleFonts.inter(color: AdminColors.textDim)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Tuma', style: GoogleFonts.inter(color: AdminColors.emerald, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final provider = context.read<AdminProvider>();
+    try {
+      final result = await provider.contentService.sharePost(
+        post['id'] as String,
+        title: title,
+        body: (post['excerpt'] as String?)?.trim().isNotEmpty == true
+            ? post['excerpt'] as String
+            : 'Gusa kusoma makala kamili',
+      );
+      final notification = result['notification'] as Map<String, dynamic>?;
+      final sent = notification?['sent'] == true || notification?['status'] == 'sent';
+      if (!mounted) return;
+      _showMessage(
+        sent
+            ? 'Makala imetumwa. Watumiaji wanaweza kubofya kuisoma.'
+            : 'Imehifadhiwa. Hakikisha Firebase imeunganishwa kwenye server.',
+        isError: !sent,
+      );
+      await provider.refreshNotifications();
+    } catch (e) {
+      _showMessage('Imeshindwa kutuma: ${_errorText(e)}', isError: true);
     }
   }
 }

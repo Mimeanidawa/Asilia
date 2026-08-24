@@ -9,11 +9,22 @@ class ImageUrl {
     caseSensitive: false,
   );
 
+  static String forceHttps(String raw) {
+    final url = raw.trim();
+    if (url.startsWith('http://') &&
+        !url.contains('localhost') &&
+        !url.contains('127.0.0.1')) {
+      return 'https://${url.substring(7)}';
+    }
+    return url;
+  }
+
   static String tidy(String raw) {
     var url = raw.trim();
     if (url.isEmpty) return '';
     if (url.startsWith('//')) url = 'https:$url';
-    return unwrapProxy(url);
+    url = unwrapProxy(url);
+    return forceHttps(url);
   }
 
   static String unwrapProxy(String url) {
@@ -81,10 +92,7 @@ class ImageUrl {
     }
 
     final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/$'), '');
-    if (url.startsWith('$base/api/media/') ||
-        url.startsWith('$base/api/images/proxy')) {
-      return url;
-    }
+    if (isApiMediaUrl(url)) return forceHttps(url);
 
     return Uri.parse('$base/api/images/proxy').replace(
       queryParameters: {'url': url},
@@ -93,7 +101,7 @@ class ImageUrl {
 
   static String display(String raw) {
     final url = tidy(raw);
-    if (isApiMediaUrl(url)) return url;
+    if (isApiMediaUrl(url)) return forceHttps(url);
     return proxied(raw);
   }
 
@@ -101,8 +109,11 @@ class ImageUrl {
     final url = tidy(raw);
     if (url.isEmpty) return false;
     if (url.contains('/api/media/')) return true;
+    if (url.contains('/api/images/proxy')) return true;
     final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/$'), '');
-    if (base.isNotEmpty && url.startsWith('$base/api/')) return true;
-    return false;
+    if (base.isEmpty) return false;
+    final httpsBase = forceHttps(base);
+    final httpBase = httpsBase.replaceFirst('https://', 'http://');
+    return url.startsWith('$httpsBase/api/') || url.startsWith('$httpBase/api/');
   }
 }

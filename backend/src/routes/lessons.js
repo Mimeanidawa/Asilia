@@ -3,7 +3,8 @@ import { getPool } from '../db.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendLessonNotification } from '../services/firebase.js';
 import { resolveImageUrl, normalizeImageUrl } from '../utils/resolveImageUrl.js';
-import { ingestImageUrl } from '../utils/mediaCache.js';
+import { ingestImageUrl, lookupCachedMediaIds, displayUrlFromCache } from '../utils/mediaCache.js';
+import { publicApiBase } from '../utils/publicUrl.js';
 
 const router = Router();
 
@@ -35,23 +36,37 @@ function rowToLesson(row) {
   };
 }
 
+async function withDisplayImages(lessons, req) {
+  const list = Array.isArray(lessons) ? lessons : [lessons];
+  const apiBase = publicApiBase(req);
+  let cachedIds = new Map();
+  try {
+    cachedIds = await lookupCachedMediaIds(list.map((l) => l.imageUrl));
+  } catch (_) {}
+  const mapped = list.map((lesson) => ({
+    ...lesson,
+    imageUrl: displayUrlFromCache(lesson.imageUrl, cachedIds, apiBase) || lesson.imageUrl,
+  }));
+  return Array.isArray(lessons) ? mapped : mapped[0];
+}
+
 // ── Public routes ──────────────────────────────────────────────
 
-router.get('/', async (_req, res) => {
+router.get('/', async (req, res) => {
   try {
     const db = getPool();
     const { rows } = await db.query(
       `SELECT * FROM lessons WHERE is_published = TRUE
        ORDER BY published_at DESC`,
     );
-    res.json({ lessons: rows.map(rowToLesson) });
+    res.json({ lessons: await withDisplayImages(rows.map(rowToLesson), req) });
   } catch (err) {
     console.error('GET /lessons:', err);
     res.status(500).json({ error: 'Failed to fetch lessons' });
   }
 });
 
-router.get('/today', async (_req, res) => {
+router.get('/today', async (req, res) => {
   try {
     const db = getPool();
     const { rows } = await db.query(
@@ -61,7 +76,7 @@ router.get('/today', async (_req, res) => {
     );
 
     if (rows.length > 0) {
-      return res.json({ lesson: rowToLesson(rows[0]) });
+      return res.json({ lesson: await withDisplayImages(rowToLesson(rows[0]), req) });
     }
 
     const { rows: latest } = await db.query(
@@ -69,7 +84,9 @@ router.get('/today', async (_req, res) => {
        ORDER BY published_at DESC LIMIT 1`,
     );
 
-    res.json({ lesson: latest.length ? rowToLesson(latest[0]) : null });
+    res.json({
+      lesson: latest.length ? await withDisplayImages(rowToLesson(latest[0]), req) : null,
+    });
   } catch (err) {
     console.error('GET /lessons/today:', err);
     res.status(500).json({ error: 'Failed to fetch today lesson' });

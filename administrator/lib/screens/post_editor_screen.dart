@@ -97,6 +97,16 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
         ? _excerptCtrl.text.trim()
         : body.toPlainText().split('\n').firstWhere((l) => l.trim().isNotEmpty, orElse: () => '');
 
+    var cover = _coverCtrl.text.trim();
+    if (cover.isEmpty) {
+      for (final block in normalized) {
+        if (block.type == ContentBlockType.image && block.url.trim().isNotEmpty) {
+          cover = block.url.trim();
+          break;
+        }
+      }
+    }
+
     return {
       'section': widget.section,
       'category': _category,
@@ -104,7 +114,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       'subtitle': _subtitleCtrl.text.trim(),
       'excerpt': excerpt.length > 160 ? '${excerpt.substring(0, 157)}...' : excerpt,
       'content': body.toJsonString(),
-      'imageUrl': _coverCtrl.text.trim(),
+      'imageUrl': cover,
       'price': int.tryParse(_priceCtrl.text) ?? 2000,
       'isPremium': _isPremium,
       'isPublished': _isPublished,
@@ -165,7 +175,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.existing == null ? 'Makala Mpya' : 'Hariri Makala',
+          widget.existing == null ? 'Makala Mpya' : 'Hifadhi Makala',
           style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 17),
         ),
         actions: [
@@ -173,7 +183,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
             onPressed: () => setState(() => _preview = !_preview),
             icon: Icon(_preview ? Icons.edit_rounded : Icons.visibility_rounded, size: 18, color: AdminColors.emerald),
             label: Text(
-              _preview ? 'Hariri' : 'Onyesho',
+              _preview ? 'Hifadhi' : 'Onyesho',
               style: GoogleFonts.inter(color: AdminColors.emerald, fontWeight: FontWeight.w600),
             ),
           ),
@@ -254,7 +264,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
                   DropdownButtonFormField<String>(
                     value: _categoryOptions.contains(_category) ? _category : _categoryOptions.first,
                     dropdownColor: AdminColors.surface,
-                    decoration: _inputDeco('Kategoria'),
+                    decoration: _inputDeco('Aina'),
                     items: _categoryOptions
                         .map(
                           (c) => DropdownMenuItem(

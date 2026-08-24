@@ -211,10 +211,10 @@ class _ImageBlock extends StatelessWidget {
             children: [
               HerbImage(
                 url: url,
-                height: 220,
                 fullWidth: true,
+                fitToImage: true,
+                fit: BoxFit.fitWidth,
                 borderRadius: 16,
-                fit: BoxFit.cover,
               ),
               Positioned(
                 right: 10,

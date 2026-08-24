@@ -5,9 +5,18 @@ import 'package:flutter/foundation.dart'
 import 'config/admin_config.dart';
 
 class DefaultFirebaseOptions {
+  static bool get isSupported {
+    if (!AdminConfig.hasFirebase) return false;
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   static FirebaseOptions get currentPlatform {
-    if (!AdminConfig.hasFirebase) {
-      throw UnsupportedError('Firebase is not configured.');
+    if (!isSupported) {
+      throw UnsupportedError(
+        'Firebase Messaging is only supported on Android, iOS, and Web.',
+      );
     }
 
     if (kIsWeb) return web;

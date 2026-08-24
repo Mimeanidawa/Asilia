@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { initDb } from './db.js';
+import { initDb, getPool } from './db.js';
 import { initFirebase } from './services/firebase.js';
 import authRouter, { ensureDefaultAdmin } from './routes/auth.js';
 import lessonsRouter from './routes/lessons.js';
@@ -17,6 +17,7 @@ import imagesRouter from './routes/images.js';
 import mediaRouter from './routes/media.js';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 const corsOrigins = process.env.CORS_ORIGINS || '*';

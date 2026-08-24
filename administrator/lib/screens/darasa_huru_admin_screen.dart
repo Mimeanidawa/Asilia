@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/daily_lesson.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_ui.dart';
 import '../widgets/url_image.dart';
 
 class DarasaHuruAdminScreen extends StatelessWidget {
@@ -18,121 +19,33 @@ class DarasaHuruAdminScreen extends StatelessWidget {
     final lessons = provider.lessons;
 
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
+        backgroundColor: AdminColors.card,
         onRefresh: provider.refreshLessons,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-          SliverAppBar(
-            backgroundColor: AdminColors.bg,
-            pinned: true,
-            elevation: 0,
-            toolbarHeight: 72,
-            titleSpacing: 0,
-            title: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Darasa Huru',
-                        style: GoogleFonts.inter(
-                          color: AdminColors.textPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
-                        ),
-                      ),
-                      Text(
-                        'Chapisha somo la kila siku',
-                        style: GoogleFonts.inter(
-                          color: AdminColors.textDim,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => provider.refreshLessons(),
-                        child: Container(
-                          padding: const EdgeInsets.all(9),
-                          decoration: BoxDecoration(
-                            color: AdminColors.card,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AdminColors.cardBorder),
-                          ),
-                          child: provider.lessonsLoading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AdminColors.emerald,
-                                  ),
-                                )
-                              : const Icon(
-                                  Icons.refresh_rounded,
-                                  color: AdminColors.textDim,
-                                  size: 16,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => _showComposeSheet(context, provider),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: AdminColors.emeraldGradient,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AdminColors.emerald.withOpacity(0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.add_rounded,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Somo Jipya',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+          AdminPageHeader(
+            title: 'Darasa Huru',
+            subtitle: 'Chapisha somo la kila siku',
+            actions: [
+              AdminIconButton(
+                icon: Icons.refresh_rounded,
+                loading: provider.lessonsLoading,
+                onTap: provider.refreshLessons,
               ),
-            ),
+              const SizedBox(width: 8),
+              AdminIconButton(
+                icon: Icons.add_rounded,
+                label: 'Somo Jipya',
+                onTap: () => _showComposeSheet(context, provider),
+              ),
+            ],
           ),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
             sliver: lessons.isEmpty
                 ? SliverToBoxAdapter(
                     child: Center(
@@ -376,7 +289,7 @@ class _LessonCard extends StatelessWidget {
                         if (val == 'delete') onDelete();
                       },
                       itemBuilder: (_) => [
-                        _menuItem('edit', Icons.edit_rounded, 'Hariri'),
+                        _menuItem('edit', Icons.edit_rounded, 'Hifadhi'),
                         _menuItem(
                           'toggle',
                           lesson.isPublished
@@ -598,7 +511,7 @@ class _ComposeLessonSheetState extends State<_ComposeLessonSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  widget.existing != null ? 'Hariri Somo' : 'Somo Jipya',
+                  widget.existing != null ? 'Hifadhi Somo' : 'Somo Jipya',
                   style: GoogleFonts.inter(
                     color: AdminColors.textPrimary,
                     fontSize: 18,
@@ -632,7 +545,7 @@ class _ComposeLessonSheetState extends State<_ComposeLessonSheet> {
             _label('Picha (URL — tumia kiungo cha moja kwa moja cha picha, mf. i.ibb.co/... au i.postimg.cc/...)'),
             _field(_imageCtrl, 'https://i.ibb.co/...'),
             const SizedBox(height: 12),
-            _label('Kategoria'),
+            _label('Aina'),
             Wrap(
               spacing: 8,
               runSpacing: 8,

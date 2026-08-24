@@ -1,11 +1,30 @@
 #include "my_application.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #include <flutter_linux/flutter_linux.h>
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
 
 #include "flutter/generated_plugin_registrant.h"
+
+static void flutter_linux_log_handler(const gchar* log_domain,
+                                      GLogLevelFlags log_level,
+                                      const gchar* message,
+                                      gpointer user_data) {
+  if (message != nullptr) {
+    if (strstr(message, "Unable to load") != nullptr &&
+        strstr(message, "cursor theme") != nullptr) {
+      return;
+    }
+    if (strstr(message, "Timed out waiting for OpenGL frame") != nullptr) {
+      return;
+    }
+  }
+  g_log_default_handler(log_domain, log_level, message, user_data);
+}
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -73,6 +92,19 @@ static void my_application_activate(GApplication* application) {
                            self);
   gtk_widget_realize(GTK_WIDGET(view));
 
+  GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(view));
+  GdkCursor* cursor = gdk_cursor_new_from_name(display, "default");
+  if (cursor == nullptr) {
+    cursor = gdk_cursor_new_from_name(display, "left_ptr");
+  }
+  if (cursor != nullptr) {
+    GdkWindow* gdk_window = gtk_widget_get_window(GTK_WIDGET(view));
+    if (gdk_window != nullptr) {
+      gdk_window_set_cursor(gdk_window, cursor);
+    }
+    g_object_unref(cursor);
+  }
+
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
@@ -136,6 +168,11 @@ static void my_application_class_init(MyApplicationClass* klass) {
 static void my_application_init(MyApplication* self) {}
 
 MyApplication* my_application_new() {
+  g_log_set_default_handler(flutter_linux_log_handler, nullptr);
+  if (getenv("XCURSOR_THEME") == nullptr) {
+    setenv("XCURSOR_THEME", "Adwaita", 0);
+  }
+
   // Set the program name to the application ID, which helps various systems
   // like GTK and desktop environments map this running application to its
   // corresponding .desktop file. This ensures better integration by allowing

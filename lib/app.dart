@@ -83,7 +83,6 @@ class _AsiliaAppState extends State<AsiliaApp> {
 
   Future<void> _bootstrapBackground() async {
     try {
-      await _notificationService.init();
       _notificationService.onNotificationTap = ({lessonId, contentId, type}) {
         _appProvider.openFromNotification(
           lessonId: lessonId,
@@ -97,6 +96,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
         lessonId,
         contentId,
         type,
+        imageUrl,
       }) {
         if (type == 'message') {
           _mwalimuService.handleIncomingAdminPush();
@@ -106,14 +106,22 @@ class _AsiliaAppState extends State<AsiliaApp> {
             _mwalimuService.loadGuestMessages();
           }
         }
+        if (contentId != null || type == 'article') {
+          unawaited(_contentService.syncFromServer());
+        }
+        if (lessonId != null || type == 'lesson') {
+          unawaited(_lessonService.syncFromServer(silent: true));
+        }
         _notificationCenter.addFromPush(
           title: title.isNotEmpty ? title : 'Ujumbe kutoka kwa Mwalimu',
           body: body.isNotEmpty ? body : 'Una ujumbe mpya katika Uliza Mwalimu',
           lessonId: lessonId,
           contentId: contentId,
           type: type,
+          imageUrl: imageUrl,
         );
       };
+      await _notificationService.init();
     } catch (e) {
       debugPrint('Notifications unavailable: $e');
     }

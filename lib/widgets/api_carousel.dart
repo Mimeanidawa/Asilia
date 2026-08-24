@@ -41,6 +41,7 @@ class _ApiCarouselState extends State<ApiCarousel> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted || widget.slides.isEmpty) return;
+      if (!_pageController.hasClients) return;
       final next = (_currentPage + 1) % widget.slides.length;
       _pageController.animateToPage(
         next,
@@ -53,6 +54,7 @@ class _ApiCarouselState extends State<ApiCarousel> {
   @override
   void dispose() {
     _timer?.cancel();
+    _timer = null;
     _pageController.dispose();
     super.dispose();
   }
@@ -83,7 +85,13 @@ class _ApiCarouselState extends State<ApiCarousel> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        HerbImage(url: slide.imageUrl, borderRadius: 24),
+                        HerbImage(
+                          url: slide.imageUrl,
+                          borderRadius: 0,
+                          fullWidth: true,
+                          height: widget.height,
+                          fallbackLabel: slide.title,
+                        ),
                         DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(

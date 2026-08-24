@@ -91,15 +91,49 @@ async function fetchBinary(url) {
 export async function findCachedMedia(sourceUrl) {
   const url = tidyImageUrl(sourceUrl);
   if (!url) return null;
+  const normalized = normalizeImageUrl(url);
   const db = getPool();
   const { rows } = await db.query(
     `SELECT id, content_type, byte_size, source_url
      FROM media_assets
-     WHERE source_url = $1
+     WHERE source_url = $1 OR source_url = $2
      LIMIT 1`,
-    [url],
+    [normalized, url],
   );
   return rows[0] || null;
+}
+
+/**
+ * Batch-resolve cached media IDs for a list of source URLs.
+ * @param {string[]} urls
+ * @returns {Promise<Map<string, string>>} sourceUrl -> mediaId
+ */
+export async function lookupCachedMediaIds(urls) {
+  const variants = [];
+  const seen = new Set();
+  for (const raw of urls || []) {
+    const tidy = tidyImageUrl(raw);
+    if (!tidy) continue;
+    const normalized = normalizeImageUrl(tidy);
+    for (const candidate of [normalized, tidy]) {
+      if (!seen.has(candidate)) {
+        seen.add(candidate);
+        variants.push(candidate);
+      }
+    }
+  }
+  if (!variants.length) return new Map();
+
+  const db = getPool();
+  const { rows } = await db.query(
+    `SELECT source_url, id FROM media_assets WHERE source_url = ANY($1::text[])`,
+    [variants],
+  );
+  const map = new Map();
+  for (const row of rows) {
+    map.set(row.source_url, row.id);
+  }
+  return map;
 }
 
 export async function getCachedMediaById(id) {
@@ -199,6 +233,121 @@ export function mediaPublicPath(mediaId) {
   return `/api/media/${mediaId}`;
 }
 
+export function displayUrlFromCache(raw, cachedIds, apiBase = '') {
+  const url = normalizeImageUrl(tidyImageUrl(raw));
+  if (!url) return '';
+  const mediaId = cachedIds?.get(url) || cachedIds?.get(tidyImageUrl(raw));
+  const base = String(apiBase || '').replace(/\/$/, '');
+  if (mediaId) {
+    const path = mediaPublicPath(mediaId);
+    return base ? `${base}${path}` : path;
+  }
+  return url;
+}
+
+/**
+ * Rewrite image blocks inside rich-content JSON to cached /api/media URLs.
+ * Supports both `[blocks]` and `{ version, blocks }` payloads.
+ */
+export async function toDisplayContent(content, apiBase = '') {
+  const raw = String(content || '');
+  if (!raw.trim()) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    const blocks = Array.isArray(parsed)
+      ? parsed
+      : parsed && Array.isArray(parsed.blocks)
+        ? parsed.blocks
+        : null;
+    if (!blocks) return raw;
+
+    const urls = blocks
+      .filter((block) => block && block.type === 'image' && block.url)
+      .map((block) => block.url);
+    const cachedIds = await lookupCachedMediaIds(urls);
+    const mapped = blocks.map((block) => {
+      if (!block || typeof block !== 'object' || block.type !== 'image' || !block.url) {
+        return block;
+      }
+      return {
+        ...block,
+        url: displayUrlFromCache(block.url, cachedIds, apiBase) || block.url,
+      };
+    });
+    if (Array.isArray(parsed)) return JSON.stringify(mapped);
+    return JSON.stringify({ ...parsed, blocks: mapped });
+  } catch {
+    return raw;
+  }
+}
+
+function htmlImageUrls(html) {
+  const out = [];
+  const re = /<img[^>]+src=["']([^"']+)["']/gi;
+  let match;
+  while ((match = re.exec(String(html || '')))) {
+    if (match[1]) out.push(match[1]);
+  }
+  return out;
+}
+
+function markdownImageUrls(text) {
+  const out = [];
+  const re = /!\[[^\]]*]\((https?:[^)\s]+)\)/gi;
+  let match;
+  while ((match = re.exec(String(text || '')))) {
+    if (match[1]) out.push(match[1]);
+  }
+  return out;
+}
+
+function blocksFromContent(parsed) {
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+    return parsed.blocks;
+  }
+  return [];
+}
+
+export function collectContentImageUrls(content) {
+  const raw = String(content || '');
+  if (!raw.trim()) return [];
+  const urls = [];
+  const push = (value) => {
+    const url = String(value || '').trim();
+    if (url && !urls.includes(url)) urls.push(url);
+  };
+
+  try {
+    const parsed = JSON.parse(raw);
+    for (const block of blocksFromContent(parsed)) {
+      if (!block || typeof block !== 'object') continue;
+      if (block.type === 'image' && block.url) push(block.url);
+      if (typeof block.html === 'string') htmlImageUrls(block.html).forEach(push);
+      if (typeof block.text === 'string') {
+        htmlImageUrls(block.text).forEach(push);
+        markdownImageUrls(block.text).forEach(push);
+      }
+    }
+  } catch {
+    // Body may be HTML / markdown instead of editor JSON.
+  }
+
+  htmlImageUrls(raw).forEach(push);
+  markdownImageUrls(raw).forEach(push);
+  return urls;
+}
+
+export function firstContentImageUrl(content) {
+  return collectContentImageUrls(content)[0] || '';
+}
+
+export function coverSourceFromRow(row) {
+  const cover = String(row?.image_url || '').trim();
+  if (cover) return cover;
+  return firstContentImageUrl(row?.content);
+}
+
 export async function toDisplayImageUrl(raw, apiBase = '') {
   const url = tidyImageUrl(raw);
   if (!url) return '';
@@ -212,6 +361,6 @@ export async function toDisplayImageUrl(raw, apiBase = '') {
     // fall through
   }
   const base = String(apiBase || '').replace(/\/$/, '');
-  const proxyPath = `/api/images/proxy?url=${encodeURIComponent(url)}`;
+  const proxyPath = `/api/images/proxy?url=${encodeURIComponent(normalizeImageUrl(url))}`;
   return base ? `${base}${proxyPath}` : proxyPath;
 }

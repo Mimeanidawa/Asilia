@@ -9,8 +9,7 @@ class StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.icon,
-    required this.gradient,
-    required this.glowColor,
+    required this.accentColor,
     this.subtitle,
     this.trend,
     this.trendPositive = true,
@@ -20,8 +19,7 @@ class StatCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  final LinearGradient gradient;
-  final Color glowColor;
+  final Color accentColor;
   final String? subtitle;
   final String? trend;
   final bool trendPositive;
@@ -32,110 +30,126 @@ class StatCard extends StatelessWidget {
     return Animate(
       delay: delay,
       effects: const [
-        FadeEffect(duration: Duration(milliseconds: 500)),
+        FadeEffect(duration: Duration(milliseconds: 450)),
         SlideEffect(
-          begin: Offset(0, 0.2),
+          begin: Offset(0, 0.12),
           end: Offset.zero,
-          duration: Duration(milliseconds: 500),
-          curve: Curves.easeOut,
+          duration: Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
         ),
       ],
       child: Container(
         decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: glowColor.withOpacity(0.25),
-              blurRadius: 20,
-              spreadRadius: 0,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          color: AdminColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AdminColors.cardBorder),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: Colors.white, size: 20),
+              Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      accentColor,
+                      accentColor.withValues(alpha: 0.1),
+                    ],
                   ),
-                  if (trend != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            trendPositive ? Icons.trending_up : Icons.trending_down,
-                            color: Colors.white,
-                            size: 12,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            trend!,
-                            style: GoogleFonts.inter(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                          Container(
+                            padding: const EdgeInsets.all(9),
+                            decoration: BoxDecoration(
+                              color: accentColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                            child: Icon(icon, color: accentColor, size: 18),
                           ),
+                          if (trend != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: (trendPositive ? AdminColors.success : AdminColors.error)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    trendPositive
+                                        ? Icons.trending_up_rounded
+                                        : Icons.trending_down_rounded,
+                                    color: trendPositive ? AdminColors.success : AdminColors.error,
+                                    size: 12,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    trend!,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: trendPositive ? AdminColors.success : AdminColors.error,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
-                    ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 10,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.6,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textMuted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (subtitle != null)
+                            Text(
+                              subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textDim,
+                                fontSize: 10,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -168,7 +182,7 @@ class MiniStatCard extends StatelessWidget {
       effects: const [
         FadeEffect(duration: Duration(milliseconds: 400)),
         SlideEffect(
-          begin: Offset(0.1, 0),
+          begin: Offset(0.08, 0),
           end: Offset.zero,
           duration: Duration(milliseconds: 400),
         ),
@@ -177,18 +191,18 @@ class MiniStatCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AdminColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AdminColors.cardBorder),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(11),
               ),
-              child: Icon(icon, color: color, size: 18),
+              child: Icon(icon, color: color, size: 17),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -197,16 +211,17 @@ class MiniStatCard extends StatelessWidget {
                 children: [
                   Text(
                     value,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.plusJakartaSans(
                       color: AdminColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                     ),
                   ),
                   Text(
                     label,
-                    style: GoogleFonts.inter(
-                      color: AdminColors.textDim,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AdminColors.textMuted,
                       fontSize: 11,
                     ),
                   ),

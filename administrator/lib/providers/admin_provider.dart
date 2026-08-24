@@ -244,7 +244,7 @@ class AdminProvider extends ChangeNotifier {
         _isLoggedIn = true;
         await Future.wait([_lessonService.load(), _loadDashboardData()]);
         _startMwalimuPolling();
-        unawaited(_initPush());
+        await _initPush();
       } catch (_) {
         await prefs.remove('admin_auth_token');
         _setAuthTokens(null);
@@ -255,9 +255,19 @@ class AdminProvider extends ChangeNotifier {
   }
 
   Future<void> _initPush() async {
-    _push.onTap = () => setScreen(AdminScreen.mwalimu);
-    await _push.init(authToken: _authToken);
-    _push.syncBaselineUnread(_mwalimuUnreadCount);
+    try {
+      _push.onTap = () => setScreen(AdminScreen.mwalimu);
+      await _push.init(authToken: _authToken);
+      _push.syncBaselineUnread(_mwalimuUnreadCount);
+    } catch (e) {
+      debugPrint('Admin push init skipped: $e');
+    }
+  }
+
+  Future<void> refreshPushRegistration() async {
+    if (!_isLoggedIn || _authToken == null) return;
+    await _push.refreshRegistration(force: true);
+    await refreshMwalimuUnread(silent: true);
   }
 
   Future<bool> login(String email, String password) async {
@@ -282,7 +292,7 @@ class AdminProvider extends ChangeNotifier {
 
       await Future.wait([_lessonService.load(), _loadDashboardData()]);
       _startMwalimuPolling();
-      unawaited(_initPush());
+      await _initPush();
 
       _isLoading = false;
       notifyListeners();

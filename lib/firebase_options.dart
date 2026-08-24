@@ -6,9 +6,18 @@ import 'config/app_config.dart';
 
 /// Firebase options for project asilia-212da.
 class DefaultFirebaseOptions {
+  static bool get isSupported {
+    if (!AppConfig.hasFirebase) return false;
+    if (kIsWeb) return true;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
   static FirebaseOptions get currentPlatform {
-    if (!AppConfig.hasFirebase) {
-      throw UnsupportedError('Firebase is not configured.');
+    if (!isSupported) {
+      throw UnsupportedError(
+        'Firebase Messaging is only supported on Android, iOS, and Web.',
+      );
     }
 
     if (kIsWeb) return web;

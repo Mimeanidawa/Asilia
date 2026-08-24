@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_ui.dart';
+import '../widgets/url_image.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -16,9 +18,10 @@ class NotificationsScreen extends StatelessWidget {
     final notifications = provider.notifications;
 
     return Scaffold(
-      backgroundColor: AdminColors.bg,
+      backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
+        backgroundColor: AdminColors.card,
         onRefresh: () async {
           await provider.refreshNotifications();
           await provider.refreshData();
@@ -30,37 +33,15 @@ class NotificationsScreen extends StatelessWidget {
             if (notifications.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.notifications_none_rounded,
-                            size: 48, color: AdminColors.textDim.withOpacity(0.6)),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No notification history yet',
-                          style: GoogleFonts.inter(
-                            color: AdminColors.textSecondary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Sent broadcasts are saved here so you can review or delete them.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: AdminEmptyState(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'No notification history yet',
+                  subtitle: 'Sent broadcasts are saved here so you can review or delete them.',
                 ),
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (ctx, idx) => Animate(
@@ -89,101 +70,24 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   Widget sliverAppBar(BuildContext context, AdminProvider provider, int count) {
-    return SliverAppBar(
-      backgroundColor: AdminColors.bg,
-      pinned: true,
-      elevation: 0,
-      toolbarHeight: 72,
-      titleSpacing: 0,
-      title: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Notifications',
-                    style: GoogleFonts.inter(
-                      color: AdminColors.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  Text(
-                    '$count in history',
-                    style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            if (count > 0) ...[
-              GestureDetector(
-                onTap: () => _confirmClearAll(context, provider),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: AdminColors.error.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AdminColors.error.withOpacity(0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.delete_sweep_rounded, color: AdminColors.error, size: 15),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Clear',
-                        style: GoogleFonts.inter(
-                          color: AdminColors.error,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
-            GestureDetector(
-              onTap: () => _showComposeSheet(context, provider),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  gradient: AdminColors.emeraldGradient,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AdminColors.emerald.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add_rounded, color: Colors.white, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      'New',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    return AdminPageHeader(
+      title: 'Notifications',
+      subtitle: '$count in history',
+      actions: [
+        if (count > 0)
+          AdminIconButton(
+            icon: Icons.delete_sweep_rounded,
+            label: 'Clear',
+            color: AdminColors.error,
+            onTap: () => _confirmClearAll(context, provider),
+          ),
+        if (count > 0) const SizedBox(width: 8),
+        AdminIconButton(
+          icon: Icons.add_rounded,
+          label: 'New',
+          onTap: () => _showComposeSheet(context, provider),
         ),
-      ),
+      ],
     );
   }
 
@@ -498,6 +402,40 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   final _bodyCtrl = TextEditingController();
   NotificationTarget _target = NotificationTarget.all;
   bool _sending = false;
+  bool _loadingPosts = true;
+  List<Map<String, dynamic>> _posts = [];
+  Map<String, dynamic>? _selectedPost;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts() async {
+    try {
+      final posts = await widget.provider.contentService.fetchPosts();
+      if (!mounted) return;
+      setState(() {
+        _posts = posts.where((p) => p['isPublished'] == true).toList();
+        _loadingPosts = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingPosts = false);
+    }
+  }
+
+  void _selectPost(Map<String, dynamic>? post) {
+    setState(() {
+      _selectedPost = post;
+      if (post != null) {
+        _titleCtrl.text = post['title'] as String? ?? '';
+        final excerpt = (post['excerpt'] as String? ?? '').trim();
+        _bodyCtrl.text = excerpt.isNotEmpty ? excerpt : 'Gusa kusoma makala kamili';
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -517,11 +455,21 @@ class _ComposeSheetState extends State<_ComposeSheet> {
     };
 
     try {
-      final result = await widget.provider.contentService.sendBroadcast(
-        title: _titleCtrl.text.trim(),
-        body: _bodyCtrl.text.trim(),
-        target: target,
-      );
+      final selectedId = _selectedPost?['id'] as String?;
+      final Map<String, dynamic> result;
+      if (selectedId != null && selectedId.isNotEmpty) {
+        result = await widget.provider.contentService.sharePost(
+          selectedId,
+          title: _titleCtrl.text.trim(),
+          body: _bodyCtrl.text.trim(),
+        );
+      } else {
+        result = await widget.provider.contentService.sendBroadcast(
+          title: _titleCtrl.text.trim(),
+          body: _bodyCtrl.text.trim(),
+          target: target,
+        );
+      }
       final notification = result['notification'] as Map<String, dynamic>?;
       final sent = notification?['sent'] == true || notification?['status'] == 'sent';
       final targetCount = _target == NotificationTarget.all
@@ -563,7 +511,9 @@ class _ComposeSheetState extends State<_ComposeSheet> {
         SnackBar(
           content: Text(
             sent
-                ? 'Notification sent and saved to history'
+                ? (_selectedPost != null
+                    ? 'Makala imetumwa. Watumiaji wanaweza kubofya kuisoma.'
+                    : 'Notification sent and saved to history')
                 : 'Saved to history. Configure Firebase on Railway for push delivery.',
             style: GoogleFonts.inter(color: Colors.white),
           ),
@@ -586,12 +536,119 @@ class _ComposeSheetState extends State<_ComposeSheet> {
     }
   }
 
+  Future<void> _pickMakala() async {
+    if (_posts.isEmpty) return;
+    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AdminColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SizedBox(
+          height: MediaQuery.of(ctx).size.height * 0.65,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Chagua makala iliyochapishwa',
+                        style: GoogleFonts.inter(
+                          color: AdminColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded, color: AdminColors.textDim),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: _posts.length,
+                  itemBuilder: (_, i) {
+                    final p = _posts[i];
+                    final imageUrl = p['imageUrl'] as String? ?? '';
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: AdminColors.card,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => Navigator.pop(ctx, p),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Row(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: imageUrl.isNotEmpty
+                                      ? UrlImage(url: imageUrl, width: 56, height: 56, borderRadius: 8)
+                                      : Container(
+                                          width: 56,
+                                          height: 56,
+                                          color: AdminColors.card,
+                                          child: const Icon(Icons.article_rounded, color: AdminColors.emerald),
+                                        ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p['title'] as String? ?? 'Makala',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          color: AdminColors.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Gusa kutuma — mtumiaji atasoma ukurasa',
+                                        style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right_rounded, color: AdminColors.textDim),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (selected != null) _selectPost(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottom),
-      child: Column(
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -612,7 +669,79 @@ class _ComposeSheetState extends State<_ComposeSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          Text(
+            'Makala (si lazima)',
+            style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Material(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: _loadingPosts ? null : _pickMakala,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: _loadingPosts
+                    ? const SizedBox(
+                        height: 36,
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AdminColors.emerald),
+                          ),
+                        ),
+                      )
+                    : _selectedPost == null
+                        ? Row(
+                            children: [
+                              const Icon(Icons.article_outlined, color: AdminColors.emerald, size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _posts.isEmpty
+                                      ? 'Hakuna makala iliyochapishwa bado'
+                                      : 'Chagua makala ili watumiaji waisome kwa kubofya',
+                                  style: GoogleFonts.inter(color: AdminColors.textSecondary, fontSize: 13),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, color: AdminColors.textDim),
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              UrlImage(
+                                url: _selectedPost!['imageUrl'] as String? ?? '',
+                                width: 48,
+                                height: 48,
+                                borderRadius: 8,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _selectedPost!['title'] as String? ?? 'Makala',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: AdminColors.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Ondoa',
+                                onPressed: () => _selectPost(null),
+                                icon: const Icon(Icons.close_rounded, color: AdminColors.textDim, size: 18),
+                              ),
+                            ],
+                          ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Text('Title', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
           TextField(
@@ -629,6 +758,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
             style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14),
             decoration: const InputDecoration(hintText: 'Write your message...'),
           ),
+          if (_selectedPost == null) ...[
           const SizedBox(height: 14),
           Text('Target Audience', style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
@@ -670,6 +800,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
               );
             }).toList(),
           ),
+          ],
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -692,12 +823,16 @@ class _ComposeSheetState extends State<_ComposeSheet> {
                       children: [
                         const Icon(Icons.send_rounded, size: 16),
                         const SizedBox(width: 8),
-                        Text('Send Notification', style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
+                        Text(
+                          _selectedPost != null ? 'Tuma makala' : 'Send Notification',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                        ),
                       ],
                     ),
             ),
           ),
         ],
+      ),
       ),
     );
   }

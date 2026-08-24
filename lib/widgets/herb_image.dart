@@ -1,8 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
+import '../utils/category_visual.dart';
 import '../utils/image_url.dart';
+
+enum _LoadPhase { proxy, proxyBust, resolved, direct, failed }
 
 class HerbImage extends StatefulWidget {
   const HerbImage({
@@ -13,6 +16,9 @@ class HerbImage extends StatefulWidget {
     this.borderRadius = 12,
     this.fit = BoxFit.cover,
     this.fullWidth = false,
+    this.fallbackLabel = '',
+    this.category,
+    this.fitToImage = false,
   });
 
   final String url;
@@ -21,55 +27,84 @@ class HerbImage extends StatefulWidget {
   final double borderRadius;
   final BoxFit fit;
   final bool fullWidth;
+  final String fallbackLabel;
+  final String? category;
+
+  /// Size to the photo itself so article images are shown in full, uncropped.
+  final bool fitToImage;
 
   @override
   State<HerbImage> createState() => _HerbImageState();
 }
 
 class _HerbImageState extends State<HerbImage> {
-  String? _overrideUrl;
-  int _attempt = 0;
+  _LoadPhase _phase = _LoadPhase.proxy;
+  String? _resolvedUrl;
   bool _resolving = false;
+
+  static bool get _usePlainNetwork {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.macOS;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _prefetchResolve();
+  }
 
   @override
   void didUpdateWidget(covariant HerbImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
-      _attempt = 0;
-      _overrideUrl = null;
+      _phase = _LoadPhase.proxy;
+      _resolvedUrl = null;
       _resolving = false;
+      _prefetchResolve();
     }
-  }
-
-  int? _cachePx(BuildContext context, double? logical) {
-    if (logical == null || !logical.isFinite || logical <= 0) return null;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return (logical * dpr).round().clamp(48, 1200);
   }
 
   String get _sourceUrl => ImageUrl.normalize(ImageUrl.tidy(widget.url));
 
-  String _urlForAttempt() {
-    if (_overrideUrl != null && _overrideUrl!.isNotEmpty) {
-      return _overrideUrl!;
-    }
-
+  String _urlForPhase() {
     final tidy = _sourceUrl;
     if (tidy.isEmpty) return '';
 
-    if (ImageUrl.isApiMediaUrl(tidy)) return tidy;
-
-    if (_attempt == 0) return ImageUrl.proxied(tidy);
-    if (_attempt == 1) {
-      final proxied = ImageUrl.proxied(tidy);
-      final sep = proxied.contains('?') ? '&' : '?';
-      return '$proxied${sep}_t=${DateTime.now().millisecondsSinceEpoch}';
+    if (ImageUrl.isApiMediaUrl(tidy) && !tidy.contains('/api/images/proxy')) {
+      final media = ImageUrl.forceHttps(tidy);
+      if (_phase == _LoadPhase.proxyBust) {
+        final sep = media.contains('?') ? '&' : '?';
+        return '$media${sep}_t=${DateTime.now().millisecondsSinceEpoch}';
+      }
+      return media;
     }
-    if (_attempt >= 3) return tidy;
-    return ImageUrl.proxied(tidy);
+
+    switch (_phase) {
+      case _LoadPhase.proxy:
+        return ImageUrl.proxied(tidy);
+      case _LoadPhase.proxyBust:
+        final proxied = ImageUrl.proxied(tidy);
+        final sep = proxied.contains('?') ? '&' : '?';
+        return '$proxied${sep}_t=${DateTime.now().millisecondsSinceEpoch}';
+      case _LoadPhase.resolved:
+        return _resolvedUrl ?? ImageUrl.proxied(tidy);
+      case _LoadPhase.direct:
+        return tidy;
+      case _LoadPhase.failed:
+        return '';
+    }
   }
 
-  Future<void> _resolveViaApi() async {
+  void _prefetchResolve() {
+    final tidy = _sourceUrl;
+    if (tidy.isEmpty) return;
+    if (ImageUrl.isApiMediaUrl(tidy) && !tidy.contains('/api/images/proxy')) return;
+    _resolveViaApi(preferIfBetter: true);
+  }
+
+  Future<void> _resolveViaApi({bool preferIfBetter = false}) async {
     if (_resolving || !mounted) return;
     final tidy = _sourceUrl;
     if (tidy.isEmpty) return;
@@ -78,10 +113,17 @@ class _HerbImageState extends State<HerbImage> {
     try {
       final resolved = await ImageResolveService.resolve(tidy);
       if (!mounted) return;
-      if (resolved != null && resolved.isNotEmpty) {
+      if (resolved != null &&
+          resolved.isNotEmpty &&
+          resolved != ImageUrl.proxied(tidy)) {
+        if (preferIfBetter &&
+            _phase != _LoadPhase.proxy &&
+            _phase != _LoadPhase.proxyBust) {
+          return;
+        }
         setState(() {
-          _overrideUrl = resolved;
-          _attempt = 0;
+          _resolvedUrl = resolved;
+          _phase = _LoadPhase.resolved;
         });
         return;
       }
@@ -89,98 +131,113 @@ class _HerbImageState extends State<HerbImage> {
       _resolving = false;
     }
 
-    if (!mounted) return;
-    if (_attempt < 3) {
-      setState(() => _attempt = 3);
-    }
+    if (!mounted || preferIfBetter) return;
+    setState(() => _phase = _LoadPhase.direct);
   }
 
   void _handleError() {
-    if (!mounted) return;
-    final tidy = _sourceUrl;
+    if (!mounted || _phase == _LoadPhase.failed) return;
 
-    if (_attempt == 0) {
-      setState(() => _attempt = 1);
-      return;
-    }
-
-    if (_attempt == 1 && !_resolving) {
-      _resolveViaApi();
-      return;
-    }
-
-    if (_attempt < 3 && tidy.isNotEmpty && !ImageUrl.needsResolution(tidy)) {
-      setState(() => _attempt = 3);
+    switch (_phase) {
+      case _LoadPhase.proxy:
+        setState(() => _phase = _LoadPhase.proxyBust);
+      case _LoadPhase.proxyBust:
+        if (!_resolving) _resolveViaApi();
+      case _LoadPhase.resolved:
+        setState(() => _phase = _LoadPhase.direct);
+      case _LoadPhase.direct:
+        setState(() => _phase = _LoadPhase.failed);
+      case _LoadPhase.failed:
+        break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayUrl = _urlForAttempt();
-    final imageWidth = widget.fullWidth ? double.infinity : widget.width;
-    final hasUrl = _sourceUrl.isNotEmpty;
+    final displayUrl = _urlForPhase();
+    final hasUrl = _sourceUrl.isNotEmpty && displayUrl.isNotEmpty;
+    final failed = _phase == _LoadPhase.failed;
+    final boxWidth = widget.fullWidth ? double.infinity : widget.width;
+    final boxHeight = widget.height;
 
-    Widget child;
-    if (!hasUrl || displayUrl.isEmpty) {
-      child = _placeholder(imageWidth, icon: Icons.eco_rounded);
-    } else {
-      child = CachedNetworkImage(
-        key: ValueKey('$displayUrl#$_attempt#${_overrideUrl ?? ''}'),
-        imageUrl: displayUrl,
-        width: imageWidth,
-        height: widget.height,
-        fit: widget.fit,
-        fadeInDuration: const Duration(milliseconds: 280),
-        fadeOutDuration: const Duration(milliseconds: 120),
-        memCacheWidth: _cachePx(
-          context,
-          widget.width ?? (widget.fullWidth ? 600 : null),
-        ),
-        memCacheHeight: _cachePx(context, widget.height),
-        placeholder: (context, url) => _placeholder(imageWidth, loading: true),
-        errorWidget: (context, url, error) {
-          if (_attempt < 3 || _resolving) {
-            WidgetsBinding.instance.addPostFrameCallback((_) => _handleError());
-            return _placeholder(imageWidth, loading: true);
-          }
-          return _placeholder(imageWidth, icon: Icons.image_not_supported_outlined);
-        },
+    if (widget.fitToImage) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(widget.borderRadius),
+        child: hasUrl && !failed
+            ? _photo(
+                displayUrl,
+                width: double.infinity,
+                fit: BoxFit.fitWidth,
+              )
+            : SizedBox(
+                width: double.infinity,
+                height: 180,
+                child: BrandedCover(
+                  label: widget.fallbackLabel,
+                  category: widget.category,
+                ),
+              ),
       );
     }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.borderRadius),
-      child: widget.fullWidth && widget.height != null
-          ? SizedBox(width: double.infinity, height: widget.height, child: child)
-          : child,
-    );
-  }
-
-  Widget _placeholder(double? width, {bool loading = false, IconData? icon}) {
-    return Container(
-      width: width,
-      height: widget.height,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.emerald50,
-            AppColors.emerald100.withValues(alpha: 0.6),
+      child: SizedBox(
+        width: boxWidth,
+        height: boxHeight,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            BrandedCover(
+              label: widget.fallbackLabel,
+              category: widget.category,
+            ),
+            if (hasUrl && !failed)
+              Positioned.fill(child: _photo(displayUrl, fit: widget.fit)),
           ],
         ),
       ),
-      alignment: Alignment.center,
-      child: loading
-          ? SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.emerald700.withValues(alpha: 0.7),
-              ),
-            )
-          : Icon(icon ?? Icons.eco_rounded, color: AppColors.emerald700, size: 28),
+    );
+  }
+
+  Widget _photo(String url, {double? width, BoxFit? fit}) {
+    final resolvedFit = fit ?? widget.fit;
+    if (_usePlainNetwork) {
+      return Image.network(
+        url,
+        key: ValueKey('$url#${_phase.name}'),
+        width: width,
+        fit: resolvedFit,
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.high,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const SizedBox.shrink();
+        },
+        errorBuilder: (context, error, stack) {
+          if (_phase != _LoadPhase.failed) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => _handleError());
+          }
+          return const SizedBox.shrink();
+        },
+      );
+    }
+
+    return CachedNetworkImage(
+      key: ValueKey('$url#${_phase.name}'),
+      imageUrl: url,
+      width: width,
+      fit: resolvedFit,
+      filterQuality: FilterQuality.high,
+      fadeInDuration: const Duration(milliseconds: 380),
+      fadeOutDuration: const Duration(milliseconds: 80),
+      placeholder: (context, url) => const SizedBox.shrink(),
+      errorWidget: (context, url, error) {
+        if (_phase != _LoadPhase.failed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => _handleError());
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 }

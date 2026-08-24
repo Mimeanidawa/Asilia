@@ -144,7 +144,7 @@ class NotificationCenterService extends ChangeNotifier {
         body: post.title,
         timestamp: DateTime.now(),
         contentId: post.id,
-        imageUrl: post.imageUrl,
+        imageUrl: post.displayImageUrl,
         type: 'article',
       ));
       existingContentIds.add(post.id);

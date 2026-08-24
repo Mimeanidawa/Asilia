@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/models.dart';
@@ -6,9 +8,12 @@ import '../providers/app_provider.dart';
 import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
+import '../utils/category_visual.dart';
+import '../utils/responsive.dart';
+import '../widgets/circle_back_button.dart';
+import '../widgets/darasa_huru_carousel.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/pull_to_refresh.dart';
-import '../widgets/section_header.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/screen_header.dart';
 
@@ -21,6 +26,8 @@ class DarasaHuruScreen extends StatefulWidget {
 
 class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
   DailyLesson? _activeLesson;
+  List<DailyLesson> _shuffled = [];
+  String _shuffleKey = '';
 
   @override
   void initState() {
@@ -47,12 +54,27 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
     context.read<AppProvider>().setBottomNavSuppressed(false);
   }
 
+  void _shuffleLessons(List<DailyLesson> lessons, {bool force = false}) {
+    final key = lessons.map((l) => l.id).join('|');
+    if (!force && key == _shuffleKey && _shuffled.isNotEmpty) return;
+    _shuffled = List<DailyLesson>.of(lessons)..shuffle();
+    _shuffleKey = key;
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final lessonService = app.lessonService;
     final lessons = lessonService.publishedLessons;
-    final today = lessonService.todayLesson;
+    final pendingLessonId = app.selectedLessonId;
+    if (_activeLesson == null && pendingLessonId != null) {
+      final pending = lessonService.lessonById(pendingLessonId);
+      if (pending != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _activeLesson == null) _openLesson(pending);
+        });
+      }
+    }
     final activeLessonStillPublished = _activeLesson != null &&
         lessons.any((lesson) => lesson.id == _activeLesson!.id);
 
@@ -76,15 +98,32 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
       );
     }
 
+    final gutter = Responsive.horizontalGutter(context);
+    _shuffleLessons(lessons);
+    const featuredCount = 8;
+    final featuredSet = _shuffled.take(featuredCount).toList();
+    final featured = featuredSet.isNotEmpty ? featuredSet.first : null;
+    final rest = _shuffled.length <= featuredSet.length
+        ? const <DailyLesson>[]
+        : _shuffled.skip(featuredSet.length).toList();
+
     return SizedBox.expand(
       child: Column(
         children: [
-          _buildHeader(context, app),
+          _DarasaHeader(count: lessons.length, onBack: app.goBack),
           Expanded(
             child: lessonService.isSyncing && lessons.isEmpty
                 ? const DarasaHuruLoadingSkeleton()
                 : PullToRefresh(
-                    onRefresh: () => AppRefresh.catalog(context),
+                    onRefresh: () async {
+                      await AppRefresh.catalog(context);
+                      if (mounted) {
+                        setState(() => _shuffleLessons(
+                              context.read<AppProvider>().lessonService.publishedLessons,
+                              force: true,
+                            ));
+                      }
+                    },
                     child: lessons.isEmpty
                         ? ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -95,50 +134,82 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
                               ),
                             ],
                           )
-                        : ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.only(bottom: 16),
-                    children: [
-                      if (today != null) ...[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                          child: _FeaturedLessonCard(
-                            lesson: today,
-                            onRead: () => _openLesson(today),
+                        : CustomScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            slivers: [
+                              if (lessons.length > 1)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: DarasaHuruCarousel(
+                                      lessons: featuredSet,
+                                      shuffle: false,
+                                      maxItems: featuredSet.length,
+                                      onOpen: _openLesson,
+                                    ),
+                                  ),
+                                )
+                              else if (featured != null)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 8),
+                                    child: _FeaturedLessonCard(
+                                      lesson: featured,
+                                      onRead: () => _openLesson(featured),
+                                    ),
+                                  ),
+                                ),
+                              if (rest.isNotEmpty)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: EdgeInsets.fromLTRB(gutter + 4, 16, gutter, 10),
+                                    child: Row(
+                                      children: [
+                                        const Text(
+                                          'Masomo zaidi',
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w900,
+                                            color: AppColors.forest,
+                                            letterSpacing: -0.2,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          '${rest.length} masomo',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.gray400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              SliverPadding(
+                                padding: EdgeInsets.fromLTRB(
+                                  gutter,
+                                  0,
+                                  gutter,
+                                  Responsive.scrollBottomPadding(context, extra: 12),
+                                ),
+                                sliver: SliverList.separated(
+                                  itemCount: rest.length,
+                                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                                  itemBuilder: (context, i) => _LessonListTile(
+                                    lesson: rest[i],
+                                    index: i,
+                                    onTap: () => _openLesson(rest[i]),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                      SectionHeader(
-                        title: 'Masomo ya Awali',
-                        subtitle:
-                            '${lessons.length} masomo yaliyochapishwa',
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                      ),
-                      ...lessons.map(
-                        (lesson) => Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                          child: _LessonListTile(
-                            lesson: lesson,
-                            isToday: lesson.isToday,
-                            onTap: () => _openLesson(lesson),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                   ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, AppProvider app) {
-    return ScreenHeader(
-      title: 'DARASA HURU',
-      subtitle: 'Masomo ya kila siku kutoka kwa wataalamu',
-      onBack: app.goBack,
-      showBottomBorder: true,
     );
   }
 
@@ -172,7 +243,7 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Admin atachapisha darasa la leo hivi karibuni.',
+              'Admin atachapisha masomo hivi karibuni.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
@@ -187,6 +258,95 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
   }
 }
 
+class _DarasaHeader extends StatelessWidget {
+  const _DarasaHeader({required this.count, required this.onBack});
+
+  final int count;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 12, 16, 16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFE8F2EC),
+            AppColors.cream,
+            AppColors.amberLight.withValues(alpha: 0.16),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleBackButton(onPressed: onBack),
+          const SizedBox(width: 10),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: CategoryVisual.gradientFor('darasa_huru'),
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.school_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Darasa Huru',
+                  style: TextStyle(
+                    fontFamily: kIsWeb ? null : 'Playfair Display',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.forest,
+                    height: 1.1,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Masomo mbalimbali kutoka kwa wataalamu',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12, color: AppColors.gray500),
+                ),
+              ],
+            ),
+          ),
+          if (count > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.emerald800,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ).animate().fadeIn(duration: 280.ms);
+  }
+}
+
 class _FeaturedLessonCard extends StatelessWidget {
   const _FeaturedLessonCard({
     required this.lesson,
@@ -196,126 +356,123 @@ class _FeaturedLessonCard extends StatelessWidget {
   final DailyLesson lesson;
   final VoidCallback onRead;
 
+  static const _photoHeight = 196.0;
+
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onRead,
+    return PressableScale(
+      onTap: onRead,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.forest.withValues(alpha: 0.12),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+              spreadRadius: -8,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              fit: StackFit.passthrough,
-              children: [
-                HerbImage(
-                  url: lesson.imageUrl,
-                  height: 180,
-                  borderRadius: 0,
-                  fullWidth: true,
-                ),
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4A017),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+            SizedBox(
+              height: _photoHeight,
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  HerbImage(
+                    url: lesson.imageUrl,
+                    height: _photoHeight,
+                    borderRadius: 0,
+                    fullWidth: true,
+                    fallbackLabel: lesson.title,
+                    category: 'darasa_huru',
+                  ),
+                  Positioned(
+                    top: 14,
+                    left: 14,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: lesson.isToday ? AppColors.amber : AppColors.forest,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        darasaBadgeLabel(lesson),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.6,
                         ),
-                      ],
-                    ),
-                    child: const Text(
-                      'DARASA LA LEO',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 0.8,
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (lesson.topicTag != null)
+                  if (lesson.topicTag != null) ...[
                     Text(
                       lesson.topicTag!.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 9,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                         color: AppColors.amber,
-                        letterSpacing: 1,
+                        letterSpacing: 0.8,
                       ),
                     ),
-                  const SizedBox(height: 6),
+                    const SizedBox(height: 6),
+                  ],
                   Text(
                     lesson.title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.forest,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Muhtasari',
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.emerald800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    lesson.excerpt,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.gray600,
-                      height: 1.45,
+                      fontFamily: kIsWeb ? null : 'Playfair Display',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.forest,
+                      height: 1.2,
+                      letterSpacing: -0.3,
                     ),
                   ),
+                  if (lesson.excerpt.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      lesson.excerpt,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.gray500),
+                    ),
+                  ],
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.schedule_rounded,
-                        size: 14,
-                        color: AppColors.amber,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        lesson.readTimeLabel,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppColors.gray400,
+                      if (lesson.formattedDate.isNotEmpty)
+                        Text(
+                          lesson.formattedDate,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.gray400,
+                          ),
                         ),
-                      ),
                       const Spacer(),
-                      TextButton(
-                        onPressed: onRead,
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.forest,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.forest,
+                          borderRadius: BorderRadius.circular(22),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -323,11 +480,13 @@ class _FeaturedLessonCard extends StatelessWidget {
                             Text(
                               'Anza somo',
                               style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
                               ),
                             ),
-                            Icon(Icons.chevron_right_rounded, size: 18),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
                           ],
                         ),
                       ),
@@ -339,109 +498,116 @@ class _FeaturedLessonCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ).animate().fadeIn(duration: 420.ms).slideY(begin: 0.04, curve: Curves.easeOutCubic);
   }
 }
 
 class _LessonListTile extends StatelessWidget {
   const _LessonListTile({
     required this.lesson,
-    required this.isToday,
     required this.onTap,
+    this.index = 0,
   });
 
   final DailyLesson lesson;
-  final bool isToday;
   final VoidCallback onTap;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Stack(
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.cardShadow,
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+              spreadRadius: -6,
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HerbImage(
+              url: lesson.imageUrl,
+              width: 108,
+              height: 108,
+              borderRadius: 16,
+              fallbackLabel: lesson.title,
+              category: 'darasa_huru',
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  HerbImage(url: lesson.imageUrl, width: 72, height: 72),
-                  if (isToday)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.amber,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
+                  Text(
+                    lesson.formattedDate.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.gray400,
+                      letterSpacing: 0.5,
                     ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      lesson.formattedDate.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        color: isToday ? AppColors.amber : AppColors.gray400,
-                        letterSpacing: 0.8,
-                      ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    lesson.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.forest,
+                      height: 1.22,
+                      letterSpacing: -0.2,
                     ),
-                    Text(
-                      lesson.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.forest,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Muhtasari',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.gray400,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
+                  ),
+                  if (lesson.excerpt.trim().isNotEmpty) ...[
+                    const SizedBox(height: 6),
                     Text(
                       lesson.excerpt,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.gray400,
-                      ),
+                      style: TextStyle(fontSize: 12, color: AppColors.gray500, height: 1.35),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Text(
+                        'Soma',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.emerald700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 15,
+                        color: AppColors.emerald700.withValues(alpha: 0.9),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.gray400,
-                size: 20,
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
+    )
+        .animate()
+        .fadeIn(delay: (index * 45).ms, duration: 360.ms)
+        .slideY(begin: 0.045, curve: Curves.easeOutCubic);
   }
 }
 
@@ -475,9 +641,11 @@ class _LessonReader extends StatelessWidget {
               children: [
                 HerbImage(
                   url: lesson.imageUrl,
-                  height: 220,
+                  height: 240,
                   borderRadius: 0,
                   fullWidth: true,
+                  fallbackLabel: lesson.title,
+                  category: 'darasa_huru',
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -551,7 +719,7 @@ class _LessonReader extends StatelessWidget {
                                   ),
                                 ),
                                 Text(
-                                  '${lesson.formattedDate} · ${lesson.readTimeLabel}',
+                                  lesson.formattedDate,
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: AppColors.gray400,

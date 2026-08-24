@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_ui.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,119 +44,117 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AdminProvider>();
-    return Scaffold(
-      backgroundColor: AdminColors.bg,
-      body: Stack(
-        children: [
-          // Background radial glow
-          Positioned(
-            top: -60,
-            right: -80,
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [AdminColors.emerald.withOpacity(0.12), Colors.transparent],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -60,
-            child: Container(
-              width: 240,
-              height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [AdminColors.amber.withOpacity(0.08), Colors.transparent],
-                ),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 40),
-                    // Logo
-                    Animate(
-                      effects: const [
-                        FadeEffect(duration: Duration(milliseconds: 500)),
-                        SlideEffect(
-                          begin: Offset(0, -0.2),
-                          end: Offset.zero,
-                          duration: Duration(milliseconds: 500),
+
+    return AdminBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
+                  Animate(
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 500)),
+                      SlideEffect(
+                        begin: Offset(0, -0.15),
+                        end: Offset.zero,
+                        duration: Duration(milliseconds: 500),
+                      ),
+                    ],
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: AdminColors.primaryGradient,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AdminColors.emerald.withValues(alpha: 0.25),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.eco_rounded, color: Color(0xFF052E16), size: 28),
                         ),
-                      ],
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          gradient: AdminColors.emeraldGradient,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AdminColors.emerald.withOpacity(0.3),
-                              blurRadius: 20,
-                              spreadRadius: 2,
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Asilia Admin',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textPrimary,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            Text(
+                              'Control Panel',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textMuted,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.eco_rounded, color: Colors.white, size: 30),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    Animate(
-                      delay: const Duration(milliseconds: 100),
-                      effects: const [
-                        FadeEffect(duration: Duration(milliseconds: 500)),
-                        SlideEffect(begin: Offset(0, 0.1), end: Offset.zero, duration: Duration(milliseconds: 500)),
                       ],
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Welcome back',
-                            style: GoogleFonts.inter(
-                              color: AdminColors.textPrimary,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Sign in to the Asilia Admin Panel',
-                            style: GoogleFonts.inter(
-                              color: AdminColors.textDim,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
-                    const SizedBox(height: 40),
-                    // Form fields
-                    Animate(
-                      delay: const Duration(milliseconds: 200),
-                      effects: const [
-                        FadeEffect(duration: Duration(milliseconds: 500)),
-                        SlideEffect(begin: Offset(0, 0.1), end: Offset.zero, duration: Duration(milliseconds: 500)),
+                  ),
+                  const SizedBox(height: 48),
+                  Animate(
+                    delay: const Duration(milliseconds: 100),
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 500)),
+                      SlideEffect(begin: Offset(0, 0.08), end: Offset.zero, duration: Duration(milliseconds: 500)),
+                    ],
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Welcome back',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AdminColors.textPrimary,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.8,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Sign in to manage your platform',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AdminColors.textMuted,
+                            fontSize: 15,
+                          ),
+                        ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 36),
+                  Animate(
+                    delay: const Duration(milliseconds: 200),
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 500)),
+                      SlideEffect(begin: Offset(0, 0.08), end: Offset.zero, duration: Duration(milliseconds: 500)),
+                    ],
+                    child: AdminSurface(
+                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Email',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.plusJakartaSans(
                               color: AdminColors.textSecondary,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -165,17 +164,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _emailCtrl,
                             keyboardType: TextInputType.emailAddress,
-                            style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontSize: 14,
+                            ),
                             validator: (v) => v == null || v.isEmpty ? 'Enter your email' : null,
                             decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.email_outlined, color: AdminColors.textDim, size: 18),
-                              hintText: 'mimeanidawa@gmail.com',
+                              prefixIcon: Icon(Icons.alternate_email_rounded, size: 18),
+                              hintText: 'admin@example.com',
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           Text(
                             'Password',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.plusJakartaSans(
                               color: AdminColors.textSecondary,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
@@ -185,86 +187,66 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextFormField(
                             controller: _passCtrl,
                             obscureText: _obscurePass,
-                            style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 14),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontSize: 14,
+                            ),
                             validator: (v) => v == null || v.isEmpty ? 'Enter your password' : null,
                             decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.lock_outline_rounded, color: AdminColors.textDim, size: 18),
+                              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
                               hintText: '••••••••',
-                              suffixIcon: GestureDetector(
-                                onTap: () => setState(() => _obscurePass = !_obscurePass),
-                                child: Icon(
+                              suffixIcon: IconButton(
+                                onPressed: () => setState(() => _obscurePass = !_obscurePass),
+                                icon: Icon(
                                   _obscurePass ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                  color: AdminColors.textDim,
                                   size: 18,
+                                  color: AdminColors.textMuted,
                                 ),
                               ),
                             ),
                           ),
                           if (_errorMsg != null) ...[
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: AdminColors.redGlow,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: AdminColors.red.withOpacity(0.3)),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AdminColors.error.withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.error_outline_rounded, color: AdminColors.red, size: 16),
+                                  const Icon(Icons.error_outline_rounded, color: AdminColors.error, size: 16),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       _errorMsg!,
-                                      style: GoogleFonts.inter(color: AdminColors.red, fontSize: 12),
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: AdminColors.error,
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ],
-                          const SizedBox(height: 32),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: provider.isLoading ? null : _login,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AdminColors.emerald,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: provider.isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2.5,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Sign In',
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                            ),
+                          const SizedBox(height: 24),
+                          AdminPrimaryButton(
+                            label: 'Sign In',
+                            loading: provider.isLoading,
+                            onPressed: _login,
+                            icon: Icons.arrow_forward_rounded,
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }

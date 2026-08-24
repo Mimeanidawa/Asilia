@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class CarouselSlide {
   const CarouselSlide({
     required this.id,
@@ -74,7 +76,12 @@ class ContentPost {
     }
   }
 
-  ContentPost copyWith({String? content, bool? hasAccess}) => ContentPost(
+  String get displayImageUrl {
+    if (imageUrl.trim().isNotEmpty) return imageUrl;
+    return firstImageFromContent(content);
+  }
+
+  ContentPost copyWith({String? content, bool? hasAccess, String? imageUrl}) => ContentPost(
         id: id,
         section: section,
         category: category,
@@ -82,27 +89,75 @@ class ContentPost {
         subtitle: subtitle,
         excerpt: excerpt,
         content: content ?? this.content,
-        imageUrl: imageUrl,
+        imageUrl: imageUrl ?? this.imageUrl,
         isPremium: isPremium,
         price: price,
         readTimeMinutes: readTimeMinutes,
         hasAccess: hasAccess ?? this.hasAccess,
       );
 
-  factory ContentPost.fromJson(Map<String, dynamic> json) => ContentPost(
-        id: json['id'] as String,
-        section: json['section'] as String,
-        category: json['category'] as String?,
-        title: json['title'] as String,
-        subtitle: json['subtitle'] as String? ?? '',
-        excerpt: json['excerpt'] as String? ?? '',
-        content: json['content'] as String? ?? '',
-        imageUrl: _normalizeStoredImageUrl(json['imageUrl'] as String? ?? ''),
-        isPremium: json['isPremium'] as bool? ?? false,
-        price: json['price'] as int? ?? 2000,
-        readTimeMinutes: json['readTimeMinutes'] as int? ?? 5,
-        hasAccess: json['hasAccess'] as bool? ?? true,
-      );
+  factory ContentPost.fromJson(Map<String, dynamic> json) {
+    final content = _jsonString(json, const ['content']);
+    var image = _jsonString(json, const ['imageUrl', 'image_url']);
+    if (image.isEmpty) image = firstImageFromContent(content);
+    return ContentPost(
+      id: json['id'] as String,
+      section: json['section'] as String,
+      category: json['category'] as String?,
+      title: json['title'] as String,
+      subtitle: _jsonString(json, const ['subtitle']),
+      excerpt: _jsonString(json, const ['excerpt']),
+      content: content,
+      imageUrl: _normalizeStoredImageUrl(image),
+      isPremium: json['isPremium'] as bool? ?? json['is_premium'] as bool? ?? false,
+      price: (json['price'] as num?)?.toInt() ?? 2000,
+      readTimeMinutes:
+          (json['readTimeMinutes'] as num?)?.toInt() ??
+          (json['read_time_minutes'] as num?)?.toInt() ??
+          5,
+      hasAccess: json['hasAccess'] as bool? ?? json['has_access'] as bool? ?? true,
+    );
+  }
+}
+
+String _jsonString(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+  }
+  return '';
+}
+
+List<dynamic> _contentBlocks(dynamic parsed) {
+  if (parsed is List) return parsed;
+  if (parsed is Map && parsed['blocks'] is List) {
+    return parsed['blocks'] as List;
+  }
+  return const [];
+}
+
+String firstImageFromContent(String content) {
+  final raw = content.trim();
+  if (raw.isEmpty) return '';
+
+  try {
+    final parsed = jsonDecode(raw);
+    for (final block in _contentBlocks(parsed)) {
+      if (block is! Map) continue;
+      final type = block['type']?.toString();
+      final url = block['url']?.toString().trim() ?? '';
+      if (type == 'image' && url.isNotEmpty) return url;
+    }
+  } catch (_) {}
+
+  final img = RegExp(r'''<img[^>]+src=["']([^"']+)["']''', caseSensitive: false)
+      .firstMatch(raw);
+  if (img != null && img.group(1)!.trim().isNotEmpty) return img.group(1)!.trim();
+
+  final md = RegExp(r'!\[[^\]]*]\((https?:[^)\s]+)\)').firstMatch(raw);
+  if (md != null) return md.group(1)!.trim();
+
+  return '';
 }
 
 String _normalizeStoredImageUrl(String raw) {

@@ -6,51 +6,54 @@ class GlassCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding,
-    this.gradient,
-    this.borderColor,
-    this.borderWidth = 1.0,
+    this.accentColor,
     this.borderRadius = 16.0,
     this.onTap,
   });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
-  final LinearGradient? gradient;
-  final Color? borderColor;
-  final double borderWidth;
+  final Color? accentColor;
   final double borderRadius;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: gradient ??
-              const LinearGradient(
-                colors: [AdminColors.card, Color(0xFF0F1E17)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-          borderRadius: BorderRadius.circular(borderRadius),
-          border: Border.all(
-            color: borderColor ?? AdminColors.cardBorder,
-            width: borderWidth,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(borderRadius),
+        splashColor: AdminColors.emerald.withValues(alpha: 0.06),
+        highlightColor: Colors.transparent,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(color: AdminColors.cardBorder),
           ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              splashColor: AdminColors.emeraldGlow,
-              highlightColor: Colors.transparent,
-              child: Padding(
-                padding: padding ?? const EdgeInsets.all(16),
-                child: child,
-              ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (accentColor != null)
+                  Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          accentColor!.withValues(alpha: 0.8),
+                          accentColor!.withValues(alpha: 0.05),
+                        ],
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: padding ?? const EdgeInsets.all(16),
+                  child: child,
+                ),
+              ],
             ),
           ),
         ),
