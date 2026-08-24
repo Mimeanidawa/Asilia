@@ -32,7 +32,7 @@ class AdminBackground extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const DecoratedBox(decoration: BoxDecoration(gradient: AdminColors.pageGradient)),
+        DecoratedBox(decoration: BoxDecoration(gradient: AdminColors.pageGradient)),
         if (showGlow) ...[
           Positioned(
             top: -120,

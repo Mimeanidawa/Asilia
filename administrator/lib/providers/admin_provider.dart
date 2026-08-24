@@ -82,6 +82,7 @@ class AdminProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isRefreshing => _isRefreshing;
   String? get loginError => _loginError;
+  String? get adminName => _adminName;
   String? get adminEmail => _adminEmail;
   String? get lastPushNotification => _lessonService.lastNotification;
   DashboardStats get stats => _stats;
