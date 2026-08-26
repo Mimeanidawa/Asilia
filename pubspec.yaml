@@ -26,7 +26,7 @@ dependencies:
   just_audio: ^0.9.42
   package_info_plus: ^8.3.0
   url_launcher: ^6.3.1
-  google_mobile_ads: ^5.3.1
+  google_mobile_ads: ^8.0.0
 
 dev_dependencies:
   flutter_test:

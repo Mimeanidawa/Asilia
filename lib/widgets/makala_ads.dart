@@ -42,9 +42,7 @@ class _MakalaBannerAdState extends State<MakalaBannerAd> {
     if (!mounted) return;
 
     final width = MediaQuery.sizeOf(context).width.truncate();
-    final size = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
-      width,
-    );
+    final size = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
     if (!mounted || size == null) return;
 
     final banner = BannerAd(
