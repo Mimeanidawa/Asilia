@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +7,7 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/category_visual.dart';
 import '../utils/content_tag_style.dart';
+import '../utils/safe_text.dart';
 import 'herb_image.dart';
 import 'paid_makala_badge.dart';
 
@@ -23,27 +23,22 @@ class ContentFeaturedCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool showSectionLabel;
 
-  static const _photoHeight = 196.0;
+  static const _photoHeight = 228.0;
 
   @override
   Widget build(BuildContext context) {
     final paid = context.watch<UserService>().hasPurchasedContent(post.id);
     final catColor = ContentTagStyle.colorFor(post.category ?? post.section);
+    final title = safeDisplayText(post.title);
+    final excerpt = safeDisplayText(post.excerpt);
 
     return PressableScale(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.forest.withValues(alpha: 0.12),
-              blurRadius: 28,
-              offset: const Offset(0, 14),
-              spreadRadius: -8,
-            ),
-          ],
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: AppColors.elevationLg,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -60,7 +55,7 @@ class ContentFeaturedCard extends StatelessWidget {
                     height: _photoHeight,
                     borderRadius: 0,
                     fullWidth: true,
-                    fallbackLabel: post.title,
+                    fallbackLabel: title,
                     category: post.category ?? post.section,
                   ),
                   const DecoratedBox(
@@ -68,7 +63,12 @@ class ContentFeaturedCard extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Color(0x33000000), Color(0x00000000)],
+                        colors: [
+                          Color(0x33000000),
+                          Color(0x00000000),
+                          Color(0x73000000),
+                        ],
+                        stops: [0, 0.4, 1],
                       ),
                     ),
                   ),
@@ -100,37 +100,37 @@ class ContentFeaturedCard extends StatelessWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    post.title,
+                    title,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: kIsWeb ? null : 'Playfair Display',
-                      fontSize: 20,
+                    style: const TextStyle(
+                      fontSize: 21,
                       fontWeight: FontWeight.w800,
                       color: AppColors.forest,
-                      height: 1.2,
-                      letterSpacing: -0.3,
+                      height: 1.22,
+                      letterSpacing: -0.45,
                     ),
                   ),
-                  if (post.excerpt.isNotEmpty) ...[
+                  if (excerpt.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
-                      post.excerpt,
+                      excerpt,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.4,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        height: 1.45,
                         color: AppColors.gray500,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Align(
                     alignment: Alignment.centerRight,
                     child: _SomaPill(),
@@ -141,7 +141,7 @@ class ContentFeaturedCard extends StatelessWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 420.ms).slideY(begin: 0.04, curve: Curves.easeOutCubic);
+    ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.04, curve: Curves.easeOutCubic);
   }
 }
 
@@ -154,7 +154,7 @@ class ContentPostCard extends StatelessWidget {
     this.showSectionLabel = false,
     this.compact = false,
     this.vertical = false,
-    this.margin = const EdgeInsets.only(bottom: 16),
+    this.margin = const EdgeInsets.only(bottom: 12),
     this.animationIndex = 0,
   });
 
@@ -176,15 +176,14 @@ class ContentPostCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppColors.cardShadow,
-              blurRadius: 18,
+              color: AppColors.forest.withValues(alpha: 0.07),
+              blurRadius: 20,
               offset: const Offset(0, 8),
-              spreadRadius: -6,
+              spreadRadius: -4,
             ),
           ],
         ),
@@ -197,48 +196,64 @@ class ContentPostCard extends StatelessWidget {
       padding: margin,
       child: card
           .animate()
-          .fadeIn(delay: (animationIndex * 45).ms, duration: 360.ms)
-          .slideY(begin: 0.045, end: 0, curve: Curves.easeOutCubic),
+          .fadeIn(delay: (animationIndex * 30).ms, duration: 320.ms)
+          .slideY(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
     );
   }
 
   Widget _horizontalBody(bool paid, Color catColor) {
-    final imageSize = compact ? 88.0 : 108.0;
-    return Padding(
-      padding: EdgeInsets.all(compact ? 10 : 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
+    final title = safeDisplayText(post.title);
+    final excerpt = safeDisplayText(post.excerpt);
+    final imageUrl = post.displayImageUrl.trim();
+    final hasImage = imageUrl.isNotEmpty;
+
+    if (!hasImage) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(compact ? 12 : 14, 12, 14, 12),
+        child: _meta(paid, catColor, title: title, excerpt: excerpt),
+      );
+    }
+
+    final imageSize = compact ? 104.0 : 120.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: imageSize,
+          height: imageSize,
+          child: Stack(
+            fit: StackFit.expand,
             children: [
               HerbImage(
-                url: post.displayImageUrl,
+                url: imageUrl,
                 width: imageSize,
                 height: imageSize,
-                borderRadius: 16,
-                fallbackLabel: post.title,
+                borderRadius: 0,
+                fit: BoxFit.cover,
+                fallbackLabel: title,
                 category: post.category ?? post.section,
               ),
               if (paid)
                 const Positioned(
-                  top: 6,
-                  left: 6,
+                  top: 8,
+                  left: 8,
                   child: PaidMakalaBadge(compact: true),
                 )
               else if (post.isPremium)
                 Positioned(
-                  top: 6,
-                  left: 6,
+                  top: 8,
+                  left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppColors.amber,
-                      borderRadius: BorderRadius.circular(7),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
                       'PRO',
                       style: TextStyle(
-                        fontSize: 8,
+                        fontSize: 9,
                         fontWeight: FontWeight.w900,
                         color: Colors.white,
                       ),
@@ -247,34 +262,50 @@ class ContentPostCard extends StatelessWidget {
                 ),
             ],
           ),
-          SizedBox(width: compact ? 10 : 14),
-          Expanded(child: _meta(paid, catColor)),
-        ],
-      ),
-    );
-  }
-
-  Widget _verticalBody(bool paid, Color catColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        HerbImage(
-          url: post.displayImageUrl,
-          height: 148,
-          fullWidth: true,
-          borderRadius: 0,
-          fallbackLabel: post.title,
-          category: post.category ?? post.section,
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-          child: _meta(paid, catColor),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(compact ? 12 : 14, 10, 14, 10),
+            child: _meta(paid, catColor, title: title, excerpt: excerpt),
+          ),
         ),
       ],
     );
   }
 
-  Widget _meta(bool paid, Color catColor) {
+  Widget _verticalBody(bool paid, Color catColor) {
+    final title = safeDisplayText(post.title);
+    final excerpt = safeDisplayText(post.excerpt);
+    final imageUrl = post.displayImageUrl.trim();
+    final hasImage = imageUrl.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (hasImage)
+          HerbImage(
+            url: imageUrl,
+            height: 168,
+            fullWidth: true,
+            borderRadius: 0,
+            fit: BoxFit.cover,
+            fallbackLabel: title,
+            category: post.category ?? post.section,
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          child: _meta(paid, catColor, title: title, excerpt: excerpt),
+        ),
+      ],
+    );
+  }
+
+  Widget _meta(
+    bool paid,
+    Color catColor, {
+    required String title,
+    required String excerpt,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -282,13 +313,13 @@ class ContentPostCard extends StatelessWidget {
           children: [
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: catColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _chipLabel(post, showSectionLabel),
+                  safeDisplayText(_chipLabel(post, showSectionLabel)),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -305,33 +336,38 @@ class ContentPostCard extends StatelessWidget {
             ] else if (post.isPremium)
               Padding(
                 padding: const EdgeInsets.only(left: 6),
-                child: Icon(Icons.lock_rounded, size: 14, color: AppColors.amber.withValues(alpha: 0.9)),
+                child: Icon(
+                  Icons.lock_rounded,
+                  size: 14,
+                  color: AppColors.amber.withValues(alpha: 0.9),
+                ),
               ),
           ],
         ),
         const SizedBox(height: 8),
         Text(
-          post.title,
+          title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: compact ? 13.5 : 15,
+            fontSize: compact ? 14 : 15,
             fontWeight: FontWeight.w800,
             color: AppColors.forest,
-            height: 1.22,
+            height: 1.28,
             letterSpacing: -0.2,
           ),
         ),
-        if (!compact && post.excerpt.isNotEmpty) ...[
+        if (!compact && excerpt.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
-            post.excerpt,
+            excerpt,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
+            style: const TextStyle(
+              fontSize: 12.5,
               color: AppColors.gray500,
-              height: 1.35,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -341,16 +377,16 @@ class ContentPostCard extends StatelessWidget {
             Text(
               'Soma',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w800,
                 color: AppColors.emerald700,
               ),
             ),
             if (showChevron) ...[
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Icon(
                 Icons.arrow_forward_rounded,
-                size: 15,
+                size: 14,
                 color: AppColors.emerald700.withValues(alpha: 0.9),
               ),
             ],
@@ -365,10 +401,10 @@ class _SomaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.forest,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
@@ -376,13 +412,13 @@ class _SomaPill extends StatelessWidget {
           Text(
             'Soma',
             style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
               color: Colors.white,
             ),
           ),
-          SizedBox(width: 4),
-          Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.white),
+          SizedBox(width: 6),
+          Icon(Icons.arrow_forward_rounded, size: 15, color: Colors.white),
         ],
       ),
     );
@@ -405,15 +441,15 @@ class _OverlayChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: filled ? color : Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(20),
+        color: filled ? color : Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        label.toUpperCase(),
+        safeDisplayText(label).toUpperCase(),
         style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.6,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
           color: filled ? Colors.white : color,
         ),
       ),

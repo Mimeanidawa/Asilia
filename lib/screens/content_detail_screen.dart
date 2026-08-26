@@ -4,12 +4,15 @@ import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
 import '../providers/app_provider.dart';
+import '../services/ads_service.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/makala_ad_gate.dart';
+import '../widgets/makala_ads.dart';
 import '../widgets/paid_makala_badge.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
@@ -28,6 +31,8 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   ContentPost? _post;
   bool _loading = true;
   bool _premiumModalShown = false;
+  bool _adUnlocked = false;
+  String? _adUnlockedForId;
 
   @override
   void initState() {
@@ -39,11 +44,21 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final app = context.read<AppProvider>();
     final content = context.read<ContentService>();
     final user = context.read<UserService>();
+    final ads = context.read<AdsService>();
     final id = app.selectedContentId;
     if (id == null || id.isEmpty) {
       if (mounted) setState(() => _loading = false);
       return;
     }
+
+    // Reset ad unlock when opening a different makala.
+    if (_adUnlockedForId != id) {
+      _adUnlocked = false;
+      _adUnlockedForId = id;
+      _premiumModalShown = false;
+    }
+
+    unawaitedAdsPreload(ads);
 
     var post = await content.fetchPost(id, userToken: user.token);
     if (post == null) {
@@ -59,6 +74,10 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     });
 
     _maybeShowPremiumModal(post, user);
+  }
+
+  void unawaitedAdsPreload(AdsService ads) {
+    ads.initialize().then((_) => ads.preload());
   }
 
   void _maybeShowPremiumModal(ContentPost? post, UserService user) {
@@ -95,6 +114,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final user = context.watch<UserService>();
+    final ads = context.watch<AdsService>();
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: AppColors.forest));
@@ -115,6 +135,20 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final post = _post!;
     final canRead = user.canReadContent(post);
     final paid = user.hasPurchasedContent(post.id);
+    final needsAd = ads.shouldShowAds(user) && !_adUnlocked;
+
+    if (needsAd && canRead) {
+      return MakalaAdGate(
+        onUnlocked: () {
+          if (!mounted) return;
+          setState(() {
+            _adUnlocked = true;
+            _adUnlockedForId = post.id;
+          });
+        },
+        onCancel: app.goBack,
+      );
+    }
 
     return SizedBox.expand(
       child: Column(
@@ -124,78 +158,95 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             child: PullToRefresh(
               onRefresh: _refresh,
               child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(bottom: 32),
-              children: [
-                GestureDetector(
-                  onTap: post.displayImageUrl.isEmpty
-                      ? null
-                      : () => openFullscreenImage(context, post.displayImageUrl, caption: post.title),
-                  child: HerbImage(
-                    url: post.displayImageUrl,
-                    fullWidth: true,
-                    fitToImage: true,
-                    fit: BoxFit.fitWidth,
-                    borderRadius: 0,
-                    fallbackLabel: post.title,
-                    category: post.category ?? post.section,
-                  ),
-                ).animate().fadeIn(),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (paid) const PaidMakalaBadge(),
-                          if (post.category != null)
-                            Text(
-                              post.categoryLabel.toUpperCase(),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.emerald800,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (paid || post.category != null) const SizedBox(height: 8),
-                      Text(
-                        post.title,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.forest,
-                          height: 1.2,
-                        ),
-                      ).animate().fadeIn(delay: 100.ms),
-                      if (post.subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          post.subtitle,
-                          style: TextStyle(fontSize: 13, color: AppColors.gray500, height: 1.35),
-                        ),
-                      ],
-                      const SizedBox(height: 20),
-                      if (post.isPremium && !canRead)
-                        PremiumMakalaGate(
-                          post: post,
-                          onUnlock: _purchase,
-                        )
-                      else
-                        RichContentView(content: post.content).animate().fadeIn(delay: 200.ms),
-                    ],
-                  ),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(
+                  bottom: ads.shouldShowAds(user) ? 12 : 32,
                 ),
-              ],
-            ),
+                children: [
+                  GestureDetector(
+                    onTap: post.displayImageUrl.isEmpty
+                        ? null
+                        : () => openFullscreenImage(
+                              context,
+                              post.displayImageUrl,
+                              caption: post.title,
+                            ),
+                    child: HerbImage(
+                      url: post.displayImageUrl,
+                      fullWidth: true,
+                      fitToImage: true,
+                      fit: BoxFit.fitWidth,
+                      borderRadius: 0,
+                      fallbackLabel: post.title,
+                      category: post.category ?? post.section,
+                    ),
+                  ).animate().fadeIn(),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (paid) const PaidMakalaBadge(),
+                            if (post.category != null)
+                              Text(
+                                post.categoryLabel.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.emerald800,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (paid || post.category != null) const SizedBox(height: 8),
+                        Text(
+                          post.title,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.forest,
+                            height: 1.2,
+                          ),
+                        ).animate().fadeIn(delay: 100.ms),
+                        if (post.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            post.subtitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.gray500,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        if (post.isPremium && !canRead)
+                          PremiumMakalaGate(
+                            post: post,
+                            onUnlock: _purchase,
+                          )
+                        else ...[
+                          if (ads.shouldShowAds(user))
+                            const MakalaInlineBannerAd(),
+                          RichContentView(content: post.content)
+                              .animate()
+                              .fadeIn(delay: 200.ms),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          if (canRead && !(post.isPremium && !canRead))
+            const MakalaBannerAd(),
         ],
       ),
     );

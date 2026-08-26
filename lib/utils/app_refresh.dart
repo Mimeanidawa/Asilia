@@ -6,6 +6,7 @@ import '../services/content_service.dart';
 import '../services/mwalimu_service.dart';
 import '../services/lesson_service.dart';
 import '../services/notification_center_service.dart';
+import '../services/remote_app_config_service.dart';
 import '../services/user_service.dart';
 
 /// Centralized silent refresh helpers for pull-to-refresh and background sync.
@@ -17,9 +18,11 @@ class AppRefresh {
       final content = context.read<ContentService>();
       final user = context.read<UserService>();
       final app = context.read<AppProvider>();
+      final remote = context.read<RemoteAppConfigService>();
       await Future.wait([
         content.syncFromServer(userToken: user.token),
         app.refreshLessons(silent: true),
+        remote.syncFromServer(),
       ]);
       // Always baseline/sync notifications AFTER catalog is fresh to avoid
       // seeding from a partial list and inventing the rest as "new".

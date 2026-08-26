@@ -78,7 +78,7 @@ class ContentSearch {
 
     final terms = <String>{normalized};
     for (final word in normalized.split(RegExp(r'\s+'))) {
-      if (word.length >= 3) terms.add(word);
+      if (word.length >= 2) terms.add(word);
     }
     return terms.toList();
   }
@@ -93,9 +93,10 @@ class ContentSearch {
 
     if (title == mainQuery) score += 120;
     if (title.contains(mainQuery) || mainQuery.contains(title)) score += 80;
+    if (hay.contains(mainQuery)) score += 40;
 
     for (final term in terms) {
-      if (term.length < 3) continue;
+      if (term.isEmpty) continue;
       if (title.contains(term)) score += 25;
       if (hay.contains(term)) score += 12;
     }

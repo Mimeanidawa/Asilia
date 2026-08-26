@@ -57,7 +57,10 @@ class ContentTagStyle {
         return 'Lishe';
       default:
         if (tag.isEmpty) return tag;
-        return tag[0].toUpperCase() + tag.substring(1);
+        final runes = tag.runes.toList();
+        if (runes.isEmpty) return tag;
+        final first = String.fromCharCode(runes.first).toUpperCase();
+        return first + String.fromCharCodes(runes.skip(1));
     }
   }
 }

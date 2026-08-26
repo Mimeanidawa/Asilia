@@ -54,18 +54,18 @@ class ProfileScreen extends StatelessWidget {
               child: const Row(
                 children: [
                   Icon(
-                    Icons.verified_user_rounded,
+                    Icons.person_rounded,
                     color: AppColors.emerald800,
-                    size: 20,
+                    size: 22,
                   ),
-                  SizedBox(width: 8),
+                  SizedBox(width: 10),
                   Text(
-                    'MTUMIAJI',
+                    'Mtumiaji',
                     style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.forest,
-                      letterSpacing: 0.5,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ],
@@ -180,46 +180,45 @@ class _GuestProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.emerald50, AppColors.surfaceElevated],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.softShadow,
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppColors.radiusXl),
+        boxShadow: AppColors.elevationMd,
       ),
       child: Column(
         children: [
-          const Icon(Icons.eco, color: AppColors.forest, size: 40),
-          const SizedBox(height: 12),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              gradient: AppColors.heroGradient,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Icon(Icons.eco_rounded, color: Colors.white, size: 36),
+          ),
+          const SizedBox(height: 16),
           const Text(
-            'Karibu Dawa Asili!',
+            'Karibu Dawa Asili',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
               color: AppColors.forest,
+              letterSpacing: -0.4,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             'Jiunge ili kusoma makala, kuuliza Mwalimu, na kufungua maudhui ya Premium',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               color: AppColors.gray500,
-              height: 1.4,
+              height: 1.45,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -227,14 +226,14 @@ class _GuestProfileCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.forest,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               child: const Text(
                 'Jiunge au Ingia',
-                style: TextStyle(fontWeight: FontWeight.w900),
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
               ),
             ),
           ),

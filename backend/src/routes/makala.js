@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { getPool } from '../db.js';
 import { publicApiBase } from '../utils/publicUrl.js';
-import { toDisplayImageUrl } from '../utils/resolveImageUrl.js';
+import { toDisplayImageUrl } from '../utils/mediaCache.js';
 
 const router = Router();
 

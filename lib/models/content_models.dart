@@ -104,9 +104,9 @@ class ContentPost {
       id: json['id'] as String,
       section: json['section'] as String,
       category: json['category'] as String?,
-      title: json['title'] as String,
-      subtitle: _jsonString(json, const ['subtitle']),
-      excerpt: _jsonString(json, const ['excerpt']),
+      title: _sanitizeText(json['title'] as String? ?? ''),
+      subtitle: _sanitizeText(_jsonString(json, const ['subtitle'])),
+      excerpt: _sanitizeText(_jsonString(json, const ['excerpt'])),
       content: content,
       imageUrl: _normalizeStoredImageUrl(image),
       isPremium: json['isPremium'] as bool? ?? json['is_premium'] as bool? ?? false,
@@ -118,6 +118,30 @@ class ContentPost {
       hasAccess: json['hasAccess'] as bool? ?? json['has_access'] as bool? ?? true,
     );
   }
+}
+
+String _sanitizeText(String input) {
+  if (input.isEmpty) return '';
+  final units = input.codeUnits;
+  final out = StringBuffer();
+  for (var i = 0; i < units.length; i++) {
+    final u = units[i];
+    if (u >= 0xD800 && u <= 0xDBFF) {
+      if (i + 1 < units.length) {
+        final low = units[i + 1];
+        if (low >= 0xDC00 && low <= 0xDFFF) {
+          out.writeCharCode(u);
+          out.writeCharCode(low);
+          i++;
+          continue;
+        }
+      }
+      continue;
+    }
+    if (u >= 0xDC00 && u <= 0xDFFF) continue;
+    out.writeCharCode(u);
+  }
+  return out.toString();
 }
 
 String _jsonString(Map<String, dynamic> json, List<String> keys) {

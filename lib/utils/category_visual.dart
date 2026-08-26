@@ -62,7 +62,7 @@ class CategoryVisual {
   }
 }
 
-/// Intentional cover art used when a post has no photo — like a playlist tile.
+/// Soft cover used only when there is truly no photo — no letter glyphs.
 class BrandedCover extends StatelessWidget {
   const BrandedCover({
     super.key,
@@ -77,8 +77,6 @@ class BrandedCover extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = CategoryVisual.gradientFor(category);
     final icon = CategoryVisual.iconFor(category);
-    final trimmed = label.trim();
-    final initial = trimmed.isEmpty ? 'A' : trimmed[0].toUpperCase();
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -88,32 +86,8 @@ class BrandedCover extends StatelessWidget {
           colors: colors,
         ),
       ),
-      child: Stack(
-        children: [
-          Align(
-            alignment: const Alignment(1.15, 1.2),
-            child: Icon(icon, size: 88, color: Colors.white.withValues(alpha: 0.10)),
-          ),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: Colors.white.withValues(alpha: 0.92), size: 28),
-                const SizedBox(height: 6),
-                Text(
-                  initial,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white.withValues(alpha: 0.95),
-                    letterSpacing: -0.4,
-                    height: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: Center(
+        child: Icon(icon, color: Colors.white.withValues(alpha: 0.88), size: 32),
       ),
     );
   }

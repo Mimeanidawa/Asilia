@@ -237,7 +237,19 @@ export async function initDb() {
       ('mwalimu_image', 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&q=80&w=200'),
       ('mwalimu_welcome', 'Karibu! Mimi ni Mwalimu wako wa elimu ya dawa za asili. Uliza kuhusu mimea, mizizi, miti na matunda — kwa elimu tu, si ushauri wa kimatibabu.'),
       ('free_message_limit', '5'),
-      ('premium_price', '15000')
+      ('premium_price', '15000'),
+      ('screen_message_enabled', 'false'),
+      ('screen_message_id', ''),
+      ('screen_message_title', ''),
+      ('screen_message_body', ''),
+      ('screen_message_style', 'info'),
+      ('screen_message_dismissible', 'true'),
+      ('force_update_enabled', 'false'),
+      ('min_app_version', ''),
+      ('min_app_build', '0'),
+      ('update_title', 'Sasisha programu'),
+      ('update_message', 'Toleo jipya la Dawa Asili lipo kwenye Play Store. Tafadhali sasisha ili uendelee kutumia app.'),
+      ('store_url', 'https://play.google.com/store/apps/details?id=com.asilia')
     ON CONFLICT (key) DO NOTHING
   `);
 

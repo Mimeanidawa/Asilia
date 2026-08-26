@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
 import '../providers/app_provider.dart';
+import '../services/ads_service.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
@@ -14,6 +14,8 @@ import '../utils/responsive.dart';
 import '../widgets/content_post_card.dart';
 import '../widgets/fullscreen_image_viewer.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/makala_ad_gate.dart';
+import '../widgets/makala_ads.dart';
 import '../widgets/paid_makala_badge.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
@@ -258,63 +260,49 @@ class _LibraryHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFE8F2EC),
-            AppColors.cream,
-            AppColors.amberLight.withValues(alpha: 0.16),
-          ],
-        ),
-        border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: const BoxDecoration(gradient: AppColors.accentGlow),
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               gradient: AppColors.heroGradient,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.forest.withValues(alpha: 0.22),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 22),
+            child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Jifunze',
                   style: TextStyle(
-                    fontFamily: kIsWeb ? null : 'Playfair Display',
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.w800,
                     color: AppColors.forest,
                     height: 1.1,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.7,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   'Maktaba ya maarifa ya dawa asili',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.gray500,
-                    height: 1.25,
+                    height: 1.3,
                   ),
                 ),
               ],
@@ -322,16 +310,16 @@ class _LibraryHeader extends StatelessWidget {
           ),
           if (count > 0)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.78),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: AppColors.elevationSm,
               ),
               child: Text(
                 '$count',
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w900,
                   color: AppColors.emerald800,
                 ),
@@ -382,17 +370,17 @@ class _CategoryRail extends StatelessWidget {
               curve: Curves.easeOutCubic,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: isOn ? accent : AppColors.emerald50,
-                borderRadius: BorderRadius.circular(22),
+                color: isOn ? AppColors.forest : AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: isOn
                       ? Colors.transparent
-                      : AppColors.forest.withValues(alpha: 0.07),
+                      : AppColors.forest.withValues(alpha: 0.06),
                 ),
                 boxShadow: isOn
                     ? [
                         BoxShadow(
-                          color: accent.withValues(alpha: 0.28),
+                          color: AppColors.forest.withValues(alpha: 0.22),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -406,7 +394,7 @@ class _CategoryRail extends StatelessWidget {
                     size: 15,
                     color: isOn ? Colors.white : accent,
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 7),
                   Text(
                     cat.label,
                     style: TextStyle(
@@ -602,11 +590,15 @@ class _ArticleReader extends StatefulWidget {
 
 class _ArticleReaderState extends State<_ArticleReader> {
   bool _premiumModalShown = false;
+  bool _adUnlocked = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowPremiumModal());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AdsService>().preload();
+      _maybeShowPremiumModal();
+    });
   }
 
   @override
@@ -614,6 +606,7 @@ class _ArticleReaderState extends State<_ArticleReader> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.post.id != widget.post.id) {
       _premiumModalShown = false;
+      _adUnlocked = false;
       WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowPremiumModal());
     }
   }
@@ -637,138 +630,172 @@ class _ArticleReaderState extends State<_ArticleReader> {
     final paid = widget.user.hasPurchasedContent(post.id);
     final catColor = ContentTagStyle.colorFor(post.category ?? 'jifunze');
     final top = MediaQuery.paddingOf(context).top;
+    final ads = context.watch<AdsService>();
+    final needsAd = ads.shouldShowAds(widget.user) && !_adUnlocked && canRead;
+
+    if (needsAd) {
+      return MakalaAdGate(
+        onUnlocked: () {
+          if (!mounted) return;
+          setState(() => _adUnlocked = true);
+        },
+        onCancel: widget.onClose,
+      );
+    }
 
     return SizedBox.expand(
-      child: Stack(
+      child: Column(
         children: [
-          PullToRefresh(
-            onRefresh: widget.onRefresh,
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 300,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        GestureDetector(
-                          onTap: post.displayImageUrl.isEmpty
-                              ? null
-                              : () => openFullscreenImage(
-                                    context,
-                                    post.displayImageUrl,
-                                    caption: post.title,
-                                  ),
-                          child: HerbImage(
-                            url: post.displayImageUrl,
-                            height: 300,
-                            borderRadius: 0,
-                            fullWidth: true,
-                            fit: BoxFit.cover,
-                            fallbackLabel: post.title,
-                            category: post.category ?? 'jifunze',
-                          ),
-                        ),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Color(0x660C2A1B),
-                                Color(0x000C2A1B),
-                                Color(0xF20C2A1B),
-                              ],
-                              stops: [0, 0.42, 1],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 20,
-                          right: 20,
-                          bottom: 28,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+          Expanded(
+            child: Stack(
+              children: [
+                PullToRefresh(
+                  onRefresh: widget.onRefresh,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: 300,
+                          child: Stack(
+                            fit: StackFit.expand,
                             children: [
-                              Row(
-                                children: [
-                                  _GlassChip(
-                                    label: post.categoryLabel.isEmpty
-                                        ? 'Jifunze'
-                                        : post.categoryLabel,
-                                    color: catColor,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (paid) const PaidMakalaBadge(onDark: true),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                post.title,
-                                style: TextStyle(
-                                  fontFamily: kIsWeb ? null : 'Playfair Display',
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  height: 1.15,
+                              GestureDetector(
+                                onTap: post.displayImageUrl.isEmpty
+                                    ? null
+                                    : () => openFullscreenImage(
+                                          context,
+                                          post.displayImageUrl,
+                                          caption: post.title,
+                                        ),
+                                child: HerbImage(
+                                  url: post.displayImageUrl,
+                                  height: 300,
+                                  borderRadius: 0,
+                                  fullWidth: true,
+                                  fit: BoxFit.cover,
+                                  fallbackLabel: post.title,
+                                  category: post.category ?? 'jifunze',
                                 ),
                               ),
-                              if (post.subtitle.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  post.subtitle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                    height: 1.3,
+                              const DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Color(0x660C2A1B),
+                                      Color(0x000C2A1B),
+                                      Color(0xF20C2A1B),
+                                    ],
+                                    stops: [0, 0.42, 1],
                                   ),
                                 ),
-                              ],
+                              ),
+                              Positioned(
+                                left: 20,
+                                right: 20,
+                                bottom: 28,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        _GlassChip(
+                                          label: post.categoryLabel.isEmpty
+                                              ? 'Jifunze'
+                                              : post.categoryLabel,
+                                          color: catColor,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        if (paid)
+                                          const PaidMakalaBadge(onDark: true),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      post.title,
+                                      style: TextStyle(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        height: 1.15,
+                                      ),
+                                    ),
+                                    if (post.subtitle.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        post.subtitle,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white
+                                              .withValues(alpha: 0.85),
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Transform.translate(
+                          offset: const Offset(0, -18),
+                          child: Container(
+                            width: double.infinity,
+                            decoration: const BoxDecoration(
+                              color: AppColors.cream,
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(26),
+                              ),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(20, 22, 20, 40),
+                            child: widget.loading
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 48),
+                                    child: Center(
+                                      child: CircularProgressIndicator(
+                                        color: AppColors.forest,
+                                      ),
+                                    ),
+                                  )
+                                : canRead
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (ads.shouldShowAds(widget.user))
+                                            const MakalaInlineBannerAd(),
+                                          RichContentView(
+                                            content: post.content,
+                                          ),
+                                        ],
+                                      )
+                                    : PremiumMakalaGate(
+                                        post: post,
+                                        onUnlock: widget.onPurchase,
+                                      ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Transform.translate(
-                    offset: const Offset(0, -18),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: AppColors.cream,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 40),
-                      child: widget.loading
-                          ? const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 48),
-                              child: Center(
-                                child: CircularProgressIndicator(color: AppColors.forest),
-                              ),
-                            )
-                          : canRead
-                              ? RichContentView(content: post.content)
-                              : PremiumMakalaGate(
-                                  post: post,
-                                  onUnlock: widget.onPurchase,
-                                ),
-                    ),
-                  ),
+                Positioned(
+                  top: top + 8,
+                  left: 12,
+                  child: _ReaderBackButton(onPressed: widget.onClose),
                 ),
               ],
             ),
           ),
-          Positioned(
-            top: top + 8,
-            left: 12,
-            child: _ReaderBackButton(onPressed: widget.onClose),
-          ),
+          if (canRead) const MakalaBannerAd(),
         ],
       ),
     );

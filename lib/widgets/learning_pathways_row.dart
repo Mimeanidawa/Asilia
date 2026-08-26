@@ -37,10 +37,10 @@ class LearningPathwaysRow extends StatelessWidget {
 
     if (columns == 1) {
       return SizedBox(
-        height: 128,
+        height: 138,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: gutter + 4),
+          padding: EdgeInsets.symmetric(horizontal: gutter),
           itemCount: pathways.length,
           separatorBuilder: (_, __) => const SizedBox(width: 12),
           itemBuilder: (context, i) => _PathwayCard(
@@ -60,7 +60,7 @@ class LearningPathwaysRow extends StatelessWidget {
           crossAxisCount: columns,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.35,
+          childAspectRatio: 1.4,
         ),
         itemCount: pathways.length,
         itemBuilder: (context, i) => _PathwayCard(
@@ -87,54 +87,55 @@ class _PathwayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppColors.radiusLg),
       clipBehavior: Clip.antiAlias,
-      elevation: 0,
+      color: Colors.transparent,
       child: InkWell(
         onTap: pathway.onTap,
         child: Ink(
-          width: expanded ? null : 152,
+          width: expanded ? null : 158,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: pathway.gradient,
             ),
+            borderRadius: BorderRadius.circular(AppColors.radiusLg),
             boxShadow: [
               BoxShadow(
-                color: pathway.gradient.first.withValues(alpha: 0.35),
-                blurRadius: 12,
-                offset: const Offset(0, 6),
+                color: pathway.gradient.first.withValues(alpha: 0.28),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(9),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(pathway.icon, color: Colors.white, size: 20),
                     ),
                     const Spacer(),
                     if (pathway.count != null && pathway.count! > 0)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.25),
+                          color: Colors.white.withValues(alpha: 0.22),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           '${pathway.count}',
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
                           ),
@@ -146,20 +147,22 @@ class _PathwayCard extends StatelessWidget {
                 Text(
                   pathway.title,
                   style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
                     color: Colors.white,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   pathway.subtitle,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9,
-                    color: Colors.white.withValues(alpha: 0.88),
-                    height: 1.2,
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.86),
+                    height: 1.25,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -169,8 +172,8 @@ class _PathwayCard extends StatelessWidget {
       ),
     )
         .animate()
-        .fadeIn(delay: (animationIndex * 70).ms, duration: 400.ms)
-        .slideX(begin: 0.08, end: 0, curve: Curves.easeOutCubic);
+        .fadeIn(delay: (animationIndex * 60).ms, duration: 420.ms)
+        .slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic);
   }
 }
 
@@ -190,20 +193,14 @@ class StatsStrip extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
         decoration: BoxDecoration(
           color: AppColors.surfaceElevated,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.softShadow,
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(AppColors.radiusLg),
+          border: Border.all(color: AppColors.forest.withValues(alpha: 0.04)),
+          boxShadow: AppColors.elevationSm,
         ),
         child: Row(
           children: [
@@ -217,37 +214,45 @@ class StatsStrip extends StatelessWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.05, end: 0);
+    ).animate().fadeIn(delay: 160.ms).slideY(begin: 0.06, end: 0);
   }
 
   Widget _divider() => Container(
         width: 1,
-        height: 32,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        color: AppColors.forest.withValues(alpha: 0.08),
+        height: 36,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        color: AppColors.forest.withValues(alpha: 0.06),
       );
 
   Widget _stat(String value, String label, IconData icon) {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 16, color: AppColors.emerald700),
-          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppColors.emerald50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 15, color: AppColors.emerald700),
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
               color: AppColors.forest,
+              letterSpacing: -0.3,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 9,
+            style: const TextStyle(
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               color: AppColors.gray500,
-              letterSpacing: 0.2,
             ),
           ),
         ],

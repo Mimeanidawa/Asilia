@@ -60,6 +60,14 @@ class AdminContentService {
     await _api.put('/api/chat/settings', body: body, token: _token);
   }
 
+  Future<Map<String, dynamic>> fetchAppConfig() async {
+    return _api.get('/api/app/config');
+  }
+
+  Future<Map<String, dynamic>> updateAppConfig(Map<String, dynamic> body) async {
+    return _api.put('/api/app/config', body: body, token: _token);
+  }
+
   @Deprecated('Use fetchMwalimuSettings')
   Future<Map<String, dynamic>> fetchMtabibuSettings() => fetchMwalimuSettings();
 

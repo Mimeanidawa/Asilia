@@ -10,7 +10,7 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onAction,
-    this.padding = const EdgeInsets.fromLTRB(20, 24, 20, 12),
+    this.padding = const EdgeInsets.fromLTRB(20, 28, 20, 14),
     this.badge,
   });
 
@@ -26,47 +26,38 @@ class SectionHeader extends StatelessWidget {
     return Padding(
       padding: padding,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 4,
-            height: 32,
-            margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              gradient: AppColors.heroGradient,
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.forest,
-                        letterSpacing: -0.4,
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.forest,
+                          letterSpacing: -0.6,
+                          height: 1.15,
+                        ),
                       ),
                     ),
                     if (badge != null) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.emerald50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.emerald700.withValues(alpha: 0.2),
-                          ),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           badge!,
                           style: const TextStyle(
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: FontWeight.w800,
                             color: AppColors.emerald800,
                           ),
@@ -76,13 +67,13 @@ class SectionHeader extends StatelessWidget {
                   ],
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     subtitle!,
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: const TextStyle(
+                      fontSize: 13,
                       color: AppColors.gray500,
-                      height: 1.35,
+                      height: 1.4,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -90,45 +81,33 @@ class SectionHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (actionLabel != null && onAction != null)
-            Material(
-              color: AppColors.emerald50,
-              borderRadius: BorderRadius.circular(20),
-              child: InkWell(
-                onTap: onAction,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.emerald700.withValues(alpha: 0.12),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.emerald800,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        actionLabel!,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.emerald800,
-                        ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 14,
-                        color: AppColors.emerald800,
-                      ),
-                    ],
-                  ),
-                ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.arrow_forward_rounded, size: 16),
+                ],
               ),
             ),
+          ],
         ],
       ),
-    ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.03, end: 0);
+    ).animate().fadeIn(duration: 420.ms).slideY(begin: 0.06, end: 0);
   }
 }

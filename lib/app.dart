@@ -24,8 +24,11 @@ import 'services/lesson_service.dart';
 import 'services/mwalimu_service.dart';
 import 'services/notification_center_service.dart';
 import 'services/notification_service.dart';
+import 'services/remote_app_config_service.dart';
+import 'services/ads_service.dart';
 import 'services/user_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_screen_message_banner.dart';
 import 'widgets/shimmer_loading.dart';
 
 class AsiliaApp extends StatefulWidget {
@@ -43,6 +46,8 @@ class _AsiliaAppState extends State<AsiliaApp> {
   late final MwalimuService _mwalimuService;
   late final NotificationCenterService _notificationCenter;
   late final NotificationService _notificationService;
+  late final RemoteAppConfigService _remoteAppConfig;
+  late final AdsService _adsService;
 
   bool _ready = false;
 
@@ -60,6 +65,8 @@ class _AsiliaAppState extends State<AsiliaApp> {
     _mwalimuService = MwalimuService();
     _notificationCenter = NotificationCenterService();
     _notificationService = NotificationService();
+    _remoteAppConfig = RemoteAppConfigService();
+    _adsService = AdsService();
     _appProvider = AppProvider(
       chatService: chatService,
       lessonService: _lessonService,
@@ -74,10 +81,12 @@ class _AsiliaAppState extends State<AsiliaApp> {
       _notificationCenter.load(),
       _contentService.loadFromCache(),
       _appProvider.initLocal(),
+      _remoteAppConfig.loadLocalMeta(),
     ]);
 
     if (mounted) setState(() => _ready = true);
 
+    unawaited(_adsService.initialize().then((_) => _adsService.preload()));
     unawaited(_bootstrapBackground());
   }
 
@@ -135,6 +144,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
       debugPrint('Lesson sync error: $e');
     });
     await _loadUserAndMwalimu();
+    await _remoteAppConfig.syncFromServer();
 
     await _notificationCenter.syncFromCatalog(
       posts: [
@@ -170,6 +180,8 @@ class _AsiliaAppState extends State<AsiliaApp> {
         ChangeNotifierProvider.value(value: _userService),
         ChangeNotifierProvider.value(value: _mwalimuService),
         ChangeNotifierProvider.value(value: _notificationCenter),
+        ChangeNotifierProvider.value(value: _remoteAppConfig),
+        ChangeNotifierProvider.value(value: _adsService),
         Provider<NotificationService>.value(value: _notificationService),
       ],
       child: MaterialApp(
@@ -203,17 +215,32 @@ class _AppShell extends StatefulWidget {
 
 class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   DateTime? _lastBackPress;
+  bool _checkedUpdate = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkRemoteConfig());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  Future<void> _checkRemoteConfig() async {
+    if (!mounted) return;
+    final remote = context.read<RemoteAppConfigService>();
+    if (!remote.isLoaded) {
+      await remote.syncFromServer();
+    }
+    if (!mounted) return;
+    if (!_checkedUpdate && remote.needsUpdate) {
+      _checkedUpdate = true;
+      await maybeShowForceUpdateDialog(context);
+    }
   }
 
   @override
@@ -226,6 +253,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     } else {
       mwalimu.loadGuestMessages();
     }
+    unawaited(context.read<RemoteAppConfigService>().syncFromServer());
   }
 
   @override

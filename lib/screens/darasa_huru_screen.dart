@@ -306,7 +306,6 @@ class _DarasaHeader extends StatelessWidget {
                 Text(
                   'Darasa Huru',
                   style: TextStyle(
-                    fontFamily: kIsWeb ? null : 'Playfair Display',
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: AppColors.forest,
@@ -438,7 +437,6 @@ class _FeaturedLessonCard extends StatelessWidget {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontFamily: kIsWeb ? null : 'Playfair Display',
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: AppColors.forest,

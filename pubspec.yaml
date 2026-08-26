@@ -1,7 +1,7 @@
 name: asilia
 description: "Dawa Asili - Elimu ya dawa za asili kutoka mizizi, miti na matunda."
 publish_to: 'none'
-version: 1.0.9+10
+version: 1.1.0+11
 
 environment:
   sdk: ^3.12.0
@@ -24,6 +24,9 @@ dependencies:
   webview_flutter: ^4.10.0
   webview_flutter_android: ^4.3.2
   just_audio: ^0.9.42
+  package_info_plus: ^8.3.0
+  url_launcher: ^6.3.1
+  google_mobile_ads: ^5.3.1
 
 dev_dependencies:
   flutter_test:

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// Circular back control used across drill-in screens.
 class CircleBackButton extends StatelessWidget {
   const CircleBackButton({
     super.key,
     required this.onPressed,
-    this.size = 36,
+    this.size = 40,
     this.iconSize = 18,
   });
 
@@ -13,16 +15,17 @@ class CircleBackButton extends StatelessWidget {
   final double size;
   final double iconSize;
 
-  static const _background = Color(0xFF537F00);
-
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: _background,
+      color: AppColors.forest,
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
+      elevation: 2,
+      shadowColor: AppColors.forest.withValues(alpha: 0.3),
       child: InkWell(
         onTap: onPressed,
+        customBorder: const CircleBorder(),
         child: SizedBox(
           width: size,
           height: size,

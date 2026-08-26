@@ -129,6 +129,8 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+      // Handle keyboard + floating nav insets ourselves in the reply bar.
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         leading: IconButton(
@@ -333,7 +335,31 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
     );
   }
 
+  double _replyBarBottomInset(BuildContext context) {
+    final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    if (viewInsets > 0) {
+      // Sit just above the keyboard.
+      return viewInsets + 8;
+    }
+    // Floating AdminBottomNav: 68px bar + 12px margin + safe area + breathing room.
+    return 68 + 12 + safeBottom + 8;
+  }
+
+  Future<void> _sendReply() async {
+    if (_replyCtrl.text.trim().isEmpty || _selectedConvId == null) return;
+    await context
+        .read<AdminProvider>()
+        .contentService
+        .replyToConversation(_selectedConvId!, _replyCtrl.text);
+    _replyCtrl.clear();
+    await _reloadMessages();
+    await context.read<AdminProvider>().refreshMwalimuUnread(silent: true);
+  }
+
   Widget _buildChatDetail() {
+    final bottomInset = _replyBarBottomInset(context);
+
     return Column(
       children: [
         Expanded(
@@ -346,7 +372,7 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
                   onRefresh: () => _reloadMessages(),
                   child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                     itemCount: _messages.length,
                     itemBuilder: (_, i) {
                       final m = _messages[i];
@@ -382,51 +408,114 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
                   ),
                 ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: 'Shiriki makala',
-                onPressed: _pickAndShareArticle,
-                icon:
-                    const Icon(Icons.link_rounded, color: AdminColors.emerald),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _replyCtrl,
-                  style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                  decoration: InputDecoration(
-                    hintText: 'Jibu kwa elimu tu...',
-                    hintStyle: GoogleFonts.inter(color: AdminColors.textDim),
-                    filled: true,
-                    fillColor: AdminColors.surface,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none),
-                  ),
+        Material(
+          color: AdminColors.surface,
+          elevation: 12,
+          shadowColor: Colors.black.withValues(alpha: 0.35),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: AdminColors.cardBorder.withValues(alpha: 0.6),
                 ),
               ),
-              IconButton(
-                onPressed: () async {
-                  if (_replyCtrl.text.trim().isEmpty ||
-                      _selectedConvId == null) {
-                    return;
-                  }
-                  await context
-                      .read<AdminProvider>()
-                      .contentService
-                      .replyToConversation(
-                          _selectedConvId!, _replyCtrl.text);
-                  _replyCtrl.clear();
-                  await _reloadMessages();
-                  await context
-                      .read<AdminProvider>()
-                      .refreshMwalimuUnread(silent: true);
-                },
-                icon: const Icon(Icons.send, color: AdminColors.emerald),
-              ),
-            ],
+            ),
+            padding: EdgeInsets.fromLTRB(12, 10, 12, bottomInset),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _pickAndShareArticle,
+                    icon: const Icon(Icons.article_outlined, size: 18),
+                    label: Text(
+                      'Shiriki makala',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AdminColors.emerald,
+                      side: BorderSide(
+                        color: AdminColors.emerald.withValues(alpha: 0.45),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _replyCtrl,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.newline,
+                        style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Andika jibu lako hapa...',
+                          hintStyle:
+                              GoogleFonts.inter(color: AdminColors.textDim),
+                          filled: true,
+                          fillColor: AdminColors.card,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: AdminColors.cardBorder
+                                  .withValues(alpha: 0.5),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                              color: AdminColors.emerald,
+                              width: 1.4,
+                            ),
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendReply(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Material(
+                      color: AdminColors.emerald,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        onTap: _sendReply,
+                        borderRadius: BorderRadius.circular(14),
+                        child: const SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: Icon(
+                            Icons.send_rounded,
+                            color: Color(0xFF052E16),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ],

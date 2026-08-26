@@ -21,10 +21,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _imageCtrl = TextEditingController();
   final _welcomeCtrl = TextEditingController();
   final _limitCtrl = TextEditingController();
+  final _screenTitleCtrl = TextEditingController();
+  final _screenBodyCtrl = TextEditingController();
+  final _minVersionCtrl = TextEditingController();
+  final _minBuildCtrl = TextEditingController();
+  final _updateTitleCtrl = TextEditingController();
+  final _updateMessageCtrl = TextEditingController();
+  final _storeUrlCtrl = TextEditingController();
   bool _loadingSettings = true;
   bool _savingPremium = false;
   bool _savingMwalimu = false;
+  bool _savingScreenMessage = false;
+  bool _savingUpdate = false;
+  bool _screenMessageEnabled = false;
+  bool _screenMessageDismissible = true;
+  String _screenMessageStyle = 'info';
+  bool _forceUpdateEnabled = false;
   String? _loadError;
+  String _screenMessageId = '';
 
   @override
   void initState() {
@@ -39,6 +53,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _imageCtrl.dispose();
     _welcomeCtrl.dispose();
     _limitCtrl.dispose();
+    _screenTitleCtrl.dispose();
+    _screenBodyCtrl.dispose();
+    _minVersionCtrl.dispose();
+    _minBuildCtrl.dispose();
+    _updateTitleCtrl.dispose();
+    _updateMessageCtrl.dispose();
+    _storeUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -48,10 +69,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _loadError = null;
     });
     try {
-      final data = await context
-          .read<AdminProvider>()
-          .contentService
-          .fetchMwalimuSettings();
+      final svc = context.read<AdminProvider>().contentService;
+      final data = await svc.fetchMwalimuSettings();
       final settings = data['settings'] as Map<String, dynamic>? ?? {};
       _premiumPriceCtrl.text = '${settings['premiumPrice'] ?? 15000}';
       _nameCtrl.text =
@@ -61,12 +80,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _welcomeCtrl.text =
           '${settings['mwalimuWelcome'] ?? settings['mtabibuWelcome'] ?? ''}';
       _limitCtrl.text = '${settings['freeMessageLimit'] ?? 5}';
+
+      final appData = await svc.fetchAppConfig();
+      final config = appData['config'] as Map<String, dynamic>? ?? {};
+      final screen = config['screenMessage'] as Map<String, dynamic>? ?? {};
+      final update = config['update'] as Map<String, dynamic>? ?? {};
+      _screenMessageEnabled = screen['enabled'] == true;
+      _screenMessageId = '${screen['id'] ?? ''}';
+      _screenTitleCtrl.text = '${screen['title'] ?? ''}';
+      _screenBodyCtrl.text = '${screen['body'] ?? ''}';
+      _screenMessageStyle = '${screen['style'] ?? 'info'}';
+      _screenMessageDismissible = screen['dismissible'] != false;
+      _forceUpdateEnabled = update['forceUpdate'] == true;
+      _minVersionCtrl.text = '${update['minVersion'] ?? ''}';
+      _minBuildCtrl.text = '${update['minBuild'] ?? 0}';
+      _updateTitleCtrl.text = '${update['title'] ?? 'Sasisha programu'}';
+      _updateMessageCtrl.text = '${update['message'] ?? ''}';
+      _storeUrlCtrl.text =
+          '${update['storeUrl'] ?? 'https://play.google.com/store/apps/details?id=com.asilia'}';
     } catch (_) {
       _loadError = 'Imeshindwa kupakia mipangilio';
       if (_premiumPriceCtrl.text.isEmpty) {
         _premiumPriceCtrl.text = '15000';
       }
       if (_limitCtrl.text.isEmpty) _limitCtrl.text = '5';
+      if (_storeUrlCtrl.text.isEmpty) {
+        _storeUrlCtrl.text =
+            'https://play.google.com/store/apps/details?id=com.asilia';
+      }
     }
     if (mounted) setState(() => _loadingSettings = false);
   }
@@ -122,6 +163,113 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingMwalimu = false);
+    }
+  }
+
+  Future<void> _saveScreenMessage({bool bumpId = true}) async {
+    if (_screenMessageEnabled && _screenBodyCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Andika ujumbe wa kuonyesha kwenye app')),
+      );
+      return;
+    }
+    setState(() => _savingScreenMessage = true);
+    try {
+      final res = await context.read<AdminProvider>().contentService.updateAppConfig({
+        'bumpMessageId': bumpId,
+        'screenMessage': {
+          'enabled': _screenMessageEnabled,
+          'id': _screenMessageId,
+          'title': _screenTitleCtrl.text.trim(),
+          'body': _screenBodyCtrl.text.trim(),
+          'style': _screenMessageStyle,
+          'dismissible': _screenMessageDismissible,
+        },
+        'update': {
+          'forceUpdate': _forceUpdateEnabled,
+          'minVersion': _minVersionCtrl.text.trim(),
+          'minBuild': int.tryParse(_minBuildCtrl.text.trim()) ?? 0,
+          'title': _updateTitleCtrl.text.trim(),
+          'message': _updateMessageCtrl.text.trim(),
+          'storeUrl': _storeUrlCtrl.text.trim(),
+        },
+      });
+      final config = res['config'] as Map<String, dynamic>? ?? {};
+      final screen = config['screenMessage'] as Map<String, dynamic>? ?? {};
+      _screenMessageId = '${screen['id'] ?? _screenMessageId}';
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _screenMessageEnabled
+                ? 'Ujumbe wa skrini umechapishwa kwenye app ya watumiaji'
+                : 'Ujumbe wa skrini umezimwa',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imeshindwa kuhifadhi ujumbe wa skrini')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingScreenMessage = false);
+    }
+  }
+
+  Future<void> _saveForceUpdate() async {
+    if (_forceUpdateEnabled &&
+        _minVersionCtrl.text.trim().isEmpty &&
+        (int.tryParse(_minBuildCtrl.text.trim()) ?? 0) <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Weka toleo la chini (mf. 1.2.0) au build number'),
+        ),
+      );
+      return;
+    }
+    setState(() => _savingUpdate = true);
+    try {
+      await context.read<AdminProvider>().contentService.updateAppConfig({
+        'bumpMessageId': false,
+        'screenMessage': {
+          'enabled': _screenMessageEnabled,
+          'id': _screenMessageId,
+          'title': _screenTitleCtrl.text.trim(),
+          'body': _screenBodyCtrl.text.trim(),
+          'style': _screenMessageStyle,
+          'dismissible': _screenMessageDismissible,
+        },
+        'update': {
+          'forceUpdate': _forceUpdateEnabled,
+          'minVersion': _minVersionCtrl.text.trim(),
+          'minBuild': int.tryParse(_minBuildCtrl.text.trim()) ?? 0,
+          'title': _updateTitleCtrl.text.trim().isEmpty
+              ? 'Sasisha programu'
+              : _updateTitleCtrl.text.trim(),
+          'message': _updateMessageCtrl.text.trim(),
+          'storeUrl': _storeUrlCtrl.text.trim().isEmpty
+              ? 'https://play.google.com/store/apps/details?id=com.asilia'
+              : _storeUrlCtrl.text.trim(),
+        },
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _forceUpdateEnabled
+                ? 'Lazima kusasisha imewezeshwa — watumiaji wataelekezwa Play Store'
+                : 'Lazima kusasisha imezimwa',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imeshindwa kuhifadhi mipangilio ya update')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingUpdate = false);
     }
   }
 
@@ -252,6 +400,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 20),
                   Animate(
+                    delay: const Duration(milliseconds: 95),
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 400)),
+                    ],
+                    child: _ScreenMessageCard(
+                      enabled: _screenMessageEnabled,
+                      dismissible: _screenMessageDismissible,
+                      style: _screenMessageStyle,
+                      titleCtrl: _screenTitleCtrl,
+                      bodyCtrl: _screenBodyCtrl,
+                      loading: _loadingSettings,
+                      saving: _savingScreenMessage,
+                      onEnabledChanged: (v) =>
+                          setState(() => _screenMessageEnabled = v),
+                      onDismissibleChanged: (v) =>
+                          setState(() => _screenMessageDismissible = v),
+                      onStyleChanged: (v) =>
+                          setState(() => _screenMessageStyle = v),
+                      onSave: () => _saveScreenMessage(bumpId: true),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Animate(
+                    delay: const Duration(milliseconds: 98),
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 400)),
+                    ],
+                    child: _ForceUpdateCard(
+                      enabled: _forceUpdateEnabled,
+                      minVersionCtrl: _minVersionCtrl,
+                      minBuildCtrl: _minBuildCtrl,
+                      titleCtrl: _updateTitleCtrl,
+                      messageCtrl: _updateMessageCtrl,
+                      storeUrlCtrl: _storeUrlCtrl,
+                      loading: _loadingSettings,
+                      saving: _savingUpdate,
+                      onEnabledChanged: (v) =>
+                          setState(() => _forceUpdateEnabled = v),
+                      onSave: _saveForceUpdate,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Animate(
                     delay: const Duration(milliseconds: 100),
                     effects: const [
                       FadeEffect(duration: Duration(milliseconds: 400)),
@@ -272,10 +463,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: AdminColors.emerald,
                         ),
                         _SettingsTile(
-                          icon: Icons.people_rounded,
-                          label: 'Total Users',
-                          trailing: '12,847',
-                          color: AdminColors.purple,
+                          icon: Icons.storefront_rounded,
+                          label: 'Play Store',
+                          trailing: 'com.asilia',
+                          color: AdminColors.amber,
                         ),
                       ],
                     ),
@@ -533,6 +724,379 @@ class _MwalimuDetailsCard extends StatelessWidget {
             borderSide: BorderSide.none,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ScreenMessageCard extends StatelessWidget {
+  const _ScreenMessageCard({
+    required this.enabled,
+    required this.dismissible,
+    required this.style,
+    required this.titleCtrl,
+    required this.bodyCtrl,
+    required this.loading,
+    required this.saving,
+    required this.onEnabledChanged,
+    required this.onDismissibleChanged,
+    required this.onStyleChanged,
+    required this.onSave,
+  });
+
+  final bool enabled;
+  final bool dismissible;
+  final String style;
+  final TextEditingController titleCtrl;
+  final TextEditingController bodyCtrl;
+  final bool loading;
+  final bool saving;
+  final ValueChanged<bool> onEnabledChanged;
+  final ValueChanged<bool> onDismissibleChanged;
+  final ValueChanged<String> onStyleChanged;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'UJUMBE WA SKRINI (USER APP)',
+            style: GoogleFonts.inter(
+              color: AdminColors.textDim,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AdminColors.cardBorder),
+          ),
+          child: loading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AdminColors.emerald,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Onyesha ujumbe kwenye Home',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Watumiaji wataona banner juu ya ukurasa wa mwanzo mara tu ukihifadhi.',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textDim,
+                        fontSize: 11,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _AdminSwitchRow(
+                      label: 'Wezesha ujumbe',
+                      value: enabled,
+                      activeColor: AdminColors.emerald,
+                      bold: true,
+                      onChanged: onEnabledChanged,
+                    ),
+                    _AdminSwitchRow(
+                      label: 'Inaweza kufungwa (X)',
+                      value: dismissible,
+                      activeColor: AdminColors.emerald,
+                      onChanged: onDismissibleChanged,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Aina',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textDim,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final s in const ['info', 'warning', 'success'])
+                          ChoiceChip(
+                            label: Text(s),
+                            selected: style == s,
+                            onSelected: (_) => onStyleChanged(s),
+                            selectedColor: AdminColors.emeraldGlow,
+                            labelStyle: GoogleFonts.inter(
+                              color: style == s
+                                  ? AdminColors.emerald
+                                  : AdminColors.textMuted,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _adminField(titleCtrl, 'Kichwa (si lazima)'),
+                    _adminField(bodyCtrl, 'Ujumbe wa kuonyesha', maxLines: 4),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: saving ? null : onSave,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AdminColors.emerald,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AdminColors.emerald.withValues(alpha: 0.4),
+                        ),
+                        child: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Chapisha kwenye User App',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ForceUpdateCard extends StatelessWidget {
+  const _ForceUpdateCard({
+    required this.enabled,
+    required this.minVersionCtrl,
+    required this.minBuildCtrl,
+    required this.titleCtrl,
+    required this.messageCtrl,
+    required this.storeUrlCtrl,
+    required this.loading,
+    required this.saving,
+    required this.onEnabledChanged,
+    required this.onSave,
+  });
+
+  final bool enabled;
+  final TextEditingController minVersionCtrl;
+  final TextEditingController minBuildCtrl;
+  final TextEditingController titleCtrl;
+  final TextEditingController messageCtrl;
+  final TextEditingController storeUrlCtrl;
+  final bool loading;
+  final bool saving;
+  final ValueChanged<bool> onEnabledChanged;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'LAZIMA KUSASISHA (PLAY STORE)',
+            style: GoogleFonts.inter(
+              color: AdminColors.textDim,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AdminColors.cardBorder),
+          ),
+          child: loading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AdminColors.emerald,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Force update',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Watumiaji wenye toleo la zamani watafungwa hadi wasasishe kwenye Play Store (com.asilia).',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textDim,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _AdminSwitchRow(
+                      label: 'Lazima kusasisha',
+                      value: enabled,
+                      activeColor: AdminColors.amber,
+                      bold: true,
+                      onChanged: onEnabledChanged,
+                    ),
+                    _adminField(minVersionCtrl, 'Toleo la chini (mf. 1.2.0)'),
+                    _adminField(
+                      minBuildCtrl,
+                      'Build number la chini (si lazima)',
+                      keyboardType: TextInputType.number,
+                    ),
+                    _adminField(titleCtrl, 'Kichwa cha dialog'),
+                    _adminField(messageCtrl, 'Ujumbe wa update', maxLines: 3),
+                    _adminField(storeUrlCtrl, 'Play Store URL'),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: saving ? null : onSave,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AdminColors.amber,
+                          foregroundColor: const Color(0xFF1A1205),
+                          disabledBackgroundColor:
+                              AdminColors.amber.withValues(alpha: 0.4),
+                        ),
+                        child: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Hifadhi Update Rules',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+Widget _adminField(
+  TextEditingController ctrl,
+  String label, {
+  int maxLines = 1,
+  TextInputType? keyboardType,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: TextField(
+      controller: ctrl,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: GoogleFonts.inter(color: AdminColors.textPrimary),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.inter(color: AdminColors.textDim),
+        filled: true,
+        fillColor: AdminColors.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    ),
+  );
+}
+
+class _AdminSwitchRow extends StatelessWidget {
+  const _AdminSwitchRow({
+    required this.label,
+    required this.value,
+    required this.activeColor,
+    required this.onChanged,
+    this.bold = false,
+  });
+
+  final String label;
+  final bool value;
+  final Color activeColor;
+  final ValueChanged<bool> onChanged;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: AdminColors.textPrimary,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeThumbColor: activeColor,
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }

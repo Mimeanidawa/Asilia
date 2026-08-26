@@ -29,14 +29,14 @@ class ScreenHeader extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
 
   static const _titleStyle = TextStyle(
-    fontSize: 13,
-    fontWeight: FontWeight.w900,
+    fontSize: 16,
+    fontWeight: FontWeight.w800,
     color: AppColors.forest,
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
   );
 
   static const _subtitleStyle = TextStyle(
-    fontSize: 10,
+    fontSize: 11,
     color: AppColors.gray500,
     fontWeight: FontWeight.w500,
   );
@@ -44,14 +44,15 @@ class ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: padding ?? const EdgeInsets.fromLTRB(8, 12, 12, 12),
+      padding: padding ?? const EdgeInsets.fromLTRB(8, 10, 12, 10),
       decoration: BoxDecoration(
         color: backgroundColor,
+        boxShadow: showBottomBorder ? AppColors.elevationSm : null,
         border: showBottomBorder
-            ? Border(
-                bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
-              )
-            : null,
+            ? null
+            : Border(
+                bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
+              ),
       ),
       child: Stack(
         alignment: Alignment.center,

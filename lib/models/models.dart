@@ -254,16 +254,40 @@ class DailyLesson {
 
   factory DailyLesson.fromJson(Map<String, dynamic> json) => DailyLesson(
         id: json['id'] as String,
-        title: json['title'] as String,
-        excerpt: json['excerpt'] as String,
-        content: json['content'] as String,
-        imageUrl: json['imageUrl'] as String,
+        title: _safeUtf16(json['title'] as String? ?? ''),
+        excerpt: _safeUtf16(json['excerpt'] as String? ?? ''),
+        content: json['content'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String? ?? '',
         publishedAt: DateTime.parse(json['publishedAt'] as String),
-        authorName: json['authorName'] as String,
-        readTimeMinutes: json['readTimeMinutes'] as int,
+        authorName: _safeUtf16(json['authorName'] as String? ?? ''),
+        readTimeMinutes: json['readTimeMinutes'] as int? ?? 4,
         topicTag: json['topicTag'] as String?,
         isPublished: json['isPublished'] as bool? ?? true,
       );
+}
+
+String _safeUtf16(String input) {
+  if (input.isEmpty) return '';
+  final units = input.codeUnits;
+  final out = StringBuffer();
+  for (var i = 0; i < units.length; i++) {
+    final u = units[i];
+    if (u >= 0xD800 && u <= 0xDBFF) {
+      if (i + 1 < units.length) {
+        final low = units[i + 1];
+        if (low >= 0xDC00 && low <= 0xDFFF) {
+          out.writeCharCode(u);
+          out.writeCharCode(low);
+          i++;
+          continue;
+        }
+      }
+      continue;
+    }
+    if (u >= 0xDC00 && u <= 0xDFFF) continue;
+    out.writeCharCode(u);
+  }
+  return out.toString();
 }
 
 class AppNotification {

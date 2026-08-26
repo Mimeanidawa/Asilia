@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/models.dart';
 import '../theme/app_colors.dart';
 import '../utils/category_visual.dart';
+import '../utils/safe_text.dart';
 import 'herb_image.dart';
 
 String darasaBadgeLabel(DailyLesson lesson) =>
@@ -22,7 +22,7 @@ class DarasaHuruCarousel extends StatefulWidget {
     this.autoPlay = true,
     this.shuffle = true,
     this.maxItems = 8,
-    this.height = 318,
+    this.height = 278,
   });
 
   final List<DailyLesson> lessons;
@@ -110,7 +110,7 @@ class _DarasaHuruCarouselState extends State<DarasaHuruCarousel> {
             itemBuilder: (context, i) {
               final lesson = _order[i];
               return Padding(
-                padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
+                padding: const EdgeInsets.fromLTRB(6, 2, 6, 6),
                 child: _PagerCard(
                   lesson: lesson,
                   onTap: () => widget.onOpen(lesson),
@@ -121,7 +121,7 @@ class _DarasaHuruCarouselState extends State<DarasaHuruCarousel> {
         ),
         if (_order.length > 1)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: 2),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -152,28 +152,24 @@ class _PagerCard extends StatelessWidget {
   final DailyLesson lesson;
   final VoidCallback onTap;
 
-  static const _photo = 168.0;
+  static const _photo = 148.0;
 
   @override
   Widget build(BuildContext context) {
+    final title = safeDisplayText(lesson.title);
+    final excerpt = safeDisplayText(lesson.excerpt);
+
     return PressableScale(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.forest.withValues(alpha: 0.12),
-              blurRadius: 22,
-              offset: const Offset(0, 10),
-              spreadRadius: -6,
-            ),
-          ],
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppColors.elevationMd,
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(
               height: _photo,
@@ -186,25 +182,26 @@ class _PagerCard extends StatelessWidget {
                     height: _photo,
                     borderRadius: 0,
                     fullWidth: true,
-                    fallbackLabel: lesson.title,
+                    fit: BoxFit.cover,
+                    fallbackLabel: title,
                     category: 'darasa_huru',
                   ),
                   Positioned(
-                    top: 12,
-                    left: 12,
+                    top: 10,
+                    left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: lesson.isToday ? AppColors.amber : AppColors.forest,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         darasaBadgeLabel(lesson),
                         style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
-                          letterSpacing: 0.6,
+                          letterSpacing: 0.4,
                         ),
                       ),
                     ),
@@ -212,72 +209,72 @@ class _PagerCard extends StatelessWidget {
                 ],
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.forest,
+                      height: 1.25,
+                      letterSpacing: -0.25,
+                    ),
+                  ),
+                  if (excerpt.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Text(
-                      lesson.title,
+                      excerpt,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: kIsWeb ? null : 'Playfair Display',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.forest,
-                        height: 1.2,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: AppColors.gray500,
+                        fontWeight: FontWeight.w500,
                       ),
-                    ),
-                    if (lesson.excerpt.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        lesson.excerpt,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.35,
-                          color: AppColors.gray500,
-                        ),
-                      ),
-                    ],
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Text(
-                          lesson.formattedDate,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.gray400,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'Soma',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.emerald700,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 15,
-                          color: AppColors.emerald700,
-                        ),
-                      ],
                     ),
                   ],
-                ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Text(
+                        lesson.formattedDate,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.gray400,
+                        ),
+                      ),
+                      const Spacer(),
+                      const Text(
+                        'Soma',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.emerald700,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 15,
+                        color: AppColors.emerald700,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 380.ms);
+    ).animate().fadeIn(duration: 360.ms);
   }
 }
