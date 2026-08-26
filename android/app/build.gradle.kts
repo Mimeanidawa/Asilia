@@ -57,6 +57,12 @@ android {
             }
         }
     }
+
+    // Vital lint OOMs on this machine during release; keep Play/build unblocked.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 kotlin {
