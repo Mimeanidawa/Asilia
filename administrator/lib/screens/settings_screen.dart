@@ -96,7 +96,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _forceUpdateEnabled = update['forceUpdate'] == true;
       _minVersionCtrl.text = '${update['minVersion'] ?? ''}';
       _minBuildCtrl.text = '${update['minBuild'] ?? 0}';
-      _updateTitleCtrl.text = '${update['title'] ?? 'Sasisha programu'}';
+      _updateTitleCtrl.text = '${update['title'] ?? 'Update Required'}';
       _updateMessageCtrl.text = '${update['message'] ?? ''}';
       _storeUrlCtrl.text =
           '${update['storeUrl'] ?? 'https://play.google.com/store/apps/details?id=com.asilia'}';
@@ -248,7 +248,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           'minVersion': _minVersionCtrl.text.trim(),
           'minBuild': int.tryParse(_minBuildCtrl.text.trim()) ?? 0,
           'title': _updateTitleCtrl.text.trim().isEmpty
-              ? 'Sasisha programu'
+              ? 'Update Required'
               : _updateTitleCtrl.text.trim(),
           'message': _updateMessageCtrl.text.trim(),
           'storeUrl': _storeUrlCtrl.text.trim().isEmpty

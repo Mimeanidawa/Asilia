@@ -248,8 +248,8 @@ export async function initDb() {
       ('force_update_enabled', 'false'),
       ('min_app_version', ''),
       ('min_app_build', '0'),
-      ('update_title', 'Sasisha programu'),
-      ('update_message', 'Toleo jipya la Dawa Asili lipo kwenye Play Store. Tafadhali sasisha ili uendelee kutumia app.'),
+      ('update_title', 'Update Required'),
+      ('update_message', 'A new version of Dawa Asili is available. Update now to continue.'),
       ('store_url', 'https://play.google.com/store/apps/details?id=com.asilia')
     ON CONFLICT (key) DO NOTHING
   `);

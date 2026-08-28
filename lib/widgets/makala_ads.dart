@@ -31,7 +31,7 @@ class MakalaInlineBannerAd extends StatelessWidget {
 
 enum _MakalaBannerVariant { bottomAnchored, inlineRectangle }
 
-enum _BannerLoadState { idle, loading, loaded, failed }
+enum _BannerLoadState { loading, loaded, failed }
 
 class _MakalaBannerSlot extends StatefulWidget {
   const _MakalaBannerSlot({required this.variant});
@@ -44,28 +44,49 @@ class _MakalaBannerSlot extends StatefulWidget {
 
 class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
   BannerAd? _banner;
-  _BannerLoadState _state = _BannerLoadState.idle;
+  _BannerLoadState _state = _BannerLoadState.loading;
   int _retryCount = 0;
-  double? _slotWidth;
+  int? _loadedWidth;
+  int? _loadingWidth;
+  AdsService? _adsService;
 
   bool get _isBottom => widget.variant == _MakalaBannerVariant.bottomAnchored;
 
-  double get _loadingHeight {
-    if (_isBottom) return 60;
+  double get _fallbackHeight {
+    if (_isBottom) return AdSize.banner.height.toDouble();
     return AdSize.mediumRectangle.height.toDouble();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final width = MediaQuery.sizeOf(context).width;
-    if (_slotWidth != width && _state != _BannerLoadState.loaded) {
-      _slotWidth = width;
-      _scheduleLoad(width.truncate());
+    final ads = context.read<AdsService>();
+    if (_adsService != ads) {
+      _adsService?.removeListener(_onAdsReady);
+      _adsService = ads;
+      _adsService!.addListener(_onAdsReady);
     }
   }
 
-  void _scheduleLoad(int width) {
+  @override
+  void dispose() {
+    _adsService?.removeListener(_onAdsReady);
+    _banner?.dispose();
+    super.dispose();
+  }
+
+  void _onAdsReady() {
+    if (!mounted || _adsService?.isReady != true) return;
+    final width = MediaQuery.sizeOf(context).width.truncate();
+    if (width > 0) _scheduleLoad(width, force: _state != _BannerLoadState.loaded);
+  }
+
+  void _scheduleLoad(int width, {bool force = false}) {
+    if (!force) {
+      if (_state == _BannerLoadState.loaded && _loadedWidth == width) return;
+      if (_state == _BannerLoadState.loading && _loadingWidth == width) return;
+    }
+    _loadingWidth = width;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _loadBanner(width);
@@ -76,13 +97,14 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     final ads = context.read<AdsService>();
     final user = context.read<UserService>();
     if (!ads.shouldShowAds(user) || !AdsConfig.isSupportedPlatform) {
-      _disposeBanner(resetState: true);
+      _disposeBanner();
       return;
     }
 
-    if (_state == _BannerLoadState.loading) return;
+    if (_state == _BannerLoadState.loading && _banner != null) return;
 
-    _disposeBanner(resetState: false);
+    _banner?.dispose();
+    _banner = null;
     if (!mounted) return;
     setState(() => _state = _BannerLoadState.loading);
 
@@ -90,9 +112,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     if (!mounted) return;
 
     final adSize = await _resolveAdSize(width);
-    if (!mounted || adSize == null) {
-      setState(() => _state = _BannerLoadState.failed);
-      _retryLater(width);
+    if (!mounted) {
       return;
     }
 
@@ -109,6 +129,9 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
           setState(() {
             _banner = ad as BannerAd;
             _state = _BannerLoadState.loaded;
+            _loadedWidth = width;
+            _loadingWidth = null;
+            _retryCount = 0;
           });
         },
         onAdFailedToLoad: (ad, error) {
@@ -118,6 +141,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
           setState(() {
             _banner = null;
             _state = _BannerLoadState.failed;
+            _loadingWidth = null;
           });
           _retryLater(width);
         },
@@ -125,44 +149,50 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     );
 
     _banner = banner;
-    await banner.load();
+    try {
+      await banner.load();
+    } catch (e) {
+      debugPrint('Makala banner load error: $e');
+      if (!mounted) return;
+      setState(() {
+        _banner = null;
+        _state = _BannerLoadState.failed;
+        _loadingWidth = null;
+      });
+      _retryLater(width);
+    }
   }
 
-  Future<AdSize?> _resolveAdSize(int width) async {
+  Future<AdSize> _resolveAdSize(int width) async {
     if (!_isBottom) return AdSize.mediumRectangle;
 
-    final adaptive =
-        await AdSize.getAnchoredAdaptiveBannerAdSize(Orientation.portrait, width);
+    final safeWidth = width.clamp(320, 728);
+    final adaptive = await AdSize.getAnchoredAdaptiveBannerAdSize(
+      Orientation.portrait,
+      safeWidth,
+    );
     if (adaptive != null) return adaptive;
 
-    final large =
-        await AdSize.getLargeAnchoredAdaptiveBannerAdSize(width);
+    final large = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(safeWidth);
     if (large != null) return large;
 
     return AdSize.banner;
   }
 
   void _retryLater(int width) {
-    if (_retryCount >= 3) return;
     _retryCount++;
-    Future<void>.delayed(Duration(seconds: 4 * _retryCount), () {
+    final delay = Duration(seconds: (3 * _retryCount).clamp(3, 20));
+    Future<void>.delayed(delay, () {
       if (!mounted || _state == _BannerLoadState.loaded) return;
       _loadBanner(width);
     });
   }
 
-  void _disposeBanner({required bool resetState}) {
+  void _disposeBanner() {
     _banner?.dispose();
     _banner = null;
-    if (resetState && mounted) {
-      setState(() => _state = _BannerLoadState.idle);
-    }
-  }
-
-  @override
-  void dispose() {
-    _banner?.dispose();
-    super.dispose();
+    _loadedWidth = null;
+    if (mounted) setState(() => _state = _BannerLoadState.loading);
   }
 
   @override
@@ -171,31 +201,37 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     final user = context.watch<UserService>();
     if (!ads.shouldShowAds(user)) return const SizedBox.shrink();
 
-    switch (_state) {
-      case _BannerLoadState.idle:
-      case _BannerLoadState.failed:
-        return const SizedBox.shrink();
-      case _BannerLoadState.loading:
-        return _AdFrame(
-          inline: !_isBottom,
-          height: _loadingHeight,
-          child: _AdLoadingPlaceholder(height: _loadingHeight),
-        );
-      case _BannerLoadState.loaded:
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.truncate();
+        if (width > 0 &&
+            (_loadedWidth != width || _state == _BannerLoadState.failed)) {
+          _scheduleLoad(width, force: _state == _BannerLoadState.failed);
+        }
+
         final banner = _banner;
-        if (banner == null) return const SizedBox.shrink();
+        final height = banner != null
+            ? banner.size.height.toDouble()
+            : _fallbackHeight;
+
         return _AdFrame(
           inline: !_isBottom,
-          height: banner.size.height.toDouble(),
-          child: Center(
-            child: SizedBox(
-              width: banner.size.width.toDouble(),
-              height: banner.size.height.toDouble(),
-              child: AdWidget(ad: banner),
-            ),
-          ),
+          height: height,
+          child: _state == _BannerLoadState.loaded && banner != null
+              ? Center(
+                  child: SizedBox(
+                    width: banner.size.width.toDouble(),
+                    height: banner.size.height.toDouble(),
+                    child: AdWidget(
+                      key: ValueKey(banner.hashCode),
+                      ad: banner,
+                    ),
+                  ),
+                )
+              : _AdLoadingPlaceholder(height: height),
         );
-    }
+      },
+    );
   }
 }
 
@@ -238,7 +274,7 @@ class _AdFrame extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'MATANGAZO',
+                  'AD',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
@@ -267,7 +303,7 @@ class _AdFrame extends StatelessWidget {
 
     if (inline) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         child: frame,
       );
     }
@@ -285,28 +321,14 @@ class _AdLoadingPlaceholder extends StatelessWidget {
     return Container(
       height: height,
       alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.forest.withValues(alpha: 0.55),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            'Inapakia tangazo…',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: AppColors.gray500,
-            ),
-          ),
-        ],
+      color: AppColors.cream,
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          color: AppColors.forest.withValues(alpha: 0.4),
+        ),
       ),
     );
   }

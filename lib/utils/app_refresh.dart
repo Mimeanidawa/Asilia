@@ -8,7 +8,6 @@ import '../services/lesson_service.dart';
 import '../services/notification_center_service.dart';
 import '../services/remote_app_config_service.dart';
 import '../services/user_service.dart';
-import '../widgets/app_screen_message_banner.dart';
 
 /// Centralized silent refresh helpers for pull-to-refresh and background sync.
 class AppRefresh {
@@ -25,9 +24,6 @@ class AppRefresh {
         app.refreshLessons(silent: true),
         remote.syncFromServer(),
       ]);
-      if (context.mounted && remote.shouldBlockWithUpdateDialog) {
-        await maybeShowForceUpdateDialog(context);
-      }
       // Always baseline/sync notifications AFTER catalog is fresh to avoid
       // seeding from a partial list and inventing the rest as "new".
       if (context.mounted) await notifications(context);

@@ -35,9 +35,9 @@ class AppUpdateConfig {
     this.forceUpdate = false,
     this.minVersion = '',
     this.minBuild = 0,
-    this.title = 'Sasisha programu',
+    this.title = 'Update Required',
     this.message =
-        'Toleo jipya la Dawa Asili lipo kwenye Play Store. Tafadhali sasisha ili uendelee kutumia app.',
+        'A new version of Dawa Asili is available. Update now to continue.',
     this.storeUrl =
         'https://play.google.com/store/apps/details?id=com.asilia',
   });
@@ -57,7 +57,7 @@ class AppUpdateConfig {
       minBuild: (json['minBuild'] as num?)?.toInt() ??
           int.tryParse('${json['minBuild'] ?? ''}') ??
           0,
-      title: '${json['title'] ?? 'Sasisha programu'}',
+      title: '${json['title'] ?? 'Update Required'}',
       message: '${json['message'] ?? ''}',
       storeUrl:
           '${json['storeUrl'] ?? 'https://play.google.com/store/apps/details?id=com.asilia'}',

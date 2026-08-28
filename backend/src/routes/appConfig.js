@@ -41,9 +41,9 @@ function buildConfig(settings) {
       forceUpdate,
       minVersion: settings.min_app_version || '',
       minBuild: parseInt(settings.min_app_build || '0', 10) || 0,
-      title: settings.update_title || 'Sasisha programu',
+      title: settings.update_title || 'Update Required',
       message: settings.update_message ||
-        'Toleo jipya la Dawa Asili lipo kwenye Play Store. Tafadhali sasisha ili uendelee kutumia app.',
+        'A new version of Dawa Asili is available. Update now to continue.',
       storeUrl: settings.store_url || PLAY_STORE_DEFAULT,
     },
   };
@@ -112,7 +112,7 @@ router.put('/config', requireAdmin, async (req, res) => {
       'min_app_build',
       String(Math.max(0, parseInt(String(update.minBuild ?? '0'), 10) || 0)),
     );
-    await upsertSetting(db, 'update_title', (update.title || '').trim() || 'Sasisha programu');
+    await upsertSetting(db, 'update_title', (update.title || '').trim() || 'Update Required');
     await upsertSetting(db, 'update_message', (update.message || '').trim());
     await upsertSetting(
       db,

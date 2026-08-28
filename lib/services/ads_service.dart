@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -6,20 +7,23 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../config/ads_config.dart';
 import 'user_service.dart';
 
-/// Central AdMob helper — interstitial + rewarded preload for makala gates.
+enum _FullscreenAdKind { interstitial, rewarded }
+
+/// Central AdMob helper — banner, interstitial, and rewarded ads.
 class AdsService extends ChangeNotifier {
+  final Random _random = Random();
+
   bool _initialized = false;
   bool _initializing = false;
   InterstitialAd? _interstitial;
   RewardedAd? _rewarded;
   bool _loadingInterstitial = false;
   bool _loadingRewarded = false;
-  int _interstitialFails = 0;
-  int _rewardedFails = 0;
+  int _interstitialBackoff = 4;
+  int _rewardedBackoff = 4;
 
   bool get isReady => _initialized && AdsConfig.isSupportedPlatform;
 
-  /// Premium membership skips all ads. Guests and free users see ads.
   bool shouldShowAds(UserService user) {
     if (!AdsConfig.isSupportedPlatform) return false;
     if (user.isLoggedIn && user.user?.isPremiumActive == true) return false;
@@ -30,6 +34,7 @@ class AdsService extends ChangeNotifier {
     if (!AdsConfig.isSupportedPlatform) return;
     if (_initialized || _initializing) return;
     _initializing = true;
+    notifyListeners();
     try {
       await MobileAds.instance.initialize();
       _initialized = true;
@@ -59,7 +64,7 @@ class AdsService extends ChangeNotifier {
         onAdLoaded: (ad) {
           _interstitial = ad;
           _loadingInterstitial = false;
-          _interstitialFails = 0;
+          _interstitialBackoff = 4;
           ad.setImmersiveMode(true);
           notifyListeners();
         },
@@ -67,10 +72,7 @@ class AdsService extends ChangeNotifier {
           debugPrint('Interstitial failed: $error');
           _interstitial = null;
           _loadingInterstitial = false;
-          _interstitialFails++;
-          if (_interstitialFails < 3) {
-            Future<void>.delayed(const Duration(seconds: 4), _loadInterstitial);
-          }
+          _scheduleInterstitialRetry();
           notifyListeners();
         },
       ),
@@ -87,21 +89,34 @@ class AdsService extends ChangeNotifier {
         onAdLoaded: (ad) {
           _rewarded = ad;
           _loadingRewarded = false;
-          _rewardedFails = 0;
+          _rewardedBackoff = 4;
           notifyListeners();
         },
         onAdFailedToLoad: (error) {
           debugPrint('Rewarded failed: $error');
           _rewarded = null;
           _loadingRewarded = false;
-          _rewardedFails++;
-          if (_rewardedFails < 3) {
-            Future<void>.delayed(const Duration(seconds: 4), _loadRewarded);
-          }
+          _scheduleRewardedRetry();
           notifyListeners();
         },
       ),
     );
+  }
+
+  void _scheduleInterstitialRetry() {
+    final delay = Duration(seconds: _interstitialBackoff);
+    _interstitialBackoff = (_interstitialBackoff + 2).clamp(4, 30);
+    Future<void>.delayed(delay, () {
+      if (_interstitial == null && !_loadingInterstitial) _loadInterstitial();
+    });
+  }
+
+  void _scheduleRewardedRetry() {
+    final delay = Duration(seconds: _rewardedBackoff);
+    _rewardedBackoff = (_rewardedBackoff + 2).clamp(4, 30);
+    Future<void>.delayed(delay, () {
+      if (_rewarded == null && !_loadingRewarded) _loadRewarded();
+    });
   }
 
   bool get hasInterstitial => _interstitial != null;
@@ -110,49 +125,67 @@ class AdsService extends ChangeNotifier {
   bool get isLoadingFullscreen =>
       _loadingInterstitial || _loadingRewarded || _initializing;
 
-  /// Shows interstitial if ready, otherwise rewarded. Returns true if an ad was shown.
+  _FullscreenAdKind _pickRandomKind() {
+    final hasI = _interstitial != null;
+    final hasR = _rewarded != null;
+    if (hasI && hasR) {
+      return _random.nextBool()
+          ? _FullscreenAdKind.interstitial
+          : _FullscreenAdKind.rewarded;
+    }
+    if (hasI) return _FullscreenAdKind.interstitial;
+    if (hasR) return _FullscreenAdKind.rewarded;
+    return _random.nextBool()
+        ? _FullscreenAdKind.interstitial
+        : _FullscreenAdKind.rewarded;
+  }
+
+  Future<void> _waitForFullscreenAd({
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (_interstitial != null || _rewarded != null) return;
+      _loadInterstitial();
+      _loadRewarded();
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    }
+  }
+
+  /// Shows a random fullscreen ad (interstitial or rewarded).
   Future<bool> showMakalaEntryAd({
     required VoidCallback onCompleted,
     VoidCallback? onFailed,
+    bool grantRewardOnDismiss = true,
   }) async {
     if (!_initialized) await initialize();
-
-    if (_interstitial != null) {
-      return _showInterstitial(onCompleted: onCompleted, onFailed: onFailed);
-    }
-    if (_rewarded != null) {
-      return _showRewarded(onCompleted: onCompleted, onFailed: onFailed);
+    if (!_initialized) {
+      onFailed?.call();
+      return false;
     }
 
-    // Try a quick reload once.
-    _loadInterstitial();
-    _loadRewarded();
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
-    if (_interstitial != null) {
-      return _showInterstitial(onCompleted: onCompleted, onFailed: onFailed);
-    }
-    if (_rewarded != null) {
-      return _showRewarded(onCompleted: onCompleted, onFailed: onFailed);
+    await _waitForFullscreenAd();
+
+    final first = _pickRandomKind();
+    final second = first == _FullscreenAdKind.interstitial
+        ? _FullscreenAdKind.rewarded
+        : _FullscreenAdKind.interstitial;
+
+    for (final kind in [first, second]) {
+      if (kind == _FullscreenAdKind.interstitial && _interstitial != null) {
+        return _showInterstitial(onCompleted: onCompleted, onFailed: onFailed);
+      }
+      if (kind == _FullscreenAdKind.rewarded && _rewarded != null) {
+        return _showRewarded(
+          onCompleted: onCompleted,
+          onFailed: onFailed,
+          grantOnDismiss: grantRewardOnDismiss,
+        );
+      }
     }
 
     onFailed?.call();
     return false;
-  }
-
-  Future<bool> showRewardedOnly({
-    required VoidCallback onCompleted,
-    VoidCallback? onFailed,
-  }) async {
-    if (!_initialized) await initialize();
-    if (_rewarded == null) {
-      _loadRewarded();
-      await Future<void>.delayed(const Duration(milliseconds: 1200));
-    }
-    if (_rewarded == null) {
-      onFailed?.call();
-      return false;
-    }
-    return _showRewarded(onCompleted: onCompleted, onFailed: onFailed);
   }
 
   Future<bool> _showInterstitial({
@@ -165,6 +198,8 @@ class AdsService extends ChangeNotifier {
       return false;
     }
     _interstitial = null;
+    notifyListeners();
+
     final done = Completer<bool>();
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
@@ -191,6 +226,7 @@ class AdsService extends ChangeNotifier {
       _loadInterstitial();
       onFailed?.call();
       if (!done.isCompleted) done.complete(false);
+      return false;
     }
     return done.future;
   }
@@ -198,6 +234,7 @@ class AdsService extends ChangeNotifier {
   Future<bool> _showRewarded({
     required VoidCallback onCompleted,
     VoidCallback? onFailed,
+    bool grantOnDismiss = true,
   }) async {
     final ad = _rewarded;
     if (ad == null) {
@@ -205,6 +242,8 @@ class AdsService extends ChangeNotifier {
       return false;
     }
     _rewarded = null;
+    notifyListeners();
+
     final done = Completer<bool>();
     var earned = false;
 
@@ -212,7 +251,7 @@ class AdsService extends ChangeNotifier {
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _loadRewarded();
-        if (earned) {
+        if (earned || grantOnDismiss) {
           onCompleted();
           if (!done.isCompleted) done.complete(true);
         } else {
@@ -241,6 +280,7 @@ class AdsService extends ChangeNotifier {
       _loadRewarded();
       onFailed?.call();
       if (!done.isCompleted) done.complete(false);
+      return false;
     }
     return done.future;
   }

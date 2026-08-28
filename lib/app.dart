@@ -28,7 +28,7 @@ import 'services/remote_app_config_service.dart';
 import 'services/ads_service.dart';
 import 'services/user_service.dart';
 import 'theme/app_theme.dart';
-import 'widgets/app_screen_message_banner.dart';
+import 'widgets/force_update_gate.dart';
 import 'widgets/shimmer_loading.dart';
 
 class AsiliaApp extends StatefulWidget {
@@ -216,45 +216,23 @@ class _AppShell extends StatefulWidget {
 class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   DateTime? _lastBackPress;
   late final RemoteAppConfigService _remoteConfig;
-  bool _updatePromptInFlight = false;
 
   @override
   void initState() {
     super.initState();
     _remoteConfig = context.read<RemoteAppConfigService>();
-    _remoteConfig.addListener(_onRemoteConfigChanged);
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _promptUpdateIfNeeded());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_remoteConfig.isLoaded) {
+        unawaited(_remoteConfig.syncFromServer());
+      }
+    });
   }
 
   @override
   void dispose() {
-    _remoteConfig.removeListener(_onRemoteConfigChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
-  }
-
-  void _onRemoteConfigChanged() {
-    unawaited(_promptUpdateIfNeeded());
-  }
-
-  Future<void> _promptUpdateIfNeeded() async {
-    if (!mounted || _updatePromptInFlight) return;
-    if (!_remoteConfig.isLoaded || !_remoteConfig.shouldBlockWithUpdateDialog) {
-      return;
-    }
-    _updatePromptInFlight = true;
-    try {
-      await maybeShowForceUpdateDialog(context);
-    } finally {
-      _updatePromptInFlight = false;
-    }
-  }
-
-  Future<void> _syncRemoteConfigOnResume() async {
-    await _remoteConfig.syncFromServer();
-    if (!mounted) return;
-    await _promptUpdateIfNeeded();
   }
 
   @override
@@ -267,16 +245,27 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     } else {
       mwalimu.loadGuestMessages();
     }
-    unawaited(_syncRemoteConfigOnResume());
+    unawaited(_remoteConfig.refreshOnResume());
   }
 
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
+    final remote = context.watch<RemoteAppConfigService>();
 
-    // Local prefs/cache already loaded in bootstrap — never gate on network.
-    if (!app.isLoaded) {
-      return const AppLoadingSkeleton();
+    if (!app.isLoaded || !remote.isLoaded) {
+      return const PopScope(
+        canPop: false,
+        child: AppLoadingSkeleton(),
+      );
+    }
+
+    if (remote.blocksApp) {
+      return ForceUpdateGate(
+        config: remote.update,
+        currentVersion: remote.currentVersion,
+        currentBuild: remote.currentBuild,
+      );
     }
 
     final Widget screen;

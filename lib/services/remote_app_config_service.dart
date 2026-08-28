@@ -16,7 +16,6 @@ class RemoteAppConfigService extends ChangeNotifier {
   String _currentVersion = '';
   int _currentBuild = 0;
   bool _loaded = false;
-  bool _updateDialogShown = false;
 
   RemoteAppConfig get config => _config;
   ScreenMessageConfig get screenMessage => _config.screenMessage;
@@ -55,7 +54,8 @@ class RemoteAppConfigService extends ChangeNotifier {
     return false;
   }
 
-  bool get shouldBlockWithUpdateDialog => needsUpdate && !_updateDialogShown;
+  /// True when config is loaded and the user must update before using the app.
+  bool get blocksApp => _loaded && needsUpdate;
 
   Future<void> loadLocalMeta() async {
     try {
@@ -83,6 +83,12 @@ class RemoteAppConfigService extends ChangeNotifier {
     }
   }
 
+  /// Re-read installed version after returning from the Play Store.
+  Future<void> refreshOnResume() async {
+    await loadLocalMeta();
+    await syncFromServer();
+  }
+
   Future<void> dismissScreenMessage() async {
     final id = _config.screenMessage.id;
     if (id.isEmpty) return;
@@ -94,7 +100,4 @@ class RemoteAppConfigService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void markUpdateDialogShown() {
-    _updateDialogShown = true;
-  }
 }
