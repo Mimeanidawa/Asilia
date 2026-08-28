@@ -17,6 +17,18 @@ class AdminBottomNav extends StatelessWidget {
   final int mwalimuUnread;
   final VoidCallback? onMaswaliTap;
 
+  /// Height of the floating bar itself (matches the Container height below).
+  static const double barHeight = 68;
+
+  /// Outer bottom margin under the bar (matches Padding below).
+  static const double barBottomMargin = 12;
+
+  /// Space to leave clear above the floating nav for FABs / last list items.
+  static double contentBottomInset(BuildContext context, {double extra = 0}) {
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    return barHeight + barBottomMargin + safeBottom + extra;
+  }
+
   static const _primaryScreens = {
     AdminScreen.dashboard,
     AdminScreen.users,

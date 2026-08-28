@@ -13,6 +13,7 @@ import '../services/payment_service.dart';
 import '../utils/tzs_format.dart';
 import '../widgets/sonicpesa_payment_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
+import '../widgets/remove_ads_promo.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -357,6 +358,8 @@ class _ProfileCard extends StatelessWidget {
             ),
             if (!isPremium) ...[
               const SizedBox(height: 14),
+              const RemoveAdsInlineStrip(),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -379,7 +382,7 @@ class _ProfileCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Inajumuisha makala zote za Premium + mazungumzo bila kikomo na Mwalimu kwa siku 30.',
+                'Inajumuisha kuondoa matangazo yote, makala zote za Premium, na mazungumzo bila kikomo na Mwalimu kwa siku 30.',
                 style: TextStyle(
                   fontSize: 11,
                   color: AppColors.gray500,

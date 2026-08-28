@@ -238,6 +238,7 @@ export async function initDb() {
       ('mwalimu_welcome', 'Karibu! Mimi ni Mwalimu wako wa elimu ya dawa za asili. Uliza kuhusu mimea, mizizi, miti na matunda — kwa elimu tu, si ushauri wa kimatibabu.'),
       ('free_message_limit', '5'),
       ('premium_price', '15000'),
+      ('ads_promo_modal_enabled', 'true'),
       ('screen_message_enabled', 'false'),
       ('screen_message_id', ''),
       ('screen_message_title', ''),

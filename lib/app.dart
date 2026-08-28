@@ -215,32 +215,46 @@ class _AppShell extends StatefulWidget {
 
 class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
   DateTime? _lastBackPress;
-  bool _checkedUpdate = false;
+  late final RemoteAppConfigService _remoteConfig;
+  bool _updatePromptInFlight = false;
 
   @override
   void initState() {
     super.initState();
+    _remoteConfig = context.read<RemoteAppConfigService>();
+    _remoteConfig.addListener(_onRemoteConfigChanged);
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkRemoteConfig());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _promptUpdateIfNeeded());
   }
 
   @override
   void dispose() {
+    _remoteConfig.removeListener(_onRemoteConfigChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  Future<void> _checkRemoteConfig() async {
-    if (!mounted) return;
-    final remote = context.read<RemoteAppConfigService>();
-    if (!remote.isLoaded) {
-      await remote.syncFromServer();
+  void _onRemoteConfigChanged() {
+    unawaited(_promptUpdateIfNeeded());
+  }
+
+  Future<void> _promptUpdateIfNeeded() async {
+    if (!mounted || _updatePromptInFlight) return;
+    if (!_remoteConfig.isLoaded || !_remoteConfig.shouldBlockWithUpdateDialog) {
+      return;
     }
-    if (!mounted) return;
-    if (!_checkedUpdate && remote.needsUpdate) {
-      _checkedUpdate = true;
+    _updatePromptInFlight = true;
+    try {
       await maybeShowForceUpdateDialog(context);
+    } finally {
+      _updatePromptInFlight = false;
     }
+  }
+
+  Future<void> _syncRemoteConfigOnResume() async {
+    await _remoteConfig.syncFromServer();
+    if (!mounted) return;
+    await _promptUpdateIfNeeded();
   }
 
   @override
@@ -253,7 +267,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     } else {
       mwalimu.loadGuestMessages();
     }
-    unawaited(context.read<RemoteAppConfigService>().syncFromServer());
+    unawaited(_syncRemoteConfigOnResume());
   }
 
   @override

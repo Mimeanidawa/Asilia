@@ -37,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _screenMessageDismissible = true;
   String _screenMessageStyle = 'info';
   bool _forceUpdateEnabled = false;
+  bool _adsPromoModalEnabled = true;
   String? _loadError;
   String _screenMessageId = '';
 
@@ -80,6 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _welcomeCtrl.text =
           '${settings['mwalimuWelcome'] ?? settings['mtabibuWelcome'] ?? ''}';
       _limitCtrl.text = '${settings['freeMessageLimit'] ?? 5}';
+      _adsPromoModalEnabled = settings['adsPromoModalEnabled'] != false;
 
       final appData = await svc.fetchAppConfig();
       final config = appData['config'] as Map<String, dynamic>? ?? {};
@@ -127,10 +129,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       await context.read<AdminProvider>().contentService.updateMwalimuSettings({
         'premiumPrice': price,
+        'adsPromoModalEnabled': _adsPromoModalEnabled,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bei ya Fungua Makala Zote imehifadhiwa')),
+        const SnackBar(content: Text('Bei ya Premium / kuondoa matangazo imehifadhiwa')),
       );
     } catch (_) {
       if (!mounted) return;
@@ -379,6 +382,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       loading: _loadingSettings,
                       saving: _savingPremium,
                       error: _loadError,
+                      adsPromoModalEnabled: _adsPromoModalEnabled,
+                      onAdsPromoChanged: (v) =>
+                          setState(() => _adsPromoModalEnabled = v),
                       onSave: _savePremiumPrice,
                     ),
                   ),
@@ -1108,6 +1114,8 @@ class _PremiumPricingCard extends StatelessWidget {
     required this.loading,
     required this.saving,
     required this.onSave,
+    required this.adsPromoModalEnabled,
+    required this.onAdsPromoChanged,
     this.error,
   });
 
@@ -1115,6 +1123,8 @@ class _PremiumPricingCard extends StatelessWidget {
   final bool loading;
   final bool saving;
   final VoidCallback onSave;
+  final bool adsPromoModalEnabled;
+  final ValueChanged<bool> onAdsPromoChanged;
   final String? error;
 
   @override
@@ -1165,7 +1175,7 @@ class _PremiumPricingCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Bei ya Fungua Makala Zote',
+                          'Bei ya Premium — Ondoa Matangazo',
                           style: GoogleFonts.inter(
                             color: AdminColors.textPrimary,
                             fontSize: 14,
@@ -1173,7 +1183,7 @@ class _PremiumPricingCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'Inaonekana kwenye akaunti ya mtumiaji (Premium siku 30)',
+                          'Inaondoa matangazo yote, inafungua makala zote, na mazungumzo bila kikomo (siku 30)',
                           style: GoogleFonts.inter(
                             color: AdminColors.textDim,
                             fontSize: 11,
@@ -1224,6 +1234,20 @@ class _PremiumPricingCard extends StatelessWidget {
                       color: AdminColors.emerald,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _AdminSwitchRow(
+                  label: 'Onyesha modal "Ondoa matangazo yote sasa"',
+                  value: adsPromoModalEnabled,
+                  activeColor: AdminColors.amber,
+                  onChanged: loading ? (_) {} : onAdsPromoChanged,
+                ),
+                Text(
+                  'Modal inaonekana mara chache kwa watumiaji wa bure wanaosoma makala',
+                  style: GoogleFonts.inter(
+                    color: AdminColors.textDim,
+                    fontSize: 11,
                   ),
                 ),
                 if (error != null) ...[

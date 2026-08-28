@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../services/ads_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/remove_ads_flow.dart';
 
 /// Full-screen gate: free users must finish an interstitial or rewarded ad.
 class MakalaAdGate extends StatefulWidget {
@@ -204,6 +205,19 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 16),
+                TextButton.icon(
+                  onPressed: _busy ? null : () => openRemoveAdsPayment(context),
+                  icon: const Icon(Icons.block_rounded, size: 18),
+                  label: const Text(
+                    'Je Umechoka na Matangazo? Zima matangazo yote hapa',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
               ],
               const Spacer(),
             ],

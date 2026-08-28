@@ -59,6 +59,7 @@ router.get('/settings', async (_req, res) => {
           'Karibu! Mimi ni Mwalimu wako wa elimu ya dawa za asili. Uliza kuhusu mimea, mizizi, miti na matunda — kwa elimu tu, si ushauri wa kimatibabu.',
         freeMessageLimit: parseInt(settings.free_message_limit || '5', 10),
         premiumPrice: Math.max(500, parseInt(settings.premium_price || '15000', 10) || 15000),
+        adsPromoModalEnabled: settings.ads_promo_modal_enabled !== 'false',
       },
     });
   } catch (err) {
@@ -69,7 +70,7 @@ router.get('/settings', async (_req, res) => {
 router.put('/settings', requireAdmin, async (req, res) => {
   try {
     const { mwalimuName, mwalimuImage, mwalimuWelcome, freeMessageLimit, premiumPrice,
-      mtabibuName, mtabibuImage, mtabibuWelcome } = req.body;
+      adsPromoModalEnabled, mtabibuName, mtabibuImage, mtabibuWelcome } = req.body;
     const db = getPool();
 
     const updates = [
@@ -79,6 +80,9 @@ router.put('/settings', requireAdmin, async (req, res) => {
       ['free_message_limit', freeMessageLimit?.toString()],
       ['premium_price', premiumPrice != null
         ? Math.max(500, parseInt(String(premiumPrice), 10) || 15000).toString()
+        : undefined],
+      ['ads_promo_modal_enabled', adsPromoModalEnabled != null
+        ? (adsPromoModalEnabled ? 'true' : 'false')
         : undefined],
     ];
 

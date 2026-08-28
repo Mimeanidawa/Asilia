@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/makala_share.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/makala_message.dart';
 import '../widgets/makala_picker_sheet.dart';
 
@@ -337,13 +338,12 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
 
   double _replyBarBottomInset(BuildContext context) {
     final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
-    final safeBottom = MediaQuery.paddingOf(context).bottom;
     if (viewInsets > 0) {
       // Sit just above the keyboard.
       return viewInsets + 8;
     }
-    // Floating AdminBottomNav: 68px bar + 12px margin + safe area + breathing room.
-    return 68 + 12 + safeBottom + 8;
+    // Floating AdminBottomNav: bar + margin + safe area + breathing room.
+    return AdminBottomNav.contentBottomInset(context, extra: 8);
   }
 
   Future<void> _sendReply() async {

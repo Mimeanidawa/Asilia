@@ -282,6 +282,7 @@ class MwalimuSettings {
     this.mwalimuWelcome = 'Karibu!',
     this.freeMessageLimit = 5,
     this.premiumPrice = 15000,
+    this.adsPromoModalEnabled = true,
   });
 
   final String mwalimuName;
@@ -289,6 +290,7 @@ class MwalimuSettings {
   final String mwalimuWelcome;
   final int freeMessageLimit;
   final int premiumPrice;
+  final bool adsPromoModalEnabled;
 
   factory MwalimuSettings.fromJson(Map<String, dynamic> json) {
     final price = json['premiumPrice'] as int? ?? 15000;
@@ -304,6 +306,7 @@ class MwalimuSettings {
           'Karibu!',
       freeMessageLimit: json['freeMessageLimit'] as int? ?? 5,
       premiumPrice: price < 500 ? 15000 : price,
+      adsPromoModalEnabled: json['adsPromoModalEnabled'] as bool? ?? true,
     );
   }
 }

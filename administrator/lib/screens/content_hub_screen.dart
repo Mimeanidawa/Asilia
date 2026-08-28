@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/content_sections.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_bottom_nav.dart';
 import '../widgets/admin_ui.dart';
 import '../widgets/url_image.dart';
 import 'post_editor_screen.dart';
@@ -29,6 +30,9 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
   void initState() {
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(() {
+      if (mounted && !_tabs.indexIsChanging) setState(() {});
+    });
     _load();
   }
 
@@ -99,21 +103,30 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
         ],
       ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _tabs.index == 0 ? _showCarouselForm() : _showPostForm(),
-        backgroundColor: AdminColors.emerald,
-        foregroundColor: const Color(0xFF052E16),
-        elevation: 0,
-        icon: const Icon(Icons.add_rounded),
-        label: Text(_tabs.index == 0 ? 'Carousel' : 'Makala'),
+      // Parent shell uses extendBody + floating AdminBottomNav — lift FAB clear of it.
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: AdminBottomNav.contentBottomInset(context, extra: 8),
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: () =>
+              _tabs.index == 0 ? _showCarouselForm() : _showPostForm(),
+          backgroundColor: AdminColors.emerald,
+          foregroundColor: const Color(0xFF052E16),
+          elevation: 4,
+          icon: const Icon(Icons.add_rounded),
+          label: Text(_tabs.index == 0 ? 'Carousel' : 'Makala'),
+        ),
       ),
     );
   }
 
   Widget _buildCarousels() {
     if (_loading) return const Center(child: CircularProgressIndicator(color: AdminColors.emerald));
+    final bottomPad = AdminBottomNav.contentBottomInset(context, extra: 72);
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
       itemCount: _carousels.length,
       itemBuilder: (_, i) {
         final c = _carousels[i];
@@ -234,7 +247,12 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        16,
+                        16,
+                        AdminBottomNav.contentBottomInset(context, extra: 72),
+                      ),
                       itemCount: visible.length,
                       itemBuilder: (_, i) {
                         final p = visible[i];

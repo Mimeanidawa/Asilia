@@ -39,13 +39,18 @@ class RemoteAppConfigService extends ChangeNotifier {
   bool get needsUpdate {
     final u = _config.update;
     if (!u.forceUpdate) return false;
-    if (u.minBuild > 0 && _currentBuild > 0 && _currentBuild < u.minBuild) {
-      return true;
+
+    final minBuild = u.minBuild;
+    if (minBuild > 0) {
+      if (_currentBuild <= 0 || _currentBuild < minBuild) return true;
     }
+
     final minV = u.minVersion.trim();
-    if (minV.isNotEmpty && _currentVersion.isNotEmpty) {
+    if (minV.isNotEmpty) {
+      if (_currentVersion.isEmpty) return true;
       return compareAppVersions(_currentVersion, minV) < 0;
     }
+
     // Force flag alone without a version/build floor does not lock users.
     return false;
   }
