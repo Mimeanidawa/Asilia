@@ -82,11 +82,12 @@ class _AsiliaAppState extends State<AsiliaApp> {
       _contentService.loadFromCache(),
       _appProvider.initLocal(),
       _remoteAppConfig.loadLocalMeta(),
+      _adsService.initialize(),
     ]);
 
     if (mounted) setState(() => _ready = true);
 
-    unawaited(_adsService.initialize().then((_) => _adsService.preload()));
+    unawaited(_adsService.preload());
     unawaited(_bootstrapBackground());
   }
 

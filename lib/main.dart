@@ -1,15 +1,11 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'app.dart';
-import 'config/ads_config.dart';
 import 'config/app_config.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
@@ -40,10 +36,6 @@ Future<void> main() async {
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
     ]);
-  }
-
-  if (AdsConfig.isSupportedPlatform) {
-    unawaited(MobileAds.instance.initialize());
   }
 
   // Suppress known Flutter Linux desktop MouseTracker assertion noise.

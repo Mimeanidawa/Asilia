@@ -22,13 +22,17 @@ class MakalaAdGate extends StatefulWidget {
 
 class _MakalaAdGateState extends State<MakalaAdGate> {
   bool _playing = true;
+  bool _canSkip = false;
   int _attempts = 0;
-  static const _maxAttempts = 8;
+  static const _maxAttempts = 4;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoPlay());
+    Future<void>.delayed(const Duration(seconds: 6), () {
+      if (mounted && _playing) setState(() => _canSkip = true);
+    });
   }
 
   Future<void> _autoPlay() async {
@@ -46,20 +50,21 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
       );
       if (shown || !mounted) return;
 
-      await Future<void>.delayed(Duration(milliseconds: 500 * _attempts));
+      await Future<void>.delayed(Duration(milliseconds: 800 * _attempts));
       await ads.preload();
     }
 
     if (!mounted || !_playing) return;
-    // Network too slow — let user continue after several tries.
-    if (_attempts >= 5) _unlock();
+    _unlock();
   }
 
   void _unlock() {
     if (!mounted) return;
-    setState(() => _playing = false);
-    // Brief pause lets the fullscreen ad SDK release before banner slots load.
-    Future<void>.delayed(const Duration(milliseconds: 350), () {
+    setState(() {
+      _playing = false;
+      _canSkip = true;
+    });
+    Future<void>.delayed(const Duration(milliseconds: 300), () {
       if (mounted) widget.onUnlocked();
     });
   }
@@ -82,26 +87,51 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
                 ),
               ),
               const Spacer(),
-              const SizedBox(
-                width: 36,
-                height: 36,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.forest,
+              if (_playing) ...[
+                const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.forest,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Opening…',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.forest.withValues(alpha: 0.65),
+                const SizedBox(height: 20),
+                Text(
+                  'Loading ad…',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.forest.withValues(alpha: 0.65),
+                  ),
                 ),
-              ),
+              ] else ...[
+                Icon(
+                  Icons.article_outlined,
+                  size: 40,
+                  color: AppColors.forest.withValues(alpha: 0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Opening article…',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.forest.withValues(alpha: 0.65),
+                  ),
+                ),
+              ],
               const Spacer(),
+              if (_canSkip && _playing)
+                TextButton(
+                  onPressed: _unlock,
+                  child: const Text(
+                    'Continue without ad',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
               TextButton.icon(
-                onPressed: _playing ? null : () => openRemoveAdsPayment(context),
+                onPressed: () => openRemoveAdsPayment(context),
                 icon: const Icon(Icons.block_rounded, size: 18),
                 label: const Text(
                   'Remove all ads',

@@ -49,8 +49,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
   int? _loadedWidth;
   int? _loadingWidth;
   int _loadGeneration = 0;
-  AdsService? _adsService;
-  bool _adsWasReady = false;
+  bool _started = false;
 
   bool get _isBottom => widget.variant == _MakalaBannerVariant.bottomAnchored;
 
@@ -60,48 +59,24 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+  }
+
+  Future<void> _start() async {
+    if (_started || !mounted) return;
+    _started = true;
+
     final ads = context.read<AdsService>();
-    if (_adsService != ads) {
-      _adsService?.removeListener(_onAdsInitReady);
-      _adsService = ads;
-      _adsService!.addListener(_onAdsInitReady);
-      _adsWasReady = ads.isReady;
-    }
-    _kickOffLoadIfNeeded();
-  }
-
-  @override
-  void dispose() {
-    _adsService?.removeListener(_onAdsInitReady);
-    _loadGeneration++;
-    _banner?.dispose();
-    super.dispose();
-  }
-
-  /// Only react when MobileAds finishes initializing — ignore interstitial/rewarded updates.
-  void _onAdsInitReady() {
-    final ready = _adsService?.isReady == true;
-    if (!ready || _adsWasReady) return;
-    _adsWasReady = true;
-    _kickOffLoadIfNeeded();
-  }
-
-  void _kickOffLoadIfNeeded() {
-    if (!mounted) return;
-    final ads = _adsService;
-    if (ads == null || !ads.isReady) return;
-
     final user = context.read<UserService>();
-    if (!ads.shouldShowAds(user)) {
-      _disposeBanner();
-      return;
-    }
+    if (!ads.shouldShowAds(user)) return;
+
+    await ads.initialize();
+    if (!mounted || !ads.isReady) return;
 
     final width = MediaQuery.sizeOf(context).width.truncate();
-    if (width <= 0) return;
-    _scheduleLoad(width);
+    if (width > 0) _scheduleLoad(width);
   }
 
   void _scheduleLoad(int width) {
@@ -134,9 +109,9 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     });
 
     await ads.initialize();
-    if (!mounted || gen != _loadGeneration) return;
+    if (!mounted || gen != _loadGeneration || !ads.isReady) return;
 
-    final adSize = await _resolveAdSize(width);
+    final adSize = _isBottom ? await _resolveAdaptiveSize(width) : AdSize.mediumRectangle;
     if (!mounted || gen != _loadGeneration) return;
 
     final banner = BannerAd(
@@ -186,9 +161,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     }
   }
 
-  Future<AdSize> _resolveAdSize(int width) async {
-    if (!_isBottom) return AdSize.mediumRectangle;
-
+  Future<AdSize> _resolveAdaptiveSize(int width) async {
     final safeWidth = width.clamp(320, 728);
     final adaptive = await AdSize.getAnchoredAdaptiveBannerAdSize(
       Orientation.portrait,
@@ -222,6 +195,13 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
   }
 
   @override
+  void dispose() {
+    _loadGeneration++;
+    _banner?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final user = context.watch<UserService>();
     final ads = context.read<AdsService>();
@@ -230,7 +210,10 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth.truncate();
-        if (width > 0 && _loadedWidth != width && _state != _BannerLoadState.loading) {
+        if (width > 0 &&
+            _loadedWidth != width &&
+            _state != _BannerLoadState.loading &&
+            ads.isReady) {
           _scheduleLoad(width);
         }
 
@@ -251,10 +234,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
                   child: SizedBox(
                     width: banner.size.width.toDouble(),
                     height: banner.size.height.toDouble(),
-                    child: AdWidget(
-                      key: ValueKey('banner-${banner.hashCode}'),
-                      ad: banner,
-                    ),
+                    child: AdWidget(ad: banner),
                   ),
                 )
               : showSpinner

@@ -15,6 +15,7 @@ class AdsService extends ChangeNotifier {
 
   bool _initialized = false;
   bool _initializing = false;
+  Future<void>? _initFuture;
   InterstitialAd? _interstitial;
   RewardedAd? _rewarded;
   bool _loadingInterstitial = false;
@@ -31,17 +32,25 @@ class AdsService extends ChangeNotifier {
     return true;
   }
 
-  Future<void> initialize() async {
-    if (!AdsConfig.isSupportedPlatform) return;
-    if (_initialized || _initializing) return;
+  /// All callers share one init future so nobody loads ads before the SDK is ready.
+  Future<void> initialize() {
+    if (!AdsConfig.isSupportedPlatform) return Future.value();
+    if (_initialized) return Future.value();
+    return _initFuture ??= _initOnce();
+  }
+
+  Future<void> _initOnce() async {
+    if (_initialized) return;
     _initializing = true;
     notifyListeners();
     try {
-      await MobileAds.instance.initialize();
+      final status = await MobileAds.instance.initialize();
+      debugPrint('MobileAds initialized: ${status.adapterStatuses}');
       _initialized = true;
       unawaited(preload());
-    } catch (e) {
-      debugPrint('AdsService init failed: $e');
+    } catch (e, st) {
+      debugPrint('AdsService init failed: $e\n$st');
+      _initFuture = null;
     } finally {
       _initializing = false;
       notifyListeners();
@@ -49,7 +58,7 @@ class AdsService extends ChangeNotifier {
   }
 
   Future<void> preload() async {
-    if (!_initialized) await initialize();
+    await initialize();
     if (!_initialized) return;
     _loadInterstitial();
     _loadRewarded();
@@ -63,6 +72,7 @@ class AdsService extends ChangeNotifier {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
+          debugPrint('Interstitial loaded');
           _interstitial = ad;
           _loadingInterstitial = false;
           _interstitialBackoff = 4;
@@ -86,6 +96,7 @@ class AdsService extends ChangeNotifier {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
+          debugPrint('Rewarded loaded');
           _rewarded = ad;
           _loadingRewarded = false;
           _rewardedBackoff = 4;
@@ -138,14 +149,14 @@ class AdsService extends ChangeNotifier {
   }
 
   Future<void> _waitForFullscreenAd({
-    Duration timeout = const Duration(seconds: 6),
+    Duration timeout = const Duration(seconds: 10),
   }) async {
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
       if (_interstitial != null || _rewarded != null) return;
       _loadInterstitial();
       _loadRewarded();
-      await Future<void>.delayed(const Duration(milliseconds: 350));
+      await Future<void>.delayed(const Duration(milliseconds: 400));
     }
   }
 
@@ -155,7 +166,7 @@ class AdsService extends ChangeNotifier {
     VoidCallback? onFailed,
     bool grantRewardOnDismiss = true,
   }) async {
-    if (!_initialized) await initialize();
+    await initialize();
     if (!_initialized) {
       onFailed?.call();
       return false;
