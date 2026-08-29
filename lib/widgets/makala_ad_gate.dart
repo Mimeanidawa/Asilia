@@ -58,7 +58,10 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
   void _unlock() {
     if (!mounted) return;
     setState(() => _playing = false);
-    widget.onUnlocked();
+    // Brief pause lets the fullscreen ad SDK release before banner slots load.
+    Future<void>.delayed(const Duration(milliseconds: 350), () {
+      if (mounted) widget.onUnlocked();
+    });
   }
 
   @override

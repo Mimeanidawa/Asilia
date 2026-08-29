@@ -23,6 +23,7 @@ class AdsService extends ChangeNotifier {
   int _rewardedBackoff = 4;
 
   bool get isReady => _initialized && AdsConfig.isSupportedPlatform;
+  bool get isInitializing => _initializing;
 
   bool shouldShowAds(UserService user) {
     if (!AdsConfig.isSupportedPlatform) return false;
@@ -66,14 +67,12 @@ class AdsService extends ChangeNotifier {
           _loadingInterstitial = false;
           _interstitialBackoff = 4;
           ad.setImmersiveMode(true);
-          notifyListeners();
         },
         onAdFailedToLoad: (error) {
           debugPrint('Interstitial failed: $error');
           _interstitial = null;
           _loadingInterstitial = false;
           _scheduleInterstitialRetry();
-          notifyListeners();
         },
       ),
     );
@@ -90,14 +89,12 @@ class AdsService extends ChangeNotifier {
           _rewarded = ad;
           _loadingRewarded = false;
           _rewardedBackoff = 4;
-          notifyListeners();
         },
         onAdFailedToLoad: (error) {
           debugPrint('Rewarded failed: $error');
           _rewarded = null;
           _loadingRewarded = false;
           _scheduleRewardedRetry();
-          notifyListeners();
         },
       ),
     );
@@ -198,7 +195,6 @@ class AdsService extends ChangeNotifier {
       return false;
     }
     _interstitial = null;
-    notifyListeners();
 
     final done = Completer<bool>();
 
@@ -242,7 +238,6 @@ class AdsService extends ChangeNotifier {
       return false;
     }
     _rewarded = null;
-    notifyListeners();
 
     final done = Completer<bool>();
     var earned = false;

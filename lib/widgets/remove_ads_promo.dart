@@ -17,7 +17,7 @@ class RemoveAdsInlineStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ads = context.watch<AdsService>();
+    final ads = context.read<AdsService>();
     final user = context.watch<UserService>();
     if (!ads.shouldShowAds(user)) return const SizedBox.shrink();
 
@@ -117,7 +117,7 @@ class RemoveAdsFloatingChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ads = context.watch<AdsService>();
+    final ads = context.read<AdsService>();
     final user = context.watch<UserService>();
     if (!ads.shouldShowAds(user)) return const SizedBox.shrink();
 

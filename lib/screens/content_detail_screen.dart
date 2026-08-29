@@ -116,7 +116,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
     final user = context.watch<UserService>();
-    final ads = context.watch<AdsService>();
+    final ads = context.read<AdsService>();
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: AppColors.forest));

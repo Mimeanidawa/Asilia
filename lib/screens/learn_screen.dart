@@ -632,7 +632,7 @@ class _ArticleReaderState extends State<_ArticleReader> {
     final paid = widget.user.hasPurchasedContent(post.id);
     final catColor = ContentTagStyle.colorFor(post.category ?? 'jifunze');
     final top = MediaQuery.paddingOf(context).top;
-    final ads = context.watch<AdsService>();
+    final ads = context.read<AdsService>();
     final needsAd = ads.shouldShowAds(widget.user) && !_adUnlocked && canRead;
 
     if (needsAd) {
