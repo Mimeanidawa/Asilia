@@ -48,25 +48,19 @@ class Responsive {
     return 16;
   }
 
-  /// Bottom offset for floating nav — clears 3-button / gesture system bars.
+  /// Bottom offset unused for flat dock (kept for API compatibility).
   static double bottomNavFloatOffset(BuildContext context) {
-    return viewPadding(context).bottom + 10;
+    return 0;
   }
 
-  /// Space reserved so scroll content can clear the floating nav.
+  /// Space reserved so scroll content can clear the flat tab bar.
   static double bottomContentReserve(
     BuildContext context, {
     required bool showBottomNav,
   }) {
-    final safeBottom = viewPadding(context).bottom;
-    if (!showBottomNav) return safeBottom + 8;
-
-    // Nav visual height (~72) + center FAB lift (~16) + float gap + breathing room
-    const navBarHeight = 72.0;
-    const fabLift = 16.0;
-    const floatGap = 10.0;
-    const extraClearance = 12.0;
-    return navBarHeight + fabLift + floatGap + safeBottom + extraClearance;
+    if (!showBottomNav) return 8;
+    // Flat bar sits in a Column (not overlay) — only light breathing room.
+    return 8;
   }
 
   /// Bottom padding for ListViews / scrollables under the floating nav.

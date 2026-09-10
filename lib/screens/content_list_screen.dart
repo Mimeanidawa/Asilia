@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
@@ -136,15 +135,20 @@ class _ContentListScreenState extends State<ContentListScreen> {
                             child: Padding(
                               padding: EdgeInsets.fromLTRB(
                                 gutter,
-                                18,
+                                16,
                                 gutter,
                                 rest.isEmpty
-                                    ? Responsive.scrollBottomPadding(context, extra: 12)
+                                    ? Responsive.scrollBottomPadding(
+                                        context,
+                                        extra: 12,
+                                      )
                                     : 8,
                               ),
                               child: ContentFeaturedCard(
                                 post: featured,
-                                showSectionLabel: section == ContentSections.allMakala,
+                                height: 300,
+                                showSectionLabel:
+                                    section == ContentSections.allMakala,
                                 onTap: () => openContentPost(context, featured),
                               ),
                             ),
@@ -154,9 +158,9 @@ class _ContentListScreenState extends State<ContentListScreen> {
                             child: Padding(
                               padding: EdgeInsets.fromLTRB(
                                 gutter + 4,
-                                featured == null ? 18 : 14,
+                                featured == null ? 18 : 16,
                                 gutter,
-                                10,
+                                8,
                               ),
                               child: Row(
                                 children: [
@@ -164,18 +168,19 @@ class _ContentListScreenState extends State<ContentListScreen> {
                                     featured == null ? title : 'Makala zaidi',
                                     style: const TextStyle(
                                       fontSize: 15,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w800,
                                       color: AppColors.forest,
                                       letterSpacing: -0.2,
                                     ),
                                   ),
                                   const Spacer(),
                                   Text(
-                                    '${rest.length} makala',
+                                    '${rest.length}',
                                     style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.gray400,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.forest
+                                          .withValues(alpha: 0.4),
                                     ),
                                   ),
                                 ],
@@ -183,22 +188,28 @@ class _ContentListScreenState extends State<ContentListScreen> {
                             ),
                           ),
                         if (rest.isNotEmpty && columns == 1)
-                          SliverPadding(
-                            padding: EdgeInsets.fromLTRB(
-                              gutter,
-                              0,
-                              gutter,
-                              Responsive.scrollBottomPadding(context, extra: 12),
-                            ),
-                            sliver: SliverList.separated(
-                              itemCount: rest.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: 14),
-                              itemBuilder: (context, i) => ContentPostCard(
-                                post: rest[i],
-                                showSectionLabel: section == ContentSections.allMakala,
-                                margin: EdgeInsets.zero,
-                                animationIndex: i,
-                                onTap: () => openContentPost(context, rest[i]),
+                          SliverToBoxAdapter(
+                            child: ColoredBox(
+                              color: AppColors.surfaceElevated,
+                              child: Column(
+                                children: [
+                                  for (var i = 0; i < rest.length; i++)
+                                    ContentPostCard(
+                                      post: rest[i],
+                                      showSectionLabel: section ==
+                                          ContentSections.allMakala,
+                                      margin: EdgeInsets.zero,
+                                      animationIndex: i,
+                                      onTap: () =>
+                                          openContentPost(context, rest[i]),
+                                    ),
+                                  SizedBox(
+                                    height: Responsive.scrollBottomPadding(
+                                      context,
+                                      extra: 12,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -208,23 +219,29 @@ class _ContentListScreenState extends State<ContentListScreen> {
                               gutter,
                               0,
                               gutter,
-                              Responsive.scrollBottomPadding(context, extra: 12),
+                              Responsive.scrollBottomPadding(
+                                context,
+                                extra: 12,
+                              ),
                             ),
                             sliver: SliverGrid(
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: columns,
                                 crossAxisSpacing: 14,
                                 mainAxisSpacing: 14,
-                                childAspectRatio: 0.78,
+                                childAspectRatio: 0.82,
                               ),
                               delegate: SliverChildBuilderDelegate(
                                 (context, i) => ContentPostCard(
                                   post: rest[i],
-                                  showSectionLabel: section == ContentSections.allMakala,
+                                  showSectionLabel:
+                                      section == ContentSections.allMakala,
                                   vertical: true,
                                   margin: EdgeInsets.zero,
                                   animationIndex: i,
-                                  onTap: () => openContentPost(context, rest[i]),
+                                  onTap: () =>
+                                      openContentPost(context, rest[i]),
                                 ),
                                 childCount: rest.length,
                               ),
@@ -287,98 +304,98 @@ class _MakalaHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 12, 16, 16),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFE8F2EC),
-            AppColors.cream,
-            AppColors.amberLight.withValues(alpha: 0.14),
-          ],
-        ),
+        gradient: AppColors.headerSheen,
         border: Border(
           bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
         ),
       ),
-      child: Row(
-        children: [
-          CircleBackButton(onPressed: onBack),
-          const SizedBox(width: 10),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: CategoryVisual.gradientFor(category),
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              CategoryVisual.iconFor(category),
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.forest,
-                    height: 1.1,
-                    letterSpacing: -0.4,
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 16, 14),
+        child: Row(
+          children: [
+            CircleBackButton(onPressed: onBack),
+            const SizedBox(width: 12),
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: CategoryVisual.gradientFor(category),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.gray500,
-                      height: 1.25,
-                    ),
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.forest.withValues(alpha: 0.14),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
                   ),
                 ],
-              ],
-            ),
-          ),
-          if (count > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.82),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
               ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.emerald800,
+              child: Icon(
+                CategoryVisual.iconFor(category),
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.forest,
+                      height: 1.1,
+                      letterSpacing: -0.55,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.forest.withValues(alpha: 0.5),
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (count > 0)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(
+                  color: AppColors.emerald50,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.emerald800,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ).animate().fadeIn(duration: 280.ms);
+    ).animate().fadeIn(duration: 260.ms);
   }
 }
 
@@ -396,11 +413,11 @@ class _FilterRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 58,
+      height: 54,
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withValues(alpha: 0.92),
+        color: AppColors.surfaceElevated,
         border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
         ),
       ),
       child: ListView.separated(
@@ -412,45 +429,43 @@ class _FilterRail extends StatelessWidget {
           final chip = chips[i];
           final isOn = selected == chip.id;
           final accent = chip.color ?? AppColors.forest;
-          return GestureDetector(
-            onTap: () => onSelect(chip.id),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isOn ? accent : AppColors.emerald50,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: isOn ? Colors.transparent : AppColors.forest.withValues(alpha: 0.07),
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => onSelect(chip.id),
+              borderRadius: BorderRadius.circular(20),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isOn ? accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isOn
+                        ? Colors.transparent
+                        : AppColors.forest.withValues(alpha: 0.1),
+                  ),
                 ),
-                boxShadow: isOn
-                    ? [
-                        BoxShadow(
-                          color: accent.withValues(alpha: 0.28),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    chip.icon,
-                    size: 15,
-                    color: isOn ? Colors.white : accent,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    chip.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: isOn ? Colors.white : AppColors.forest,
+                child: Row(
+                  children: [
+                    Icon(
+                      chip.icon,
+                      size: 15,
+                      color: isOn ? Colors.white : accent,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      chip.label,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: isOn ? Colors.white : AppColors.forest,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

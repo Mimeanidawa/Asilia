@@ -246,7 +246,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
       child: Column(
         children: [
           ScreenHeader(
-            title: 'ULIZA MWALIMU',
+            title: 'Uliza Mwalimu',
             onBack: () => context.read<AppProvider>().goBack(),
             trailing: !user.isLoggedIn
                 ? TextButton(

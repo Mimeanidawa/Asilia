@@ -24,7 +24,9 @@ class AdsConfig {
   static const _testRewardedAndroid = 'ca-app-pub-3940256099942544/5224354917';
   static const _testRewardedIos = 'ca-app-pub-3940256099942544/1712485313';
 
-  static bool get useTestAds => kDebugMode;
+  /// Use Google sample units outside release so banners always have fill in
+  /// debug/profile. Release keeps production units.
+  static bool get useTestAds => !kReleaseMode;
 
   static bool get isSupportedPlatform {
     if (kIsWeb) return false;

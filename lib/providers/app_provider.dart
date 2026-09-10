@@ -87,6 +87,8 @@ class AppProvider extends ChangeNotifier {
     switch (activeScreen) {
       case AppScreen.home:
       case AppScreen.learn:
+      case AppScreen.contentList:
+      case AppScreen.askExpert:
       case AppScreen.profile:
         return !bottomNavSuppressed;
       default:

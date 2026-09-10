@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'circle_back_button.dart';
 
-/// Centered title bar with back button on the left and optional trailing actions.
+/// Unified frosted header for drill-in screens.
 class ScreenHeader extends StatelessWidget {
   const ScreenHeader({
     super.key,
@@ -11,7 +11,7 @@ class ScreenHeader extends StatelessWidget {
     required this.onBack,
     this.subtitle,
     this.trailing,
-    this.backgroundColor = AppColors.surfaceElevated,
+    this.backgroundColor,
     this.showBottomBorder = false,
     this.titleStyle,
     this.subtitleStyle,
@@ -22,82 +22,80 @@ class ScreenHeader extends StatelessWidget {
   final VoidCallback onBack;
   final String? subtitle;
   final Widget? trailing;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final bool showBottomBorder;
   final TextStyle? titleStyle;
   final TextStyle? subtitleStyle;
   final EdgeInsetsGeometry? padding;
 
   static const _titleStyle = TextStyle(
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: FontWeight.w800,
     color: AppColors.forest,
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
+    height: 1.2,
   );
 
   static const _subtitleStyle = TextStyle(
-    fontSize: 11,
+    fontSize: 12,
     color: AppColors.gray500,
     fontWeight: FontWeight.w500,
+    height: 1.3,
   );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding ?? const EdgeInsets.fromLTRB(8, 10, 12, 10),
+    return DecoratedBox(
       decoration: BoxDecoration(
+        gradient: backgroundColor == null ? AppColors.headerSheen : null,
         color: backgroundColor,
         boxShadow: showBottomBorder ? AppColors.elevationSm : null,
-        border: showBottomBorder
-            ? null
-            : Border(
-                bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
-              ),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.forest.withValues(alpha: 0.05),
+          ),
+        ),
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: CircleBackButton(onPressed: onBack),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 52),
-            child: subtitle == null
-                ? Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: titleStyle ?? _titleStyle,
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: titleStyle ?? _titleStyle,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: subtitleStyle ?? _subtitleStyle,
-                      ),
-                    ],
-                  ),
-          ),
-          if (trailing != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: trailing!,
+      child: Padding(
+        padding: padding ?? const EdgeInsets.fromLTRB(12, 10, 14, 12),
+        child: Row(
+          children: [
+            CircleBackButton(onPressed: onBack),
+            const SizedBox(width: 12),
+            Expanded(
+              child: subtitle == null
+                  ? Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: titleStyle ?? _titleStyle,
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: titleStyle ?? _titleStyle,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: subtitleStyle ?? _subtitleStyle,
+                        ),
+                      ],
+                    ),
             ),
-        ],
+            if (trailing != null) ...[
+              const SizedBox(width: 8),
+              trailing!,
+            ],
+          ],
+        ),
       ),
     );
   }

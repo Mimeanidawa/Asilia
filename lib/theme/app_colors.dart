@@ -1,37 +1,37 @@
 import 'package:flutter/material.dart';
 
-/// Dawa Asili — Verdant Ink.
-/// Cool mist canvas, deep botanical ink, celadon leaf, copper spark.
+/// Dawa Asili — refined botanical system.
+/// Soft mist canvas, deep forest ink, leaf accent, warm copper spark.
 class AppColors {
-  // Canvas (cream* kept for API compatibility) — slightly deeper so cards pop
-  static const cream = Color(0xFFDEE8E2);
-  static const creamDark = Color(0xFFCDD9D2);
+  // Canvas (cream* kept for API compatibility)
+  static const cream = Color(0xFFF3F7F4);
+  static const creamDark = Color(0xFFE4EDE7);
 
   // Brand ink
-  static const forest = Color(0xFF0A1F1A);
-  static const forestLight = Color(0xFF163D32);
+  static const forest = Color(0xFF0C231C);
+  static const forestLight = Color(0xFF1A4034);
   static const amber = Color(0xFFC17A45);
-  static const amberLight = Color(0xFFE0B089);
+  static const amberLight = Color(0xFFE4BC96);
   static const deviceBorder = Color(0xFF041510);
 
-  // Surfaces — keep elevated white for contrast against darker canvas
-  static const surface = Color(0xFFF2F6F3);
+  // Surfaces
+  static const surface = Color(0xFFF7FAF8);
   static const surfaceElevated = Color(0xFFFFFFFF);
 
-  // Celadon leaf scale
-  static const emerald50 = Color(0xFFDCECE3);
-  static const emerald100 = Color(0xFFC3DDCF);
-  static const emerald200 = Color(0xFFA5D4B8);
+  // Leaf scale
+  static const emerald50 = Color(0xFFE8F3EC);
+  static const emerald100 = Color(0xFFD0E6D9);
+  static const emerald200 = Color(0xFFA8D4BC);
   static const emerald400 = Color(0xFF3FAE78);
   static const emerald700 = Color(0xFF1B7A52);
   static const emerald800 = Color(0xFF145C3E);
   static const emerald900 = Color(0xFF0C3D2A);
 
   // Neutrals — cool green undertone
-  static const gray200 = Color(0xFFC8D3CD);
-  static const gray400 = Color(0xFF7E8C85);
-  static const gray500 = Color(0xFF5A6A63);
-  static const gray600 = Color(0xFF3D4A44);
+  static const gray200 = Color(0xFFD0DAD4);
+  static const gray400 = Color(0xFF84928B);
+  static const gray500 = Color(0xFF5E6E66);
+  static const gray600 = Color(0xFF3A4741);
 
   // Semantic
   static const orange50 = Color(0xFFFFF4EB);
@@ -41,70 +41,85 @@ class AppColors {
   static const blue50 = Color(0xFFEEF5FB);
   static const blue900 = Color(0xFF1A3A5C);
 
-  static const cardShadow = Color(0x1A0A1F1A);
-  static const softShadow = Color(0x120A1F1A);
+  static const cardShadow = Color(0x140C231C);
+  static const softShadow = Color(0x0D0C231C);
 
-  static const radiusSm = 12.0;
+  static const radiusSm = 14.0;
   static const radiusMd = 18.0;
-  static const radiusLg = 24.0;
+  static const radiusLg = 22.0;
   static const radiusXl = 28.0;
+  static const radiusPill = 999.0;
 
   static List<BoxShadow> get elevationSm => [
         BoxShadow(
           color: softShadow,
-          blurRadius: 12,
-          offset: const Offset(0, 4),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
         ),
       ];
 
   static List<BoxShadow> get elevationMd => [
         BoxShadow(
           color: cardShadow,
-          blurRadius: 24,
-          offset: const Offset(0, 10),
-          spreadRadius: -6,
+          blurRadius: 28,
+          offset: const Offset(0, 12),
+          spreadRadius: -8,
         ),
       ];
 
   static List<BoxShadow> get elevationLg => [
         BoxShadow(
-          color: forest.withValues(alpha: 0.16),
+          color: forest.withValues(alpha: 0.12),
+          blurRadius: 36,
+          offset: const Offset(0, 18),
+          spreadRadius: -10,
+        ),
+      ];
+
+  static List<BoxShadow> get navShadow => [
+        BoxShadow(
+          color: forest.withValues(alpha: 0.10),
           blurRadius: 32,
-          offset: const Offset(0, 16),
-          spreadRadius: -8,
+          offset: const Offset(0, 12),
+          spreadRadius: -4,
+        ),
+        BoxShadow(
+          color: forest.withValues(alpha: 0.04),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
       ];
 
   static LinearGradient get heroGradient => const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF1A5C45), forest],
+        colors: [Color(0xFF1F6B52), forest],
       );
 
   static LinearGradient get warmGradient => const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFD4E2DA), cream],
+        colors: [Color(0xFFE8F0EB), cream],
       );
 
   static LinearGradient get canvasGradient => const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
         colors: [
-          Color(0xFFE4EDE7),
+          Color(0xFFF7FAF8),
           cream,
-          Color(0xFFD2DFD7),
+          Color(0xFFEAF1EC),
         ],
-        stops: [0.0, 0.5, 1.0],
+        stops: [0.0, 0.45, 1.0],
       );
 
   static const accentGlow = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0xFFD8E8DF),
-          Color(0xFFE2EBE5),
-          Color(0xFFD5E3DB),
+          Color(0xFFE8F3EC),
+          Color(0xFFF2F7F4),
+          Color(0xFFE0EDE5),
         ],
       );
 
@@ -112,9 +127,9 @@ class AppColors {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          forestLight.withValues(alpha: 0.95),
+          forestLight.withValues(alpha: 0.96),
           forest,
-          const Color(0xFF041510),
+          const Color(0xFF061610),
         ],
       );
 
@@ -122,5 +137,14 @@ class AppColors {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [Color(0xFF2D9B6F), Color(0xFF1B7A52)],
+      );
+
+  static LinearGradient get headerSheen => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          surfaceElevated.withValues(alpha: 0.98),
+          surfaceElevated.withValues(alpha: 0.92),
+        ],
       );
 }

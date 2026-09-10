@@ -92,19 +92,21 @@ class _HerbImageState extends State<HerbImage> {
       return media;
     }
 
+    // Always proxy external CDNs first (Postimages/ImgBB return a tiny 200
+    // placeholder to mobile clients — CachedNetworkImage treats that as success
+    // and never falls back). Matches admin UrlImage behavior.
     switch (_phase) {
       case _LoadPhase.primary:
-        if (ImageUrl.looksLikeDirectImage(tidy)) return tidy;
-        return ImageUrl.proxied(tidy);
+        return ImageUrl.display(tidy);
       case _LoadPhase.bust:
-        final primary = ImageUrl.looksLikeDirectImage(tidy)
-            ? tidy
-            : ImageUrl.proxied(tidy);
+        final primary = ImageUrl.display(tidy);
         final sep = primary.contains('?') ? '&' : '?';
         return '$primary${sep}_t=${DateTime.now().millisecondsSinceEpoch}';
       case _LoadPhase.resolved:
-        return _resolvedUrl ?? ImageUrl.proxied(tidy);
+        return _resolvedUrl ?? ImageUrl.display(tidy);
       case _LoadPhase.direct:
+        // Last resort: raw URL only for hosts that do not hotlink-block.
+        if (ImageUrl.requiresProxy(tidy)) return ImageUrl.display(tidy);
         return tidy;
       case _LoadPhase.failed:
         return '';
@@ -141,7 +143,10 @@ class _HerbImageState extends State<HerbImage> {
     if (!mounted) return;
     if (!prefer) {
       setState(() {
-        _phase = _LoadPhase.direct;
+        // Hotlink hosts never succeed as raw CDN loads — skip straight to failed.
+        _phase = ImageUrl.requiresProxy(tidy)
+            ? _LoadPhase.failed
+            : _LoadPhase.direct;
         _errorQueued = false;
       });
     } else {
@@ -163,7 +168,9 @@ class _HerbImageState extends State<HerbImage> {
         _resolveViaApi();
       case _LoadPhase.resolved:
         setState(() {
-          _phase = _LoadPhase.direct;
+          _phase = ImageUrl.requiresProxy(_sourceUrl)
+              ? _LoadPhase.failed
+              : _LoadPhase.direct;
           _errorQueued = false;
         });
       case _LoadPhase.direct:
@@ -276,7 +283,7 @@ class _HerbImageState extends State<HerbImage> {
       memCacheWidth: cacheW,
       fadeInDuration: const Duration(milliseconds: 180),
       fadeOutDuration: const Duration(milliseconds: 40),
-      placeholder: (context, url) => const ImageLoadingSpinner(),
+      // octo_image allows only one of placeholder / progressIndicatorBuilder.
       progressIndicatorBuilder: (context, url, progress) {
         return ImageLoadingSpinner(progress: progress.progress);
       },
@@ -304,13 +311,13 @@ class ImageLoadingSpinner extends StatelessWidget {
       color: AppColors.emerald50,
       child: Center(
         child: SizedBox(
-          width: 26,
-          height: 26,
+          width: 22,
+          height: 22,
           child: CircularProgressIndicator(
-            strokeWidth: 2.5,
+            strokeWidth: 2.2,
             value: progress,
             color: AppColors.emerald700,
-            backgroundColor: AppColors.emerald200.withValues(alpha: 0.45),
+            backgroundColor: AppColors.emerald200.withValues(alpha: 0.4),
           ),
         ),
       ),

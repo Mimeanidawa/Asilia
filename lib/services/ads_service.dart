@@ -47,6 +47,7 @@ class AdsService extends ChangeNotifier {
       final status = await MobileAds.instance.initialize();
       debugPrint('MobileAds initialized: ${status.adapterStatuses}');
       _initialized = true;
+      // Warm fullscreen inventory; banners load in-slot for fastest first paint.
       unawaited(preload());
     } catch (e, st) {
       debugPrint('AdsService init failed: $e\n$st');

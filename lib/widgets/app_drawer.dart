@@ -44,7 +44,7 @@ class AppDrawer extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.eco_rounded, color: AppColors.cream, size: 32),
+                    child: const Icon(Icons.spa_rounded, color: AppColors.cream, size: 32),
                   ),
                   const SizedBox(height: 14),
                   const Text(

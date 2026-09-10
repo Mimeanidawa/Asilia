@@ -51,22 +51,47 @@ class ProfileScreen extends StatelessWidget {
           ),
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 14),
-              child: const Row(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 18),
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.person_rounded,
-                    color: AppColors.emerald800,
-                    size: 22,
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald50,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.person_rounded,
+                      color: AppColors.emerald800,
+                      size: 22,
+                    ),
                   ),
-                  SizedBox(width: 10),
-                  Text(
-                    'Mtumiaji',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.forest,
-                      letterSpacing: -0.5,
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Akaunti',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.forest,
+                            letterSpacing: -0.55,
+                            height: 1.1,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Wasifu na mipangilio yako',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.gray500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

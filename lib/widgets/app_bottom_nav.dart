@@ -10,10 +10,11 @@ import '../providers/app_provider.dart';
 import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 
-const _navRadius = 26.0;
-
+/// Flat edge-to-edge tab bar (WhatsApp / X style) — no floating pill.
 class AppBottomNav extends StatelessWidget {
   const AppBottomNav({super.key});
+
+  static const double barHeight = 56;
 
   @override
   Widget build(BuildContext context) {
@@ -23,78 +24,67 @@ class AppBottomNav extends StatelessWidget {
     final ulizaUnread = active == AppScreen.askExpert ? 0 : mwalimu.unreadCount;
     final isExploreActive =
         active == AppScreen.contentList || active == AppScreen.conditions;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.forest,
-        borderRadius: BorderRadius.circular(_navRadius),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.forest.withValues(alpha: 0.35),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+    return Material(
+      color: AppColors.surfaceElevated,
+      elevation: 0,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          border: Border(
+            top: BorderSide(color: AppColors.forest.withValues(alpha: 0.08)),
           ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 10),
-      child: Row(
-        children: [
-          _NavItem(
-            icon: Icons.home_rounded,
-            label: 'Nyumbani',
-            selected: active == AppScreen.home,
-            onTap: () => app.navigate(AppScreen.home),
-          ),
-          _NavItem(
-            icon: Icons.auto_stories_rounded,
-            label: 'Jifunze',
-            selected: active == AppScreen.learn,
-            onTap: () => app.navigate(AppScreen.learn),
-          ),
-          Expanded(
-            child: Center(
-              child: Transform.translate(
-                offset: const Offset(0, -14),
-                child: Material(
-                  color: isExploreActive ? AppColors.amber : Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  elevation: 8,
-                  shadowColor: AppColors.forest.withValues(alpha: 0.35),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(22),
-                    onTap: () {
-                      app.selectedContentCategory = null;
-                      app.navigate(
-                        AppScreen.contentList,
-                        contentSection: ContentSections.allMakala,
-                      );
-                    },
-                    child: SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: Icon(
-                        Icons.eco_rounded,
-                        color: isExploreActive ? Colors.white : AppColors.forest,
-                        size: 26,
-                      ),
-                    ),
-                  ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: SizedBox(
+            height: barHeight,
+            child: Row(
+              children: [
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home_rounded,
+                  label: 'Nyumbani',
+                  selected: active == AppScreen.home,
+                  onTap: () => app.navigate(AppScreen.home),
                 ),
-              ),
+                _NavItem(
+                  icon: Icons.menu_book_outlined,
+                  selectedIcon: Icons.menu_book_rounded,
+                  label: 'Jifunze',
+                  selected: active == AppScreen.learn,
+                  onTap: () => app.navigate(AppScreen.learn),
+                ),
+                _NavItem(
+                  icon: Icons.spa_outlined,
+                  selectedIcon: Icons.spa_rounded,
+                  label: 'Makala',
+                  selected: isExploreActive,
+                  onTap: () {
+                    app.selectedContentCategory = null;
+                    app.navigate(
+                      AppScreen.contentList,
+                      contentSection: ContentSections.allMakala,
+                    );
+                  },
+                ),
+                _UlizaNavItem(
+                  selected: active == AppScreen.askExpert,
+                  unreadCount: ulizaUnread,
+                  onTap: () => app.navigate(AppScreen.askExpert),
+                ),
+                _NavItem(
+                  icon: Icons.person_outline_rounded,
+                  selectedIcon: Icons.person_rounded,
+                  label: 'Akaunti',
+                  selected: active == AppScreen.profile,
+                  onTap: () => app.navigate(AppScreen.profile),
+                ),
+              ],
             ),
           ),
-          _UlizaNavItem(
-            selected: active == AppScreen.askExpert,
-            unreadCount: ulizaUnread,
-            onTap: () => app.navigate(AppScreen.askExpert),
-          ),
-          _NavItem(
-            icon: Icons.person_rounded,
-            label: 'Mtumiaji',
-            selected: active == AppScreen.profile,
-            onTap: () => app.navigate(AppScreen.profile),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -114,66 +104,110 @@ class _UlizaNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasUnread = unreadCount > 0;
-    final activeColor = Colors.white;
-    final inactiveColor = Colors.white.withValues(alpha: 0.55);
-    final accent = const Color(0xFFE0B089);
+    final color = hasUnread && !selected
+        ? AppColors.amber
+        : (selected
+            ? AppColors.forest
+            : AppColors.forest.withValues(alpha: 0.45));
 
     return Expanded(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(_navRadius),
-        child: AnimatedContainer(
-          duration: 220.ms,
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          decoration: BoxDecoration(
-            color: selected ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 28,
-                height: 24,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  alignment: Alignment.center,
-                  children: [
-                    _ShakingIcon(
-                      enabled: hasUnread && !selected,
-                      child: Icon(
-                        hasUnread
-                            ? Icons.mark_chat_unread_rounded
-                            : Icons.chat_bubble_outline_rounded,
-                        size: 20,
-                        color: hasUnread && !selected
-                            ? accent
-                            : (selected ? activeColor : inactiveColor),
-                      ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 28,
+              height: 24,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  _ShakingIcon(
+                    enabled: hasUnread && !selected,
+                    child: Icon(
+                      selected
+                          ? Icons.chat_bubble_rounded
+                          : (hasUnread
+                              ? Icons.mark_chat_unread_rounded
+                              : Icons.chat_bubble_outline_rounded),
+                      size: 24,
+                      color: color,
                     ),
-                    if (hasUnread)
-                      Positioned(
-                        top: -6,
-                        right: -10,
-                        child: _PulsingUnreadBadge(count: unreadCount),
-                      ),
-                  ],
-                ),
+                  ),
+                  if (hasUnread)
+                    Positioned(
+                      top: -4,
+                      right: -8,
+                      child: _UnreadDot(count: unreadCount),
+                    ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Uliza',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: selected || hasUnread ? FontWeight.w800 : FontWeight.w600,
-                  color: hasUnread && !selected
-                      ? accent
-                      : (selected ? activeColor : inactiveColor),
-                ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'Uliza',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: selected || hasUnread
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+                color: color,
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? AppColors.forest
+        : AppColors.forest.withValues(alpha: 0.45);
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              selected ? selectedIcon : icon,
+              size: 24,
+              color: color,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -243,117 +277,34 @@ class _ShakingIconState extends State<_ShakingIcon>
   }
 }
 
-class _PulsingUnreadBadge extends StatefulWidget {
-  const _PulsingUnreadBadge({required this.count});
+class _UnreadDot extends StatelessWidget {
+  const _UnreadDot({required this.count});
 
   final int count;
 
   @override
-  State<_PulsingUnreadBadge> createState() => _PulsingUnreadBadgeState();
-}
-
-class _PulsingUnreadBadgeState extends State<_PulsingUnreadBadge>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, child) {
-        return Opacity(
-          opacity: 0.85 + (_pulse.value * 0.15),
-          child: child,
+    return Container(
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.amber,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          fontSize: 8,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          height: 1.1,
+        ),
+      ),
+    ).animate(onPlay: (c) => c.repeat(reverse: true)).fade(
+          begin: 0.85,
+          end: 1,
+          duration: 1200.ms,
         );
-      },
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-        decoration: BoxDecoration(
-          color: AppColors.amber,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white, width: 1.5),
-        ),
-        child: Text(
-          widget.count > 99 ? '99+' : '${widget.count}',
-          style: const TextStyle(
-            fontSize: 8,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            height: 1.1,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final activeColor = Colors.white;
-    final inactiveColor = Colors.white.withValues(alpha: 0.55);
-
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(_navRadius),
-        child: AnimatedContainer(
-          duration: 220.ms,
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          decoration: BoxDecoration(
-            color: selected ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: selected ? activeColor : inactiveColor,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  color: selected ? activeColor : inactiveColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

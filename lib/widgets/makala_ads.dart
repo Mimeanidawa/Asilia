@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
@@ -13,9 +15,7 @@ class MakalaBannerAd extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _MakalaBannerSlot(
-      variant: _MakalaBannerVariant.bottomAnchored,
-    );
+    return const _MakalaBannerSlot(inline: false);
   }
 }
 
@@ -25,223 +25,240 @@ class MakalaInlineBannerAd extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _MakalaBannerSlot(variant: _MakalaBannerVariant.inlineRectangle);
+    return const _MakalaBannerSlot(inline: true);
   }
 }
 
-enum _MakalaBannerVariant { bottomAnchored, inlineRectangle }
-
-enum _BannerLoadState { idle, loading, loaded, failed }
+enum _BannerPhase { idle, loading, loaded, failed }
 
 class _MakalaBannerSlot extends StatefulWidget {
-  const _MakalaBannerSlot({required this.variant});
+  const _MakalaBannerSlot({required this.inline});
 
-  final _MakalaBannerVariant variant;
+  final bool inline;
 
   @override
   State<_MakalaBannerSlot> createState() => _MakalaBannerSlotState();
 }
 
-class _MakalaBannerSlotState extends State<_MakalaBannerSlot> {
+class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
+    with AutomaticKeepAliveClientMixin {
   BannerAd? _banner;
-  _BannerLoadState _state = _BannerLoadState.idle;
-  int _retryCount = 0;
-  int? _loadedWidth;
-  int? _loadingWidth;
-  int _loadGeneration = 0;
-  bool _started = false;
+  _BannerPhase _phase = _BannerPhase.idle;
+  int _retry = 0;
+  int _generation = 0;
+  bool _loadStarted = false;
+  Timer? _retryTimer;
 
-  bool get _isBottom => widget.variant == _MakalaBannerVariant.bottomAnchored;
+  @override
+  bool get wantKeepAlive => true;
 
-  double get _fallbackHeight {
-    if (_isBottom) return AdSize.banner.height.toDouble();
-    return AdSize.mediumRectangle.height.toDouble();
+  double get _slotHeight {
+    final banner = _banner;
+    if (banner != null) return banner.size.height.toDouble();
+    // Standard banner is fastest + highest fill. Large only as visual reserve.
+    return AdSize.banner.height.toDouble();
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureLoaded());
   }
 
-  Future<void> _start() async {
-    if (_started || !mounted) return;
-    _started = true;
-
-    final ads = context.read<AdsService>();
-    final user = context.read<UserService>();
-    if (!ads.shouldShowAds(user)) return;
-
-    await ads.initialize();
-    if (!mounted || !ads.isReady) return;
-
-    final width = MediaQuery.sizeOf(context).width.truncate();
-    if (width > 0) _scheduleLoad(width);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Kick again if user/ads eligibility flips after first frame.
+    if (!_loadStarted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ensureLoaded());
+    }
   }
 
-  void _scheduleLoad(int width) {
-    if (_state == _BannerLoadState.loaded && _loadedWidth == width) return;
-    if (_state == _BannerLoadState.loading && _loadingWidth == width) return;
-
-    _loadingWidth = width;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _loadBanner(width);
-    });
-  }
-
-  Future<void> _loadBanner(int width) async {
-    final gen = ++_loadGeneration;
+  Future<void> _ensureLoaded() async {
+    if (!mounted) return;
 
     final ads = context.read<AdsService>();
     final user = context.read<UserService>();
     if (!ads.shouldShowAds(user) || !AdsConfig.isSupportedPlatform) {
-      if (gen == _loadGeneration) _disposeBanner();
+      _clearBanner();
       return;
     }
 
-    _banner?.dispose();
-    _banner = null;
-    if (!mounted || gen != _loadGeneration) return;
-    setState(() {
-      _state = _BannerLoadState.loading;
-      _loadingWidth = width;
-    });
+    if (_phase == _BannerPhase.loaded && _banner != null) return;
+    if (_phase == _BannerPhase.loading) return;
 
+    _loadStarted = true;
+    await _load();
+  }
+
+  Future<void> _load() async {
+    final gen = ++_generation;
+    final ads = context.read<AdsService>();
+    final user = context.read<UserService>();
+
+    if (!ads.shouldShowAds(user) || !AdsConfig.isSupportedPlatform) {
+      _clearBanner();
+      return;
+    }
+
+    setState(() => _phase = _BannerPhase.loading);
+
+    // Wait for SDK (shared future) — do not invent a second init path.
     await ads.initialize();
-    if (!mounted || gen != _loadGeneration || !ads.isReady) return;
+    if (!mounted || gen != _generation) return;
+    if (!ads.isReady) {
+      setState(() => _phase = _BannerPhase.failed);
+      _scheduleRetry(gen);
+      return;
+    }
 
-    final adSize = _isBottom ? await _resolveAdaptiveSize(width) : AdSize.mediumRectangle;
-    if (!mounted || gen != _loadGeneration) return;
+    // Dispose previous only after we know we will replace it.
+    final previous = _banner;
+    _banner = null;
+    previous?.dispose();
+
+    // Prefer standard banner first (fast + reliable fill), then large banner.
+    final sizes = <AdSize>[
+      AdSize.banner,
+      AdSize.largeBanner,
+      if (widget.inline) AdSize.mediumRectangle,
+    ];
+
+    for (final size in sizes) {
+      if (!mounted || gen != _generation) return;
+      final loaded = await _loadWithSize(size, gen);
+      if (loaded) return;
+    }
+
+    if (!mounted || gen != _generation) return;
+    setState(() => _phase = _BannerPhase.failed);
+    _scheduleRetry(gen);
+  }
+
+  Future<bool> _loadWithSize(AdSize size, int gen) async {
+    final completer = Completer<bool>();
 
     final banner = BannerAd(
       adUnitId: AdsConfig.bannerAdUnitId,
-      size: adSize,
+      size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          if (!mounted || gen != _loadGeneration) {
+          if (!mounted || gen != _generation) {
             ad.dispose();
+            if (!completer.isCompleted) completer.complete(false);
             return;
           }
           setState(() {
             _banner = ad as BannerAd;
-            _state = _BannerLoadState.loaded;
-            _loadedWidth = width;
-            _loadingWidth = null;
-            _retryCount = 0;
+            _phase = _BannerPhase.loaded;
+            _retry = 0;
           });
+          if (!completer.isCompleted) completer.complete(true);
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('Makala banner failed (${widget.variant}): $error');
+          debugPrint(
+            'Banner failed (${widget.inline ? 'inline' : 'bottom'} '
+            '${size.width}x${size.height}): $error',
+          );
           ad.dispose();
-          if (!mounted || gen != _loadGeneration) return;
-          setState(() {
-            _banner = null;
-            _state = _BannerLoadState.failed;
-            _loadingWidth = null;
-          });
-          _retryLater(width, gen);
+          if (!completer.isCompleted) completer.complete(false);
         },
       ),
     );
 
-    _banner = banner;
     try {
-      await banner.load();
+      // Kick the request; completion is signaled by the listener.
+      unawaited(banner.load());
+      return await completer.future.timeout(
+        const Duration(seconds: 6),
+        onTimeout: () {
+          banner.dispose();
+          return false;
+        },
+      );
     } catch (e) {
-      debugPrint('Makala banner load error: $e');
-      if (!mounted || gen != _loadGeneration) return;
-      setState(() {
-        _banner = null;
-        _state = _BannerLoadState.failed;
-        _loadingWidth = null;
-      });
-      _retryLater(width, gen);
+      debugPrint('Banner load threw: $e');
+      banner.dispose();
+      if (!completer.isCompleted) completer.complete(false);
+      return false;
     }
   }
 
-  Future<AdSize> _resolveAdaptiveSize(int width) async {
-    final safeWidth = width.clamp(320, 728);
-    final adaptive = await AdSize.getAnchoredAdaptiveBannerAdSize(
-      Orientation.portrait,
-      safeWidth,
-    );
-    if (adaptive != null) return adaptive;
-
-    final large = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(safeWidth);
-    if (large != null) return large;
-
-    return AdSize.banner;
-  }
-
-  void _retryLater(int width, int gen) {
-    _retryCount++;
-    final delay = Duration(seconds: (3 * _retryCount).clamp(3, 20));
-    Future<void>.delayed(delay, () {
-      if (!mounted || gen != _loadGeneration) return;
-      if (_state == _BannerLoadState.loaded) return;
-      _scheduleLoad(width);
+  void _scheduleRetry(int gen) {
+    _retryTimer?.cancel();
+    _retry++;
+    // Fast first retries: 1s, 2s, 4s, then up to 12s.
+    final seconds = (1 << (_retry - 1).clamp(0, 3)).clamp(1, 12);
+    _retryTimer = Timer(Duration(seconds: seconds), () {
+      if (!mounted || gen != _generation) return;
+      if (_phase == _BannerPhase.loaded) return;
+      unawaited(_load());
     });
   }
 
-  void _disposeBanner() {
-    _loadGeneration++;
+  void _clearBanner() {
+    _generation++;
+    _retryTimer?.cancel();
     _banner?.dispose();
     _banner = null;
-    _loadedWidth = null;
-    _loadingWidth = null;
-    if (mounted) setState(() => _state = _BannerLoadState.idle);
+    _loadStarted = false;
+    if (mounted) setState(() => _phase = _BannerPhase.idle);
   }
 
   @override
   void dispose() {
-    _loadGeneration++;
+    _generation++;
+    _retryTimer?.cancel();
     _banner?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final user = context.watch<UserService>();
-    final ads = context.read<AdsService>();
-    if (!ads.shouldShowAds(user)) return const SizedBox.shrink();
+    final ads = context.watch<AdsService>();
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth.truncate();
-        if (width > 0 &&
-            _loadedWidth != width &&
-            _state != _BannerLoadState.loading &&
-            ads.isReady) {
-          _scheduleLoad(width);
-        }
+    if (!ads.shouldShowAds(user)) {
+      return const SizedBox.shrink();
+    }
 
-        final banner = _banner;
-        final height = banner != null
-            ? banner.size.height.toDouble()
-            : _fallbackHeight;
+    // If ads just became ready and we have not loaded yet, kick off.
+    if (ads.isReady &&
+        _phase != _BannerPhase.loaded &&
+        _phase != _BannerPhase.loading &&
+        !_loadStarted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ensureLoaded());
+    }
 
-        final showAd = _state == _BannerLoadState.loaded && banner != null;
-        final showSpinner =
-            _state == _BannerLoadState.loading || _state == _BannerLoadState.idle;
+    final banner = _banner;
+    final height = _slotHeight;
+    final showAd = _phase == _BannerPhase.loaded && banner != null;
 
-        return _AdFrame(
-          inline: !_isBottom,
-          height: height,
-          child: showAd
-              ? Center(
-                  child: SizedBox(
-                    width: banner.size.width.toDouble(),
-                    height: banner.size.height.toDouble(),
-                    child: AdWidget(ad: banner),
-                  ),
+    return _AdFrame(
+      inline: widget.inline,
+      height: height,
+      child: showAd
+          ? KeyedSubtree(
+              key: ValueKey('ad-${banner.hashCode}-${banner.size.height}'),
+              child: Center(
+                child: SizedBox(
+                  width: banner.size.width.toDouble(),
+                  height: banner.size.height.toDouble(),
+                  child: AdWidget(ad: banner),
+                ),
+              ),
+            )
+          : _phase == _BannerPhase.failed
+              ? _AdRetryPlaceholder(
+                  height: height,
+                  onRetry: () {
+                    _retry = 0;
+                    unawaited(_load());
+                  },
                 )
-              : showSpinner
-                  ? _AdLoadingPlaceholder(height: height)
-                  : _AdEmptyPlaceholder(height: height),
-        );
-      },
+              : _AdLoadingPlaceholder(height: height),
     );
   }
 }
@@ -259,66 +276,72 @@ class _AdFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final frame = Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.emerald50,
-        border: Border(
-          top: inline
-              ? BorderSide.none
-              : BorderSide(color: AppColors.forest.withValues(alpha: 0.08)),
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
-        ),
-      ),
+    final frame = ColoredBox(
+      color: AppColors.emerald50,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, inline ? 0 : 8, 16, 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.ads_click_rounded,
-                  size: 12,
-                  color: AppColors.gray400,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'AD',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
+          if (!inline)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.ads_click_rounded,
+                    size: 11,
                     color: AppColors.gray400,
-                    letterSpacing: 0.8,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  Text(
+                    'AD',
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.gray400,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
           SizedBox(
             width: double.infinity,
             height: height,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(inline ? 12 : 0),
-              child: ColoredBox(
-                color: AppColors.cream,
-                child: child,
-              ),
+            child: ColoredBox(
+              color: AppColors.surfaceElevated,
+              child: child,
             ),
           ),
-          if (!inline) const SizedBox(height: 4),
+          if (!inline) const SizedBox(height: 2),
         ],
       ),
     );
 
-    if (inline) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+    if (!inline) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: AppColors.forest.withValues(alpha: 0.08)),
+          ),
+        ),
         child: frame,
       );
     }
-    return frame;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.forest.withValues(alpha: 0.06)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: frame,
+        ),
+      ),
+    );
   }
 }
 
@@ -329,37 +352,45 @@ class _AdLoadingPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: height,
-      alignment: Alignment.center,
-      color: AppColors.cream,
-      child: SizedBox(
-        width: 22,
-        height: 22,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: AppColors.forest.withValues(alpha: 0.4),
+      child: Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.forest.withValues(alpha: 0.35),
+          ),
         ),
       ),
     );
   }
 }
 
-class _AdEmptyPlaceholder extends StatelessWidget {
-  const _AdEmptyPlaceholder({required this.height});
+class _AdRetryPlaceholder extends StatelessWidget {
+  const _AdRetryPlaceholder({required this.height, required this.onRetry});
 
   final double height;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: height,
-      alignment: Alignment.center,
-      color: AppColors.cream,
-      child: Icon(
-        Icons.image_outlined,
-        size: 28,
-        color: AppColors.forest.withValues(alpha: 0.15),
+      child: Center(
+        child: TextButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded, size: 16),
+          label: const Text('Jaribu tena'),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.emerald800,
+            textStyle: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ),
     );
   }

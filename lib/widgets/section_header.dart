@@ -10,7 +10,7 @@ class SectionHeader extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onAction,
-    this.padding = const EdgeInsets.fromLTRB(20, 28, 20, 14),
+    this.padding = const EdgeInsets.fromLTRB(20, 26, 20, 12),
     this.badge,
   });
 
@@ -26,7 +26,7 @@ class SectionHeader extends StatelessWidget {
     return Padding(
       padding: padding,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Column(
@@ -38,10 +38,10 @@ class SectionHeader extends StatelessWidget {
                       child: Text(
                         title,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 19,
                           fontWeight: FontWeight.w800,
                           color: AppColors.forest,
-                          letterSpacing: -0.6,
+                          letterSpacing: -0.55,
                           height: 1.15,
                         ),
                       ),
@@ -49,10 +49,13 @@ class SectionHeader extends StatelessWidget {
                     if (badge != null) ...[
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.emerald50,
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(AppColors.radiusPill),
                         ),
                         child: Text(
                           badge!,
@@ -60,6 +63,7 @@ class SectionHeader extends StatelessWidget {
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             color: AppColors.emerald800,
+                            letterSpacing: 0.1,
                           ),
                         ),
                       ),
@@ -67,12 +71,12 @@ class SectionHeader extends StatelessWidget {
                   ],
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.gray500,
+                      color: AppColors.forest.withValues(alpha: 0.52),
                       height: 1.4,
                       fontWeight: FontWeight.w500,
                     ),
@@ -87,7 +91,7 @@ class SectionHeader extends StatelessWidget {
               onPressed: onAction,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.emerald800,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 visualDensity: VisualDensity.compact,
               ),
               child: Row(
@@ -101,13 +105,16 @@ class SectionHeader extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Icon(Icons.arrow_forward_rounded, size: 16),
+                  const Icon(Icons.arrow_forward_rounded, size: 15),
                 ],
               ),
             ),
           ],
         ],
       ),
-    ).animate().fadeIn(duration: 420.ms).slideY(begin: 0.06, end: 0);
+    )
+        .animate()
+        .fadeIn(duration: 380.ms, curve: Curves.easeOut)
+        .slideY(begin: 0.04, end: 0, curve: Curves.easeOutCubic);
   }
 }

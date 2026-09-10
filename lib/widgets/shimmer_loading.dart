@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-// Shimmer palette — high contrast so the sweep is clearly visible.
-const _shimmerBase = Color(0xFFDDD8D0);
-const _shimmerMid = Color(0xFFF0EBE3);
+// Shimmer palette — cool mist to match canvas.
+const _shimmerBase = Color(0xFFD7E3DB);
+const _shimmerMid = Color(0xFFE8F0EB);
 const _shimmerPeak = Color(0xFFFFFFFF);
 
 /// Animated moving-light shimmer over skeleton placeholders.
@@ -316,42 +316,29 @@ class DarasaCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(14),
           color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.forest.withValues(alpha: 0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
         ),
+        clipBehavior: Clip.antiAlias,
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SkeletonBox(
-              height: 248,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              height: 220,
+              borderRadius: BorderRadius.zero,
             ),
             Padding(
-              padding: EdgeInsets.all(14),
-              child: Row(
+              padding: EdgeInsets.fromLTRB(14, 10, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SkeletonBox(width: 28, height: 28, borderRadius: BorderRadius.all(Radius.circular(14))),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SkeletonBox(width: 100, height: 10, margin: EdgeInsets.only(bottom: 4)),
-                        SkeletonBox(width: 80, height: 8),
-                      ],
-                    ),
-                  ),
-                  SkeletonBox(width: 72, height: 32, borderRadius: BorderRadius.all(Radius.circular(12))),
+                  SkeletonBox(width: 80, height: 10, margin: EdgeInsets.only(bottom: 8)),
+                  SkeletonBox(height: 12, margin: EdgeInsets.only(bottom: 6)),
+                  SkeletonBox(width: 140, height: 10),
                 ],
               ),
             ),

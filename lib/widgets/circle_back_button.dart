@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-/// Circular back control used across drill-in screens.
+/// Soft circular back control for drill-in screens.
 class CircleBackButton extends StatelessWidget {
   const CircleBackButton({
     super.key,
@@ -18,21 +18,20 @@ class CircleBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.forest,
+      color: AppColors.emerald50,
       shape: const CircleBorder(),
       clipBehavior: Clip.antiAlias,
-      elevation: 2,
-      shadowColor: AppColors.forest.withValues(alpha: 0.3),
       child: InkWell(
         onTap: onPressed,
         customBorder: const CircleBorder(),
+        splashColor: AppColors.emerald200.withValues(alpha: 0.45),
         child: SizedBox(
           width: size,
           height: size,
           child: Icon(
             Icons.arrow_back_ios_new_rounded,
             size: iconSize,
-            color: Colors.white,
+            color: AppColors.forest,
           ),
         ),
       ),

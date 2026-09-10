@@ -193,14 +193,13 @@ class StatsStrip extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 2),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
+          color: AppColors.surfaceElevated.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(AppColors.radiusLg),
-          border: Border.all(color: AppColors.forest.withValues(alpha: 0.04)),
-          boxShadow: AppColors.elevationSm,
+          border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
         ),
         child: Row(
           children: [
@@ -214,7 +213,7 @@ class StatsStrip extends StatelessWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 160.ms).slideY(begin: 0.06, end: 0);
+    ).animate().fadeIn(delay: 120.ms).slideY(begin: 0.04, end: 0);
   }
 
   Widget _divider() => Container(

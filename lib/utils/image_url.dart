@@ -132,18 +132,29 @@ class ImageUrl {
     return false;
   }
 
-  static bool looksLikeDirectImage(String raw) {
+  /// Hosts that hotlink-block mobile clients with a tiny HTTP 200 placeholder.
+  /// Always load these via `/api/images/proxy` (same as admin UrlImage).
+  static bool requiresProxy(String raw) {
     final url = normalize(raw);
     if (url.isEmpty) return false;
     final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+    return host == 'i.postimg.cc' ||
+        host == 'postimg.cc' ||
+        host == 'postimages.org' ||
+        host == 'i.ibb.co' ||
+        host == 'ibb.co' ||
+        host.contains('imgur.com');
+  }
+
+  static bool looksLikeDirectImage(String raw) {
+    final url = normalize(raw);
+    if (url.isEmpty) return false;
+    if (requiresProxy(url)) return false;
+    final uri = Uri.tryParse(url);
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
       return false;
-    }
-    final host = uri.host.toLowerCase();
-    if (host == 'i.ibb.co' || host.contains('imgur.com')) return true;
-    if (host == 'i.postimg.cc') {
-      final name = uri.path.split('/').last.toLowerCase();
-      return name.startsWith('image.') || _directImagePath.hasMatch(uri.path);
     }
     return _directImagePath.hasMatch(uri.path);
   }

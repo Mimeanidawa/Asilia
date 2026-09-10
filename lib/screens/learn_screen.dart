@@ -122,12 +122,13 @@ class _LearnScreenState extends State<LearnScreen> {
                                 child: Padding(
                                   padding: EdgeInsets.fromLTRB(
                                     Responsive.horizontalGutter(context),
-                                    18,
+                                    16,
                                     Responsive.horizontalGutter(context),
                                     8,
                                   ),
                                   child: ContentFeaturedCard(
                                     post: featured,
+                                    height: 300,
                                     onTap: () => _openPost(featured, user),
                                   ),
                                 ),
@@ -136,9 +137,9 @@ class _LearnScreenState extends State<LearnScreen> {
                               child: Padding(
                                 padding: EdgeInsets.fromLTRB(
                                   Responsive.horizontalGutter(context) + 4,
-                                  featured == null ? 18 : 14,
+                                  featured == null ? 18 : 16,
                                   Responsive.horizontalGutter(context),
-                                  10,
+                                  8,
                                 ),
                                 child: _SectionLabel(
                                   title: featured == null
@@ -149,22 +150,26 @@ class _LearnScreenState extends State<LearnScreen> {
                               ),
                             ),
                             if (Responsive.listColumns(context) == 1)
-                              SliverPadding(
-                                padding: EdgeInsets.fromLTRB(
-                                  Responsive.horizontalGutter(context),
-                                  0,
-                                  Responsive.horizontalGutter(context),
-                                  Responsive.scrollBottomPadding(context, extra: 12),
-                                ),
-                                sliver: SliverList.separated(
-                                  itemCount: rest.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 14),
-                                  itemBuilder: (context, i) => ContentPostCard(
-                                    post: rest[i],
-                                    animationIndex: i,
-                                    margin: EdgeInsets.zero,
-                                    onTap: () => _openPost(rest[i], user),
+                              SliverToBoxAdapter(
+                                child: ColoredBox(
+                                  color: AppColors.surfaceElevated,
+                                  child: Column(
+                                    children: [
+                                      for (var i = 0; i < rest.length; i++)
+                                        ContentPostCard(
+                                          post: rest[i],
+                                          animationIndex: i,
+                                          margin: EdgeInsets.zero,
+                                          onTap: () =>
+                                              _openPost(rest[i], user),
+                                        ),
+                                      SizedBox(
+                                        height: Responsive.scrollBottomPadding(
+                                          context,
+                                          extra: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               )
@@ -174,7 +179,10 @@ class _LearnScreenState extends State<LearnScreen> {
                                   Responsive.horizontalGutter(context),
                                   0,
                                   Responsive.horizontalGutter(context),
-                                  Responsive.scrollBottomPadding(context, extra: 12),
+                                  Responsive.scrollBottomPadding(
+                                    context,
+                                    extra: 12,
+                                  ),
                                 ),
                                 sliver: SliverGrid(
                                   gridDelegate:
@@ -183,7 +191,7 @@ class _LearnScreenState extends State<LearnScreen> {
                                         Responsive.listColumns(context),
                                     crossAxisSpacing: 14,
                                     mainAxisSpacing: 14,
-                                    childAspectRatio: 0.92,
+                                    childAspectRatio: 0.88,
                                   ),
                                   delegate: SliverChildBuilderDelegate(
                                     (context, i) => ContentPostCard(
@@ -259,74 +267,97 @@ class _LibraryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-      decoration: const BoxDecoration(gradient: AppColors.accentGlow),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              gradient: AppColors.heroGradient,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.forest.withValues(alpha: 0.22),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Jifunze',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.forest,
-                    height: 1.1,
-                    letterSpacing: -0.7,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Maktaba ya maarifa ya dawa asili',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.gray500,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (count > 0)
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: AppColors.headerSheen,
+        border: Border(
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+        child: Row(
+          children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: AppColors.elevationSm,
+                gradient: AppColors.heroGradient,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.forest.withValues(alpha: 0.18),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.emerald800,
-                ),
+              child: const Icon(
+                Icons.menu_book_rounded,
+                color: Colors.white,
+                size: 24,
               ),
             ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Jifunze',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.forest,
+                      height: 1.05,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Soma, jifunze, na kua na maarifa',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.forest.withValues(alpha: 0.5),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (count > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.emerald50,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '$count',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.emerald800,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'makala',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.emerald800.withValues(alpha: 0.75),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -346,11 +377,11 @@ class _CategoryRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 58,
+      height: 54,
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withValues(alpha: 0.92),
+        color: AppColors.surfaceElevated,
         border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
         ),
       ),
       child: ListView.separated(
@@ -364,47 +395,43 @@ class _CategoryRail extends StatelessWidget {
           final accent = cat.key == null
               ? AppColors.forest
               : ContentTagStyle.colorFor(cat.key!);
-          return GestureDetector(
-            onTap: () => onSelect(cat.label),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isOn ? AppColors.forest : AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isOn
-                      ? Colors.transparent
-                      : AppColors.forest.withValues(alpha: 0.06),
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => onSelect(cat.label),
+              borderRadius: BorderRadius.circular(20),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: isOn ? AppColors.forest : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isOn
+                        ? Colors.transparent
+                        : AppColors.forest.withValues(alpha: 0.1),
+                  ),
                 ),
-                boxShadow: isOn
-                    ? [
-                        BoxShadow(
-                          color: AppColors.forest.withValues(alpha: 0.22),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    cat.icon,
-                    size: 15,
-                    color: isOn ? Colors.white : accent,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    cat.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: isOn ? Colors.white : AppColors.forest,
+                child: Row(
+                  children: [
+                    Icon(
+                      cat.icon,
+                      size: 15,
+                      color: isOn ? Colors.white : accent,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      cat.label,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: isOn ? Colors.white : AppColors.forest,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -428,18 +455,18 @@ class _SectionLabel extends StatelessWidget {
           title,
           style: const TextStyle(
             fontSize: 15,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w800,
             color: AppColors.forest,
             letterSpacing: -0.2,
           ),
         ),
         const Spacer(),
         Text(
-          '$count makala',
+          '$count',
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.gray400,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.forest.withValues(alpha: 0.4),
           ),
         ),
       ],
@@ -462,23 +489,21 @@ class _GlassChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Text(
-        label.toUpperCase(),
+        label,
         style: TextStyle(
-          fontSize: 9,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.6,
-          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );
   }
 }
-
 
 class _EmptyLibrary extends StatelessWidget {
   const _EmptyLibrary({required this.loading});

@@ -242,7 +242,14 @@ export function displayUrlFromCache(raw, cachedIds, apiBase = '') {
     const path = mediaPublicPath(mediaId);
     return base ? `${base}${path}` : path;
   }
-  return url;
+  // Already served by us — keep as-is (absolute or relative).
+  if (url.includes('/api/media/') || url.includes('/api/images/proxy')) {
+    if (url.startsWith('/') && base) return `${base}${url}`;
+    return url;
+  }
+  // Cache miss: always proxy so mobile clients never hit hotlink-blocked CDNs.
+  const proxyPath = `/api/images/proxy?url=${encodeURIComponent(url)}`;
+  return base ? `${base}${proxyPath}` : proxyPath;
 }
 
 /**

@@ -160,84 +160,112 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(BuildContext context, AppProvider app) {
     final unread = context.watch<NotificationCenterService>().unreadCount;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withValues(alpha: 0.94),
-        boxShadow: AppColors.elevationSm,
+        gradient: AppColors.headerSheen,
+        border: Border(
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
+        ),
       ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.menu_rounded, color: AppColors.forest, size: 24),
-            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-          ),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+        child: Row(
+          children: [
+            _HeaderIconButton(
+              icon: Icons.menu_rounded,
+              onTap: () => _scaffoldKey.currentState?.openDrawer(),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.heroGradient,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.forest.withValues(alpha: 0.18),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.spa_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Dawa Asili',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: AppColors.forest,
+                            letterSpacing: -0.55,
+                            height: 1.1,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Elimu ya dawa za asili',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 11.5,
+                            color: AppColors.gray500,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Stack(
+              clipBehavior: Clip.none,
               children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    gradient: AppColors.heroGradient,
-                    borderRadius: BorderRadius.circular(11),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.forest.withValues(alpha: 0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                _HeaderIconButton(
+                  icon: Icons.notifications_none_rounded,
+                  onTap: () => app.navigate(AppScreen.notifications),
+                ),
+                if (unread > 0)
+                  Positioned(
+                    right: 6,
+                    top: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      constraints:
+                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.amber,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
                       ),
-                    ],
+                      child: Text(
+                        unread > 9 ? '9+' : '$unread',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          height: 1,
+                        ),
+                      ),
+                    ),
                   ),
-                  child: const Icon(Icons.eco_rounded, color: Colors.white, size: 18),
-                ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Dawa Asili',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: AppColors.forest,
-                    letterSpacing: -0.5,
-                  ),
-                ),
               ],
             ),
-          ),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.forest),
-                onPressed: () => app.navigate(AppScreen.notifications),
-              ),
-              if (unread > 0)
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    decoration: const BoxDecoration(
-                      color: AppColors.amber,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      unread > 9 ? '9+' : '$unread',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -247,25 +275,31 @@ class _HomeScreenState extends State<HomeScreen> {
         _searchQuery.trim().isEmpty &&
         _recentSearches.isNotEmpty;
 
-    return Material(
-      color: AppColors.surfaceElevated.withValues(alpha: 0.98),
-      elevation: _isInputFocused ? 4 : 0,
-      shadowColor: AppColors.cardShadow,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated.withValues(alpha: 0.72),
+        border: Border(
+          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            DecoratedBox(
+            AnimatedContainer(
+              duration: 200.ms,
+              curve: Curves.easeOutCubic,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(18),
                 boxShadow: _isInputFocused ? AppColors.elevationSm : null,
                 border: Border.all(
                   color: _isInputFocused
-                      ? AppColors.emerald700.withValues(alpha: 0.55)
-                      : AppColors.forest.withValues(alpha: 0.08),
-                  width: _isInputFocused ? 1.5 : 1,
+                      ? AppColors.emerald700.withValues(alpha: 0.45)
+                      : AppColors.forest.withValues(alpha: 0.07),
+                  width: _isInputFocused ? 1.4 : 1,
                 ),
               ),
               child: TextField(
@@ -305,21 +339,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         )
                       : null,
                   filled: true,
-                  fillColor: AppColors.surfaceElevated,
+                  fillColor: Colors.transparent,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 4,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                     borderSide: BorderSide.none,
                   ),
                 ),
@@ -779,6 +813,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         DarasaHuruCarousel(
           lessons: published,
+          height: 340,
           onOpen: (lesson) => app.navigate(
             AppScreen.darasaHuru,
             lessonId: lesson.id,
@@ -1228,6 +1263,31 @@ class _LessonSearchTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.emerald50.withValues(alpha: 0.85),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: Icon(icon, color: AppColors.forest, size: 22),
         ),
       ),
     );
