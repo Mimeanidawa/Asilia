@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
-import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/ads_service.dart';
 import '../services/content_service.dart';
@@ -298,7 +297,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                     buttonIcon: _showTopProductBanner
                         ? Icons.keyboard_arrow_down_rounded
                         : Icons.keyboard_arrow_up_rounded,
-                    onChatWithAdmin: () => app.navigate(AppScreen.askExpert),
                     onTap: () {
                       if (!_showTopProductBanner) {
                         setState(() => _showTopProductBanner = true);

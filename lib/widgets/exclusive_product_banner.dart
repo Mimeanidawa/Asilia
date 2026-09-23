@@ -480,7 +480,7 @@ class StickyMakalaBuyBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         color: const Color(0xFF062319).withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(18),
@@ -505,18 +505,18 @@ class StickyMakalaBuyBar extends StatelessWidget {
         children: [
           // Thumbnail
           Container(
-            width: 38,
-            height: 38,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(9),
               child: HerbImage(url: product.imageUrl, fit: BoxFit.cover),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,23 +530,23 @@ class StickyMakalaBuyBar extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w800,
                           color: Colors.white,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 5),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEF4444),
-                        borderRadius: BorderRadius.circular(5),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
                         '-50%',
                         style: TextStyle(
-                          fontSize: 8.5,
+                          fontSize: 9,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
@@ -564,17 +564,17 @@ class StickyMakalaBuyBar extends StatelessWidget {
                       Text(
                         TzsFormat.full(product.price),
                         style: const TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF6EE7B7),
                         ),
                       ),
                       if (product.originalPrice > product.price) ...[
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Text(
                           TzsFormat.full(product.originalPrice),
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 10.5,
                             color: Colors.white.withValues(alpha: 0.5),
                             decoration: TextDecoration.lineThrough,
                           ),
@@ -586,51 +586,16 @@ class StickyMakalaBuyBar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          if (onChatWithAdmin != null) ...[
-            PressableScale(
-              onTap: onChatWithAdmin,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7.5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFF34D399).withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.forum_outlined,
-                      color: Color(0xFF6EE7B7),
-                      size: 14,
-                    ),
-                    SizedBox(width: 3.5),
-                    Text(
-                      'Mwalimu',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 5),
-          ],
+          const SizedBox(width: 10),
           PressableScale(
             onTap: onTap ?? () => OrderProductSheet.show(context, product),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7.5),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF10B981), Color(0xFF059669)],
                 ),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF10B981).withValues(alpha: 0.4),
@@ -648,13 +613,13 @@ class StickyMakalaBuyBar extends StatelessWidget {
                             ? Icons.shopping_bag_outlined
                             : Icons.keyboard_arrow_up_rounded),
                     color: Colors.white,
-                    size: 14,
+                    size: 15,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 5),
                   Text(
                     buttonLabel ?? (isExpanded ? 'Agiza Sasa' : 'Nunua Dawa'),
                     style: const TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                     ),
