@@ -65,9 +65,11 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
     super.dispose();
   }
 
-  int get _totalAmount => widget.product.price * _quantity;
+  static const int _transferFee = 12000;
+  int get _itemsTotal => widget.product.price * _quantity;
   int get _originalTotal => widget.product.originalPrice * _quantity;
-  int get _savings => _originalTotal - _totalAmount;
+  int get _savings => _originalTotal - _itemsTotal;
+  int get _totalAmount => _itemsTotal + _transferFee;
 
   Future<void> _handleOrder() async {
     final name = _nameController.text.trim();
@@ -107,6 +109,7 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
       final order = await orderService.createOrder(
         product: widget.product,
         quantity: _quantity,
+        transferFee: _transferFee,
         customerName: name,
         customerPhone: phone,
         region: _selectedRegion,
@@ -552,6 +555,14 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          Text('Dawa (${_quantity}x):', style: const TextStyle(fontSize: 12, color: AppColors.gray600, fontWeight: FontWeight.w600)),
+                          Text(TzsFormat.full(_itemsTotal), style: const TextStyle(fontSize: 12, color: AppColors.forest, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
                           const Text('Bei ya Kawaida:', style: TextStyle(fontSize: 12, color: AppColors.gray500)),
                           Text(TzsFormat.full(_originalTotal), style: const TextStyle(fontSize: 12, color: AppColors.gray400, decoration: TextDecoration.lineThrough)),
                         ],
@@ -564,12 +575,26 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
                           Text('- ${TzsFormat.full(_savings)}', style: const TextStyle(fontSize: 12, color: Color(0xFFB42318), fontWeight: FontWeight.w700)),
                         ],
                       ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Gharama ya Usafirishaji (Transfer Fee):', style: TextStyle(fontSize: 12, color: AppColors.emerald800, fontWeight: FontWeight.w700)),
+                              Text('Usafirishaji nchi nzima Tanzania', style: TextStyle(fontSize: 10, color: AppColors.gray500)),
+                            ],
+                          ),
+                          Text(TzsFormat.full(_transferFee), style: const TextStyle(fontSize: 12, color: AppColors.emerald800, fontWeight: FontWeight.w800)),
+                        ],
+                      ),
                       const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.borderLight)),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Jumla ya Kulipa:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.forest)),
-                          Text(TzsFormat.full(_totalAmount), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppColors.emerald800)),
+                          const Text('Jumla Kuu ya Kulipa:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.forest)),
+                          Text(TzsFormat.full(_totalAmount), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.emerald800)),
                         ],
                       ),
                     ],

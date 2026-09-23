@@ -81,6 +81,7 @@ class DawaOrder {
     required this.unitPrice,
     required this.originalPrice,
     this.quantity = 1,
+    this.transferFee = 12000,
     required this.totalAmount,
     required this.customerName,
     required this.customerPhone,
@@ -105,6 +106,7 @@ class DawaOrder {
   final int unitPrice;
   final int originalPrice;
   final int quantity;
+  final int transferFee;
   final int totalAmount;
   final String customerName;
   final String customerPhone;
@@ -118,6 +120,8 @@ class DawaOrder {
   final String trackingInfo;
   final String adminNotes;
   final DateTime createdAt;
+
+  int get itemsTotal => unitPrice * quantity;
 
   String get deliveryStatusLabel {
     switch (deliveryStatus) {
@@ -140,6 +144,7 @@ class DawaOrder {
         'unitPrice': unitPrice,
         'originalPrice': originalPrice,
         'quantity': quantity,
+        'transferFee': transferFee,
         'totalAmount': totalAmount,
         'customerName': customerName,
         'customerPhone': customerPhone,
@@ -165,6 +170,7 @@ class DawaOrder {
         unitPrice: (json['unitPrice'] as num).toInt(),
         originalPrice: (json['originalPrice'] as num?)?.toInt() ?? (json['unitPrice'] as num).toInt() * 2,
         quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+        transferFee: (json['transferFee'] ?? json['transfer_fee'] as num?)?.toInt() ?? 12000,
         totalAmount: (json['totalAmount'] as num).toInt(),
         customerName: json['customerName'] as String,
         customerPhone: json['customerPhone'] as String,
@@ -184,6 +190,7 @@ class DawaOrder {
       );
 
   DawaOrder copyWith({
+    int? transferFee,
     DawaDeliveryStatus? deliveryStatus,
     String? trackingInfo,
     String? adminNotes,
@@ -198,6 +205,7 @@ class DawaOrder {
       unitPrice: unitPrice,
       originalPrice: originalPrice,
       quantity: quantity,
+      transferFee: transferFee ?? this.transferFee,
       totalAmount: totalAmount,
       customerName: customerName,
       customerPhone: customerPhone,

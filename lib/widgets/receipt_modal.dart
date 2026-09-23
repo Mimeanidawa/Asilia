@@ -263,7 +263,7 @@ class ReceiptModal extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                TzsFormat.full(order.totalAmount),
+                                TzsFormat.full(order.itemsTotal),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w900,
@@ -304,6 +304,33 @@ class ReceiptModal extends StatelessWidget {
 
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 14),
+                        child: Divider(height: 1, color: AppColors.borderLight),
+                      ),
+
+                      // Cost Breakdown
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Dawa (${order.quantity}x):', style: const TextStyle(fontSize: 12, color: AppColors.gray600, fontWeight: FontWeight.w600)),
+                          Text(TzsFormat.full(order.itemsTotal), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.forest)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Gharama ya Usafirishaji (Transfer Fee):', style: TextStyle(fontSize: 12, color: AppColors.emerald800, fontWeight: FontWeight.w700)),
+                              Text('Usafirishaji nchi nzima Tanzania', style: TextStyle(fontSize: 10, color: AppColors.gray500)),
+                            ],
+                          ),
+                          Text(TzsFormat.full(order.transferFee), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.emerald800)),
+                        ],
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
                         child: Divider(height: 1, color: AppColors.borderLight),
                       ),
 

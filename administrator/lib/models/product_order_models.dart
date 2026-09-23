@@ -83,6 +83,7 @@ class AdminOrder {
     required this.productImageUrl,
     required this.unitPrice,
     required this.quantity,
+    this.transferFee = 12000,
     required this.totalAmount,
     required this.customerName,
     required this.customerPhone,
@@ -105,6 +106,7 @@ class AdminOrder {
   final String productImageUrl;
   final int unitPrice;
   final int quantity;
+  final int transferFee;
   final int totalAmount;
   final String customerName;
   final String customerPhone;
@@ -118,6 +120,8 @@ class AdminOrder {
   final String adminNotes;
   final DateTime createdAt;
 
+  int get itemsTotal => unitPrice * quantity;
+
   factory AdminOrder.fromJson(Map<String, dynamic> json) {
     return AdminOrder(
       id: json['id'] as String? ?? '',
@@ -128,6 +132,7 @@ class AdminOrder {
       productImageUrl: json['productImageUrl'] ?? json['product_image_url'] as String? ?? '',
       unitPrice: (json['unitPrice'] ?? json['unit_price'] as num?)?.toInt() ?? 0,
       quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      transferFee: (json['transferFee'] ?? json['transfer_fee'] as num?)?.toInt() ?? 12000,
       totalAmount: (json['totalAmount'] ?? json['total_amount'] as num?)?.toInt() ?? 0,
       customerName: json['customerName'] ?? json['customer_name'] as String? ?? 'Mteja',
       customerPhone: json['customerPhone'] ?? json['customer_phone'] as String? ?? '',

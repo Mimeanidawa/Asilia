@@ -443,6 +443,7 @@ router.get('/orders', requireAdmin, async (req, res) => {
       productImageUrl: r.product_image_url,
       unitPrice: r.unit_price,
       quantity: r.quantity,
+      transferFee: r.transfer_fee != null ? Number(r.transfer_fee) : 12000,
       totalAmount: r.total_amount,
       customerName: r.customer_name,
       customerPhone: r.customer_phone,

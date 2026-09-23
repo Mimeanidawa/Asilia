@@ -23,6 +23,7 @@ class DawaOrderService extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   static const _storageKey = 'da_user_dawa_orders_v1';
+  static const int defaultTransferFee = 12000;
 
   /// Standard Tanzania Regions for the order form
   static const List<String> tanzaniaRegions = [
@@ -268,6 +269,7 @@ class DawaOrderService extends ChangeNotifier {
   Future<DawaOrder> createOrder({
     required DawaProduct product,
     required int quantity,
+    int transferFee = defaultTransferFee,
     required String customerName,
     required String customerPhone,
     required String region,
@@ -284,7 +286,7 @@ class DawaOrderService extends ChangeNotifier {
       final randomSuffix = (1000 + Random().nextInt(9000)).toString();
       final receiptNumber = 'ASILIA-RC-${now.year}${now.month.toString().padLeft(2, '0')}-$randomSuffix';
       final orderId = 'ORD-${now.millisecondsSinceEpoch}-$randomSuffix';
-      final totalAmount = product.price * quantity;
+      final totalAmount = (product.price * quantity) + transferFee;
 
       final newOrder = DawaOrder(
         id: orderId,
@@ -296,6 +298,7 @@ class DawaOrderService extends ChangeNotifier {
         unitPrice: product.price,
         originalPrice: product.originalPrice,
         quantity: quantity,
+        transferFee: transferFee,
         totalAmount: totalAmount,
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),

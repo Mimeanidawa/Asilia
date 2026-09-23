@@ -371,7 +371,7 @@ class _OrderAdminCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Idadi: ${order.quantity} x ${TzsFormat.full(order.unitPrice)} = ${TzsFormat.full(order.totalAmount)}',
+                        'Idadi: ${order.quantity} x ${TzsFormat.full(order.unitPrice)} + Usafirishaji: ${TzsFormat.full(order.transferFee)} = ${TzsFormat.full(order.totalAmount)}',
                         style: GoogleFonts.plusJakartaSans(
                           color: AdminColors.emerald,
                           fontSize: 11.5,

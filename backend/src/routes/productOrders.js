@@ -20,6 +20,8 @@ function mapOrderRow(r) {
     unitPrice: r.unit_price,
     unit_price: r.unit_price,
     quantity: r.quantity,
+    transferFee: r.transfer_fee != null ? Number(r.transfer_fee) : 12000,
+    transfer_fee: r.transfer_fee != null ? Number(r.transfer_fee) : 12000,
     totalAmount: r.total_amount,
     total_amount: r.total_amount,
     customerName: r.customer_name,
@@ -55,6 +57,7 @@ router.post('/create', optionalUser, async (req, res) => {
       productImageUrl,
       unitPrice,
       quantity = 1,
+      transferFee = 12000,
       totalAmount,
       customerName,
       customerPhone,
@@ -72,17 +75,19 @@ router.post('/create', optionalUser, async (req, res) => {
     const now = new Date();
     const orderId = id || `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const recNum = receiptNumber || `ASILIA-RC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const calcTotal = totalAmount || (unitPrice * quantity);
+    const parsedTransferFee = transferFee != null ? parseInt(transferFee, 10) : 12000;
+    const finalTransferFee = isNaN(parsedTransferFee) ? 12000 : parsedTransferFee;
+    const calcTotal = totalAmount || ((unitPrice * quantity) + finalTransferFee);
     const userId = req.user?.id || req.body.userId || null;
 
     const query = `
       INSERT INTO product_orders (
         id, receipt_number, user_id, product_id, product_title, product_image_url,
-        unit_price, quantity, total_amount, customer_name, customer_phone,
+        unit_price, quantity, transfer_fee, total_amount, customer_name, customer_phone,
         region, district, ward, payment_method, payment_status, delivery_status,
         tracking_info, admin_notes, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'paid', 'pending', '', '', NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'paid', 'pending', '', '', NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         customer_phone = EXCLUDED.customer_phone,
@@ -100,8 +105,9 @@ router.post('/create', optionalUser, async (req, res) => {
       productId,
       productTitle || 'Dawa ya Asili',
       productImageUrl || '',
-      unitPrice || calcTotal,
+      unitPrice || (calcTotal - finalTransferFee),
       quantity,
+      finalTransferFee,
       calcTotal,
       customerName || 'Mteja',
       customerPhone,

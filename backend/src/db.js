@@ -374,6 +374,7 @@ export async function initDb() {
       product_image_url TEXT NOT NULL DEFAULT '',
       unit_price INTEGER NOT NULL,
       quantity INTEGER NOT NULL DEFAULT 1,
+      transfer_fee INTEGER NOT NULL DEFAULT 12000,
       total_amount INTEGER NOT NULL,
       customer_name TEXT NOT NULL,
       customer_phone TEXT NOT NULL,
@@ -388,6 +389,8 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS transfer_fee INTEGER NOT NULL DEFAULT 12000;
 
     CREATE INDEX IF NOT EXISTS idx_product_orders_receipt ON product_orders (receipt_number);
     CREATE INDEX IF NOT EXISTS idx_product_orders_user ON product_orders (user_id, created_at DESC);
