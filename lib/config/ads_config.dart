@@ -16,7 +16,8 @@ class AdsConfig {
   static const _prodRewarded = 'ca-app-pub-5619803043988422/6738031217';
 
   /// Google sample units (safe for local testing).
-  static const _testBannerAndroid = 'ca-app-pub-3940256099942544/6300972871';
+  static const _testBannerAndroid = 'ca-app-pub-3940256099942544/6300978111';
+  static const _testAdaptiveBannerAndroid = 'ca-app-pub-3940256099942544/9214589741';
   static const _testBannerIos = 'ca-app-pub-3940256099942544/2934735716';
   static const _testInterstitialAndroid =
       'ca-app-pub-3940256099942544/1033173712';
@@ -37,10 +38,13 @@ class AdsConfig {
     }
   }
 
-  static String get bannerAdUnitId {
+  static String getBannerAdUnitId({bool adaptive = false}) {
     if (!useTestAds) return _prodBanner;
-    return Platform.isIOS ? _testBannerIos : _testBannerAndroid;
+    if (Platform.isIOS) return _testBannerIos;
+    return adaptive ? _testAdaptiveBannerAndroid : _testBannerAndroid;
   }
+
+  static String get bannerAdUnitId => getBannerAdUnitId();
 
   static String get interstitialAdUnitId {
     if (!useTestAds) return _prodInterstitial;

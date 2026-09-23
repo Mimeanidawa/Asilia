@@ -148,7 +148,34 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     _banner = null;
     previous?.dispose();
 
-    final success = await _loadWithSize(AdSize.banner, gen);
+    bool success = false;
+    if (mounted) {
+      try {
+        final screenWidth = MediaQuery.sizeOf(context).width.truncate();
+        if (screenWidth > 0) {
+          final adWidth = widget.inline ? (screenWidth - 32).clamp(300, 728) : screenWidth;
+          final adaptiveSize = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(adWidth);
+          if (adaptiveSize != null && mounted && gen == _generation) {
+            success = await _loadWithSize(
+              adaptiveSize,
+              gen,
+              adUnitId: AdsConfig.getBannerAdUnitId(adaptive: true),
+            );
+          }
+        }
+      } catch (e) {
+        debugPrint('Adaptive banner size attempt: $e');
+      }
+    }
+
+    if (!success && mounted && gen == _generation) {
+      success = await _loadWithSize(
+        AdSize.banner,
+        gen,
+        adUnitId: AdsConfig.getBannerAdUnitId(adaptive: false),
+      );
+    }
+
     if (!mounted || gen != _generation) return;
 
     if (!success) {
@@ -157,11 +184,15 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     }
   }
 
-  Future<bool> _loadWithSize(AdSize size, int gen) async {
+  Future<bool> _loadWithSize(
+    AdSize size,
+    int gen, {
+    required String adUnitId,
+  }) async {
     final completer = Completer<bool>();
 
     final banner = BannerAd(
-      adUnitId: AdsConfig.bannerAdUnitId,
+      adUnitId: adUnitId,
       size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
@@ -179,7 +210,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
           if (!completer.isCompleted) completer.complete(true);
         },
         onAdFailedToLoad: (ad, error) {
-          debugPrint('BannerAd failed to load: $error');
+          debugPrint('BannerAd failed to load ($adUnitId, ${size.width}x${size.height}): $error');
           ad.dispose();
           if (!completer.isCompleted) completer.complete(false);
         },
@@ -189,7 +220,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     try {
       unawaited(banner.load());
       return await completer.future.timeout(
-        const Duration(seconds: 20),
+        const Duration(seconds: 15),
         onTimeout: () {
           banner.dispose();
           return false;
@@ -255,7 +286,10 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
               child: SizedBox(
                 width: banner.size.width.toDouble(),
                 height: banner.size.height.toDouble(),
-                child: AdWidget(ad: banner),
+                child: AdWidget(
+                  key: ObjectKey(banner),
+                  ad: banner,
+                ),
               ),
             )
           : const _BotanicalSponsorBanner(),
@@ -280,7 +314,7 @@ class _ModernAdContainer extends StatelessWidget {
       return Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
+          color: AppColors.surface,
           border: Border(
             top: BorderSide(color: AppColors.forest.withValues(alpha: 0.08)),
           ),
@@ -314,7 +348,7 @@ class _ModernAdContainer extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 10),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppColors.radiusMd),
         border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
         boxShadow: AppColors.elevationSm,
@@ -344,6 +378,7 @@ class _ModernAdContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.emerald50,
         borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.emerald200.withValues(alpha: 0.6)),
       ),
       child: const Text(
         'TANGAZO',
