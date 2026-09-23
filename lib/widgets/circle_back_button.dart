@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'pressable_scale.dart';
 
 /// Soft circular back control for drill-in screens.
 class CircleBackButton extends StatelessWidget {
@@ -17,17 +18,18 @@ class CircleBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.emerald50,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onPressed,
-        customBorder: const CircleBorder(),
-        splashColor: AppColors.emerald200.withValues(alpha: 0.45),
-        child: SizedBox(
-          width: size,
-          height: size,
+    return PressableScale(
+      onTap: onPressed,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.borderLight),
+          boxShadow: AppColors.elevationSm,
+        ),
+        child: Center(
           child: Icon(
             Icons.arrow_back_ios_new_rounded,
             size: iconSize,

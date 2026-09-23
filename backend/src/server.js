@@ -17,6 +17,8 @@ import imagesRouter from './routes/images.js';
 import mediaRouter from './routes/media.js';
 import makalaRouter from './routes/makala.js';
 import appConfigRouter from './routes/appConfig.js';
+import productsRouter from './routes/products.js';
+import productOrdersRouter from './routes/productOrders.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -77,6 +79,8 @@ app.use('/api/images', imagesRouter);
 app.use('/api/media', mediaRouter);
 app.use('/makala', makalaRouter);
 app.use('/api/app', appConfigRouter);
+app.use('/api/products', productsRouter);
+app.use('/api/orders', productOrdersRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);

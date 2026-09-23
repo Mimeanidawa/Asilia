@@ -28,6 +28,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _updateTitleCtrl = TextEditingController();
   final _updateMessageCtrl = TextEditingController();
   final _storeUrlCtrl = TextEditingController();
+  final _aboutAppNameCtrl = TextEditingController();
+  final _aboutAppVersionCtrl = TextEditingController();
+  final _aboutDescriptionCtrl = TextEditingController();
+  final _aboutPhoneCtrl = TextEditingController();
+  final _aboutEmailCtrl = TextEditingController();
+  final _aboutWebsiteCtrl = TextEditingController();
+  final _aboutDisclaimerCtrl = TextEditingController();
+  bool _aboutShowLicenses = false;
+  bool _savingAbout = false;
   bool _loadingSettings = true;
   bool _savingPremium = false;
   bool _savingMwalimu = false;
@@ -61,6 +70,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _updateTitleCtrl.dispose();
     _updateMessageCtrl.dispose();
     _storeUrlCtrl.dispose();
+    _aboutAppNameCtrl.dispose();
+    _aboutAppVersionCtrl.dispose();
+    _aboutDescriptionCtrl.dispose();
+    _aboutPhoneCtrl.dispose();
+    _aboutEmailCtrl.dispose();
+    _aboutWebsiteCtrl.dispose();
+    _aboutDisclaimerCtrl.dispose();
     super.dispose();
   }
 
@@ -98,8 +114,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _minBuildCtrl.text = '${update['minBuild'] ?? 0}';
       _updateTitleCtrl.text = '${update['title'] ?? 'Update Required'}';
       _updateMessageCtrl.text = '${update['message'] ?? ''}';
-      _storeUrlCtrl.text =
-          '${update['storeUrl'] ?? 'https://play.google.com/store/apps/details?id=com.asilia'}';
+      final about = config['about'] as Map<String, dynamic>? ?? {};
+      _aboutAppNameCtrl.text = '${about['appName'] ?? 'Dawa Asili'}';
+      _aboutAppVersionCtrl.text = '${about['appVersion'] ?? '1.1.6'}';
+      _aboutDescriptionCtrl.text = '${about['appDescription'] ?? 'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.'}';
+      _aboutPhoneCtrl.text = '${about['contactPhone'] ?? '+255 700 000 000'}';
+      _aboutEmailCtrl.text = '${about['contactEmail'] ?? 'info@dawaasili.com'}';
+      _aboutWebsiteCtrl.text = '${about['website'] ?? 'https://dawaasili.co.tz'}';
+      _aboutDisclaimerCtrl.text = '${about['disclaimer'] ?? 'Elimu na taarifa zote zilizomo humu ni kwa ajili ya kujifunza na kuelimisha tu.'}';
+      _aboutShowLicenses = about['showLicenses'] == true;
     } catch (_) {
       _loadError = 'Imeshindwa kupakia mipangilio';
       if (_premiumPriceCtrl.text.isEmpty) {
@@ -109,6 +132,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (_storeUrlCtrl.text.isEmpty) {
         _storeUrlCtrl.text =
             'https://play.google.com/store/apps/details?id=com.asilia';
+      }
+      if (_aboutAppNameCtrl.text.isEmpty) _aboutAppNameCtrl.text = 'Dawa Asili';
+      if (_aboutAppVersionCtrl.text.isEmpty) _aboutAppVersionCtrl.text = '1.1.6';
+      if (_aboutDescriptionCtrl.text.isEmpty) {
+        _aboutDescriptionCtrl.text =
+            'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha.';
       }
     }
     if (mounted) setState(() => _loadingSettings = false);
@@ -273,6 +302,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } finally {
       if (mounted) setState(() => _savingUpdate = false);
+    }
+  }
+
+  Future<void> _saveAboutSettings() async {
+    setState(() => _savingAbout = true);
+    try {
+      await context.read<AdminProvider>().contentService.updateAppConfig({
+        'bumpMessageId': false,
+        'about': {
+          'appName': _aboutAppNameCtrl.text.trim(),
+          'appVersion': _aboutAppVersionCtrl.text.trim(),
+          'appDescription': _aboutDescriptionCtrl.text.trim(),
+          'contactPhone': _aboutPhoneCtrl.text.trim(),
+          'contactEmail': _aboutEmailCtrl.text.trim(),
+          'website': _aboutWebsiteCtrl.text.trim(),
+          'disclaimer': _aboutDisclaimerCtrl.text.trim(),
+          'showLicenses': _aboutShowLicenses,
+        },
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Taarifa za "Kuhusu Dawa Asili" zimehifadhiwa')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Imeshindwa kuhifadhi taarifa za app')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingAbout = false);
     }
   }
 
@@ -445,6 +504,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onEnabledChanged: (v) =>
                           setState(() => _forceUpdateEnabled = v),
                       onSave: _saveForceUpdate,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Animate(
+                    delay: const Duration(milliseconds: 99),
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 400)),
+                    ],
+                    child: _AboutDawaAsiliCard(
+                      appNameCtrl: _aboutAppNameCtrl,
+                      appVersionCtrl: _aboutAppVersionCtrl,
+                      descriptionCtrl: _aboutDescriptionCtrl,
+                      phoneCtrl: _aboutPhoneCtrl,
+                      emailCtrl: _aboutEmailCtrl,
+                      websiteCtrl: _aboutWebsiteCtrl,
+                      disclaimerCtrl: _aboutDisclaimerCtrl,
+                      showLicenses: _aboutShowLicenses,
+                      loading: _loadingSettings,
+                      saving: _savingAbout,
+                      onShowLicensesChanged: (v) =>
+                          setState(() => _aboutShowLicenses = v),
+                      onSave: _saveAboutSettings,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -1025,6 +1106,168 @@ class _ForceUpdateCard extends StatelessWidget {
                               )
                             : Text(
                                 'Hifadhi Update Rules',
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AboutDawaAsiliCard extends StatelessWidget {
+  const _AboutDawaAsiliCard({
+    required this.appNameCtrl,
+    required this.appVersionCtrl,
+    required this.descriptionCtrl,
+    required this.phoneCtrl,
+    required this.emailCtrl,
+    required this.websiteCtrl,
+    required this.disclaimerCtrl,
+    required this.showLicenses,
+    required this.loading,
+    required this.saving,
+    required this.onShowLicensesChanged,
+    required this.onSave,
+  });
+
+  final TextEditingController appNameCtrl;
+  final TextEditingController appVersionCtrl;
+  final TextEditingController descriptionCtrl;
+  final TextEditingController phoneCtrl;
+  final TextEditingController emailCtrl;
+  final TextEditingController websiteCtrl;
+  final TextEditingController disclaimerCtrl;
+  final bool showLicenses;
+  final bool loading;
+  final bool saving;
+  final ValueChanged<bool> onShowLicensesChanged;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'KUHUSU DAWA ASILI (APP INFO & LICENSES)',
+            style: GoogleFonts.inter(
+              color: AdminColors.textDim,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AdminColors.cardBorder),
+          ),
+          child: loading
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AdminColors.emerald,
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kuhusu Dawa Asili (Wasifu wa App)',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Badilisha maelezo, mawasiliano, na leseni za app zinazoonekana na watumiaji kwenye wasifu wao.',
+                      style: GoogleFonts.inter(
+                        color: AdminColors.textDim,
+                        fontSize: 11,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _adminField(appNameCtrl, 'Jina la App (mf. Dawa Asili)'),
+                    _adminField(appVersionCtrl, 'Toleo la App (mf. 1.1.6)'),
+                    _adminField(
+                      descriptionCtrl,
+                      'Maelezo ya App (Kuhusu Dawa Asili)',
+                      maxLines: 3,
+                    ),
+                    _adminField(phoneCtrl, 'Namba ya Simu / Mawasiliano'),
+                    _adminField(emailCtrl, 'Barua Pepe ya Huduma'),
+                    _adminField(websiteCtrl, 'Tovuti Rasmi'),
+                    _adminField(
+                      disclaimerCtrl,
+                      'Kanusho / Disclaimer',
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 4),
+                    _AdminSwitchRow(
+                      label: 'Onyesha Leseni kwa Watumiaji',
+                      value: showLicenses,
+                      activeColor: AdminColors.emerald,
+                      bold: true,
+                      onChanged: onShowLicensesChanged,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 12),
+                      child: Text(
+                        showLicenses
+                            ? 'Leseni na vibali vya app vinaruhusiwa kuonekana kwa watumiaji.'
+                            : 'Leseni zimefichwa kwa sasa hadi vibali rasmi vitakapopatikana.',
+                        style: GoogleFonts.inter(
+                          color: showLicenses
+                              ? AdminColors.emerald
+                              : AdminColors.textDim,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 46,
+                      child: ElevatedButton(
+                        onPressed: saving ? null : onSave,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AdminColors.emerald,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              AdminColors.emerald.withValues(alpha: 0.4),
+                        ),
+                        child: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                'Hifadhi Taarifa za App',
                                 style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w800,
                                 ),

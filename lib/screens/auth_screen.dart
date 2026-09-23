@@ -7,8 +7,10 @@ import '../services/mwalimu_service.dart';
 import '../services/notification_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import '../utils/phone_format.dart';
 import '../widgets/circle_back_button.dart';
+import '../widgets/pressable_scale.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -53,13 +55,18 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       password: _isGmail ? _passwordController.text : null,
       authProvider: _isGmail ? 'gmail' : 'phone',
     );
-    if (ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
       await context.read<NotificationService>().linkToUser(userService.token);
+      if (!mounted) return;
       final mwalimu = context.read<MwalimuService>();
       await mwalimu.loadGuestState();
+      if (!mounted) return;
       if (userService.token != null) {
         await mwalimu.flushGuestMessagesToServer(userService.token!);
+        if (!mounted) return;
         await mwalimu.loadMessages(userService.token);
+        if (!mounted) return;
       }
       context.read<AppProvider>().goBack();
     }
@@ -72,13 +79,18 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       phone: _isGmail ? null : formatPhoneForApi(_phoneController.text),
       password: _isGmail ? _passwordController.text : null,
     );
-    if (ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
       await context.read<NotificationService>().linkToUser(userService.token);
+      if (!mounted) return;
       final mwalimu = context.read<MwalimuService>();
       await mwalimu.loadGuestState();
+      if (!mounted) return;
       if (userService.token != null) {
         await mwalimu.flushGuestMessagesToServer(userService.token!);
+        if (!mounted) return;
         await mwalimu.loadMessages(userService.token);
+        if (!mounted) return;
       }
       context.read<AppProvider>().goBack();
     }
@@ -139,29 +151,41 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
                 child: Container(
                   margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(AppColors.radiusXl),
+                    boxShadow: AppColors.elevationLg,
                   ),
                   child: Column(
                     children: [
-                      TabBar(
-                        controller: _tabController,
-                        labelColor: AppColors.forest,
-                        unselectedLabelColor: AppColors.gray400,
-                        indicatorColor: AppColors.forest,
-                        indicatorWeight: 3,
-                        labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                        tabs: const [
-                          Tab(text: 'Jiunge'),
-                          Tab(text: 'Ingia'),
-                        ],
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        decoration: BoxDecoration(
+                          color: AppColors.forest.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                        ),
+                        child: TabBar(
+                          controller: _tabController,
+                          labelColor: Colors.white,
+                          unselectedLabelColor: AppColors.gray500,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          indicator: BoxDecoration(
+                            color: AppColors.forest,
+                            borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                          ),
+                          dividerColor: Colors.transparent,
+                          labelStyle: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: AppTypography.subtitle,
+                          ),
+                          unselectedLabelStyle: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: AppTypography.subtitle,
+                          ),
+                          tabs: const [
+                            Tab(text: 'Jiunge'),
+                            Tab(text: 'Ingia'),
+                          ],
+                        ),
                       ),
                       Expanded(
                         child: TabBarView(
@@ -251,22 +275,26 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
 
   Widget _methodChip(String label, bool selected, VoidCallback onTap) {
     return Expanded(
-      child: GestureDetector(
+      child: PressableScale(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 11),
           decoration: BoxDecoration(
-            color: selected ? AppColors.forest : AppColors.emerald50,
-            borderRadius: BorderRadius.circular(12),
+            color: selected ? AppColors.forest : AppColors.canvas,
+            borderRadius: BorderRadius.circular(AppColors.radiusPill),
+            border: Border.all(
+              color: selected ? AppColors.forest : AppColors.borderLight,
+            ),
+            boxShadow: selected ? AppColors.elevationSm : null,
           ),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppTypography.subtitle,
               fontWeight: FontWeight.w800,
-              color: selected ? Colors.white : AppColors.forest,
+              color: selected ? Colors.white : AppColors.textPrimary,
             ),
           ),
         ),
@@ -285,43 +313,63 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
       controller: controller,
       obscureText: obscure,
       keyboardType: keyboard,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textPrimary,
+      ),
       decoration: InputDecoration(
         hintText: hint,
+        hintStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 13,
+        ),
         prefixIcon: Icon(icon, color: AppColors.forest, size: 20),
         filled: true,
-        fillColor: AppColors.emerald50.withValues(alpha: 0.4),
+        fillColor: AppColors.inputFill,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          borderSide: const BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppColors.radiusMd),
+          borderSide: const BorderSide(color: AppColors.forest, width: 1.5),
         ),
       ),
     );
   }
 
   Widget _submitButton(String label, bool loading, VoidCallback onTap) {
-    return Material(
-      color: AppColors.forest,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: loading ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          alignment: Alignment.center,
-          child: loading
-              ? const SizedBox(
-                  width: 22, height: 22,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                )
-              : Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
-                ),
+    return PressableScale(
+      onTap: loading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.forest,
+          borderRadius: BorderRadius.circular(AppColors.radiusPill),
+          boxShadow: AppColors.elevationMd,
         ),
+        child: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+              )
+            : Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: AppTypography.button,
+                  letterSpacing: 0.2,
+                ),
+              ),
       ),
     );
   }

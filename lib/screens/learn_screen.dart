@@ -7,6 +7,7 @@ import '../services/ads_service.dart';
 import '../services/content_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import '../utils/app_refresh.dart';
 import '../utils/content_tag_style.dart';
 import '../utils/premium_content_flow.dart';
@@ -16,6 +17,8 @@ import '../widgets/fullscreen_image_viewer.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/makala_ad_gate.dart';
 import '../widgets/makala_ads.dart';
+import '../widgets/modern_tab_rail.dart';
+import '../widgets/pressable_scale.dart';
 import '../widgets/remove_ads_promo.dart';
 import '../widgets/paid_makala_badge.dart';
 import '../widgets/premium_makala_gate.dart';
@@ -102,9 +105,22 @@ class _LearnScreenState extends State<LearnScreen> {
       child: Column(
         children: [
           _LibraryHeader(count: content.jifunzePosts.length),
-          _CategoryRail(
-            categories: _categories,
-            selected: _selectedCat,
+          ModernTabRail(
+            items: _categories.map((c) {
+              final count = c.key == null
+                  ? content.jifunzePosts.length
+                  : content.postsForCategory(c.key!).length;
+              return TabRailItem(
+                id: c.label,
+                label: c.label,
+                icon: c.icon,
+                color: c.key == null
+                    ? AppColors.forest
+                    : ContentTagStyle.colorFor(c.key!),
+                badgeCount: count > 0 ? count : null,
+              );
+            }).toList(),
+            selectedId: _selectedCat,
             onSelect: (label) => setState(() => _selectedCat = label),
           ),
           Expanded(
@@ -149,17 +165,26 @@ class _LearnScreenState extends State<LearnScreen> {
                                 ),
                               ),
                             ),
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: Responsive.horizontalGutter(context),
+                                ),
+                                child: const HomeFeedBannerAd(),
+                              ),
+                            ),
                             if (Responsive.listColumns(context) == 1)
                               SliverToBoxAdapter(
-                                child: ColoredBox(
-                                  color: AppColors.surfaceElevated,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: Responsive.horizontalGutter(context),
+                                  ),
                                   child: Column(
                                     children: [
                                       for (var i = 0; i < rest.length; i++)
                                         ContentPostCard(
                                           post: rest[i],
                                           animationIndex: i,
-                                          margin: EdgeInsets.zero,
                                           onTap: () =>
                                               _openPost(rest[i], user),
                                         ),
@@ -303,24 +328,18 @@ class _LibraryHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Jifunze',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
+                    style: AppTypography.screen(
                       color: AppColors.forest,
-                      height: 1.05,
-                      letterSpacing: -0.8,
+                      size: AppTypography.displayTitle,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     'Soma, jifunze, na kua na maarifa',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.forest.withValues(alpha: 0.5),
-                      height: 1.3,
+                    style: AppTypography.sub(
+                      color: AppColors.forest.withValues(alpha: 0.55),
                     ),
                   ),
                 ],
@@ -328,17 +347,18 @@ class _LibraryHeader extends StatelessWidget {
             ),
             if (count > 0)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: AppColors.emerald50,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                  border: Border.all(color: AppColors.borderLight),
                 ),
                 child: Column(
                   children: [
                     Text(
                       '$count',
-                      style: const TextStyle(
-                        fontSize: 15,
+                      style: TextStyle(
+                        fontSize: AppTypography.cardTitle,
                         fontWeight: FontWeight.w900,
                         color: AppColors.emerald800,
                         height: 1,
@@ -348,9 +368,9 @@ class _LibraryHeader extends StatelessWidget {
                     Text(
                       'makala',
                       style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.emerald800.withValues(alpha: 0.75),
+                        fontSize: AppTypography.badge,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.emerald800.withValues(alpha: 0.8),
                       ),
                     ),
                   ],
@@ -358,84 +378,6 @@ class _LibraryHeader extends StatelessWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _CategoryRail extends StatelessWidget {
-  const _CategoryRail({
-    required this.categories,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final List<_LearnCategory> categories;
-  final String selected;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 54,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
-        ),
-      ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final cat = categories[i];
-          final isOn = selected == cat.label;
-          final accent = cat.key == null
-              ? AppColors.forest
-              : ContentTagStyle.colorFor(cat.key!);
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => onSelect(cat.label),
-              borderRadius: BorderRadius.circular(20),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isOn ? AppColors.forest : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isOn
-                        ? Colors.transparent
-                        : AppColors.forest.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      cat.icon,
-                      size: 15,
-                      color: isOn ? Colors.white : accent,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      cat.label,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: isOn ? Colors.white : AppColors.forest,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -453,20 +395,22 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: AppColors.forest,
-            letterSpacing: -0.2,
-          ),
+          style: AppTypography.section(color: AppColors.forest),
         ),
         const Spacer(),
-        Text(
-          '$count',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: AppColors.forest.withValues(alpha: 0.4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: AppColors.forest.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(AppColors.radiusPill),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(
+              fontSize: AppTypography.badge,
+              fontWeight: FontWeight.w700,
+              color: AppColors.forest.withValues(alpha: 0.6),
+            ),
           ),
         ),
       ],
@@ -857,20 +801,29 @@ class _ReaderBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.38),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onPressed,
-        child: const SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 16,
-            color: Colors.white,
+    return PressableScale(
+      onTap: onPressed,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.45),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.25),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          size: 16,
+          color: Colors.white,
         ),
       ),
     );

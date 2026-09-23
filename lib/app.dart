@@ -26,6 +26,7 @@ import 'services/notification_center_service.dart';
 import 'services/notification_service.dart';
 import 'services/remote_app_config_service.dart';
 import 'services/ads_service.dart';
+import 'services/dawa_order_service.dart';
 import 'services/user_service.dart';
 import 'theme/app_theme.dart';
 import 'widgets/force_update_gate.dart';
@@ -48,6 +49,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
   late final NotificationService _notificationService;
   late final RemoteAppConfigService _remoteAppConfig;
   late final AdsService _adsService;
+  late final DawaOrderService _dawaOrderService;
 
   bool _ready = false;
 
@@ -67,6 +69,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
     _notificationService = NotificationService();
     _remoteAppConfig = RemoteAppConfigService();
     _adsService = AdsService();
+    _dawaOrderService = DawaOrderService();
     _appProvider = AppProvider(
       chatService: chatService,
       lessonService: _lessonService,
@@ -82,11 +85,12 @@ class _AsiliaAppState extends State<AsiliaApp> {
       _contentService.loadFromCache(),
       _appProvider.initLocal(),
       _remoteAppConfig.loadLocalMeta(),
-      _adsService.initialize(),
     ]);
 
     if (mounted) setState(() => _ready = true);
 
+    // Ads warm in the background; the first usable frame should never wait
+    // on the ad SDK or network.
     unawaited(_adsService.preload());
     unawaited(_bootstrapBackground());
   }
@@ -183,6 +187,7 @@ class _AsiliaAppState extends State<AsiliaApp> {
         ChangeNotifierProvider.value(value: _notificationCenter),
         ChangeNotifierProvider.value(value: _remoteAppConfig),
         ChangeNotifierProvider.value(value: _adsService),
+        ChangeNotifierProvider.value(value: _dawaOrderService),
         Provider<NotificationService>.value(value: _notificationService),
       ],
       child: MaterialApp(
@@ -196,7 +201,10 @@ class _AsiliaAppState extends State<AsiliaApp> {
           final mq = MediaQuery.of(context);
           return MediaQuery(
             data: mq.copyWith(
-              textScaler: TextScaler.linear(mq.textScaler.scale(1) * 1.1),
+              textScaler: mq.textScaler.clamp(
+                minScaleFactor: 0.88,
+                maxScaleFactor: 1.08,
+              ),
             ),
             child: child ?? const SizedBox.shrink(),
           );

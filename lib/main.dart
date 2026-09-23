@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
-import 'config/app_config.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
 

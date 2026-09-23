@@ -9,7 +9,7 @@ import '../utils/safe_text.dart';
 import 'darasa_huru_carousel.dart';
 import 'herb_image.dart';
 
-/// Clean list row for a Darasa Huru lesson (Twitter/X feed style).
+/// Clean modern card for a Darasa Huru lesson.
 class DarasaHuruCard extends StatelessWidget {
   const DarasaHuruCard({
     super.key,
@@ -28,32 +28,35 @@ class DarasaHuruCard extends StatelessWidget {
     final excerpt = safeDisplayText(lesson.excerpt);
     final hasImage = lesson.imageUrl.trim().isNotEmpty;
 
-    return Material(
-      color: AppColors.surfaceElevated,
-      child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PressableScale(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: AppColors.forest.withValues(alpha: 0.07),
-              ),
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(AppColors.radiusLg),
+            border: Border.all(
+              color: AppColors.forest.withValues(alpha: 0.06),
+              width: 1,
             ),
+            boxShadow: AppColors.elevationSm,
           ),
+          clipBehavior: Clip.antiAlias,
+          padding: const EdgeInsets.all(14),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 child: SizedBox(
-                  width: 88,
-                  height: 88,
+                  width: 90,
+                  height: 90,
                   child: hasImage
                       ? HerbImage(
                           url: lesson.imageUrl,
-                          width: 88,
-                          height: 88,
+                          width: 90,
+                          height: 90,
                           borderRadius: 0,
                           fit: BoxFit.cover,
                           fallbackLabel: title,
@@ -83,23 +86,24 @@ class DarasaHuruCard extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
+                            horizontal: 8,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
                             color: lesson.isToday
-                                ? AppColors.amber.withValues(alpha: 0.14)
+                                ? AppColors.amber.withValues(alpha: 0.15)
                                 : AppColors.emerald50,
-                            borderRadius: BorderRadius.circular(5),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            darasaBadgeLabel(lesson),
+                            darasaBadgeLabel(lesson).toUpperCase(),
                             style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
                               color: lesson.isToday
                                   ? AppColors.amber
                                   : AppColors.emerald800,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ),
@@ -109,10 +113,10 @@ class DarasaHuruCard extends StatelessWidget {
                             lesson.formattedDate,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w500,
-                              color: AppColors.forest.withValues(alpha: 0.4),
+                              color: AppColors.gray400,
                             ),
                           ),
                         ),
@@ -124,11 +128,11 @@ class DarasaHuruCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 15.5,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w800,
                         color: AppColors.forest,
                         height: 1.25,
-                        letterSpacing: -0.25,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     if (excerpt.isNotEmpty) ...[
@@ -137,10 +141,10 @@ class DarasaHuruCard extends StatelessWidget {
                         excerpt,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: const TextStyle(
+                          fontSize: 12,
                           height: 1.35,
-                          color: AppColors.forest.withValues(alpha: 0.55),
+                          color: AppColors.gray500,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -148,10 +152,10 @@ class DarasaHuruCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(
-                          Icons.person_outline_rounded,
-                          size: 14,
-                          color: AppColors.forest.withValues(alpha: 0.4),
+                        const Icon(
+                          Icons.person_rounded,
+                          size: 13,
+                          color: AppColors.emerald800,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -159,17 +163,17 @@ class DarasaHuruCard extends StatelessWidget {
                             authorName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.forest.withValues(alpha: 0.55),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.forest,
                             ),
                           ),
                         ),
-                        Icon(
+                        const Icon(
                           Icons.chevron_right_rounded,
                           size: 18,
-                          color: AppColors.forest.withValues(alpha: 0.3),
+                          color: AppColors.gray400,
                         ),
                       ],
                     ),

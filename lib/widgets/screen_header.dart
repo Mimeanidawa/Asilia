@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import 'circle_back_button.dart';
 
 /// Unified frosted header for drill-in screens.
@@ -28,20 +29,8 @@ class ScreenHeader extends StatelessWidget {
   final TextStyle? subtitleStyle;
   final EdgeInsetsGeometry? padding;
 
-  static const _titleStyle = TextStyle(
-    fontSize: 17,
-    fontWeight: FontWeight.w800,
-    color: AppColors.forest,
-    letterSpacing: -0.4,
-    height: 1.2,
-  );
-
-  static const _subtitleStyle = TextStyle(
-    fontSize: 12,
-    color: AppColors.gray500,
-    fontWeight: FontWeight.w500,
-    height: 1.3,
-  );
+  static final _titleStyle = AppTypography.screen();
+  static final _subtitleStyle = AppTypography.sub();
 
   @override
   Widget build(BuildContext context) {

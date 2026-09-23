@@ -13,7 +13,9 @@ import '../services/admin_notification_service.dart';
 import '../services/api_client.dart';
 import '../utils/admin_data_mapper.dart';
 
-enum AdminScreen { dashboard, users, analytics, notifications, content, darasaHuru, mwalimu, settings }
+import '../models/product_order_models.dart';
+
+enum AdminScreen { dashboard, users, analytics, notifications, content, darasaHuru, mwalimu, settings, products, orders }
 
 class AdminProvider extends ChangeNotifier {
   AdminProvider({
@@ -485,5 +487,141 @@ class AdminProvider extends ChangeNotifier {
   Future<void> toggleLessonPublished(String id) async {
     await _lessonService.togglePublished(id);
     notifyListeners();
+  }
+
+  // ==========================================
+  // PRODUCTS & ORDERS MANAGEMENT
+  // ==========================================
+  List<AdminProduct> _adminProducts = [];
+  List<AdminOrder> _adminOrders = [];
+  bool _productsLoading = false;
+  bool _ordersLoading = false;
+
+  List<AdminProduct> get adminProducts => _adminProducts;
+  List<AdminOrder> get adminOrders => _adminOrders;
+  bool get productsLoading => _productsLoading;
+  bool get ordersLoading => _ordersLoading;
+
+  Future<void> fetchAdminProducts() async {
+    _productsLoading = true;
+    notifyListeners();
+    try {
+      final res = await _api.get('/api/admin/products');
+      if (res['products'] is List) {
+        _adminProducts = (res['products'] as List)
+            .map((e) => AdminProduct.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetching admin products: $e');
+    } finally {
+      _productsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createAdminProduct(AdminProduct product) async {
+    try {
+      final res = await _api.post('/api/admin/products', body: product.toJson());
+      if (res['product'] != null) {
+        _adminProducts.insert(0, AdminProduct.fromJson(res['product'] as Map<String, dynamic>));
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error creating admin product: $e');
+    }
+    return false;
+  }
+
+  Future<bool> updateAdminProduct(AdminProduct product) async {
+    try {
+      final res = await _api.put('/api/admin/products/${product.id}', body: product.toJson());
+      if (res['product'] != null) {
+        final idx = _adminProducts.indexWhere((p) => p.id == product.id);
+        if (idx != -1) {
+          _adminProducts[idx] = AdminProduct.fromJson(res['product'] as Map<String, dynamic>);
+          notifyListeners();
+        }
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error updating admin product: $e');
+    }
+    return false;
+  }
+
+  Future<bool> deleteAdminProduct(String id) async {
+    try {
+      await _api.delete('/api/admin/products/$id');
+      _adminProducts.removeWhere((p) => p.id == id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting admin product: $e');
+    }
+    return false;
+  }
+
+  Future<void> fetchAdminOrders({String? status}) async {
+    _ordersLoading = true;
+    notifyListeners();
+    try {
+      final path = status != null ? '/api/admin/orders?status=$status' : '/api/admin/orders';
+      final res = await _api.get(path);
+      if (res['orders'] is List) {
+        _adminOrders = (res['orders'] as List)
+            .map((e) => AdminOrder.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('Error fetching admin orders: $e');
+    } finally {
+      _ordersLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateOrderStatus(String orderId, String deliveryStatus, {String trackingInfo = '', String adminNotes = ''}) async {
+    try {
+      final res = await _api.put('/api/admin/orders/$orderId/status', body: {
+        'deliveryStatus': deliveryStatus,
+        'trackingInfo': trackingInfo,
+        'adminNotes': adminNotes,
+      });
+      if (res['success'] == true) {
+        final idx = _adminOrders.indexWhere((o) => o.id == orderId);
+        if (idx != -1) {
+          final old = _adminOrders[idx];
+          _adminOrders[idx] = AdminOrder(
+            id: old.id,
+            receiptNumber: old.receiptNumber,
+            userId: old.userId,
+            productId: old.productId,
+            productTitle: old.productTitle,
+            productImageUrl: old.productImageUrl,
+            unitPrice: old.unitPrice,
+            quantity: old.quantity,
+            totalAmount: old.totalAmount,
+            customerName: old.customerName,
+            customerPhone: old.customerPhone,
+            region: old.region,
+            district: old.district,
+            ward: old.ward,
+            paymentMethod: old.paymentMethod,
+            paymentStatus: old.paymentStatus,
+            deliveryStatus: deliveryStatus,
+            trackingInfo: trackingInfo.isNotEmpty ? trackingInfo : old.trackingInfo,
+            adminNotes: adminNotes.isNotEmpty ? adminNotes : old.adminNotes,
+            createdAt: old.createdAt,
+          );
+          notifyListeners();
+        }
+        return true;
+      }
+    } catch (e) {
+      debugPrint('Error updating order status: $e');
+    }
+    return false;
   }
 }

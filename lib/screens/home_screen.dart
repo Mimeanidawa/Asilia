@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,14 +11,20 @@ import '../services/content_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/content_search.dart';
+import '../data/app_data.dart' as app_catalog;
+import '../widgets/condition_icon_widget.dart';
 import '../widgets/api_carousel.dart';
 import '../widgets/app_screen_message_banner.dart';
 import '../widgets/carousel_content_picker_sheet.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/content_post_card.dart';
 import '../widgets/darasa_huru_carousel.dart';
+import '../widgets/makala_ads.dart';
 import '../widgets/shimmer_loading.dart';
-import '../widgets/learning_pathways_row.dart';
+import '../theme/app_typography.dart';
+import '../widgets/grouped_category_hub.dart';
+import '../widgets/pressable_scale.dart';
+import '../widgets/stats_strip.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
 import '../utils/responsive.dart';
@@ -38,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   List<String> _recentSearches = [];
   bool _isInputFocused = false;
+  String _searchFilter = 'zote';
   final _searchFocus = FocusNode();
   final _searchController = TextEditingController();
 
@@ -72,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (trimmed.isEmpty) return;
     final filtered =
         _recentSearches.where((s) => s.toLowerCase() != trimmed.toLowerCase());
-    final updated = [trimmed, ...filtered].take(3).toList();
+    final updated = [trimmed, ...filtered].take(5).toList();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('da_recent_searches', jsonEncode(updated));
     setState(() => _recentSearches = updated);
@@ -84,10 +90,23 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _recentSearches = []);
   }
 
-  void _clearSearch() {
+  void _exitSearch() {
     _searchController.clear();
-    setState(() => _searchQuery = '');
+    setState(() {
+      _searchQuery = '';
+      _isInputFocused = false;
+      _searchFilter = 'zote';
+    });
     _searchFocus.unfocus();
+  }
+
+  void _selectSearchTerm(String term) {
+    _searchController.text = term;
+    setState(() {
+      _searchQuery = term;
+      _isInputFocused = true;
+    });
+    _commitSearch(term);
   }
 
   @override
@@ -96,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final content = context.watch<ContentService>();
     final q = _searchQuery.trim();
     final isSearching = q.isNotEmpty;
+    final isSearchMode = _isInputFocused || isSearching;
 
     final searchHits = isSearching
         ? ContentSearch.search(
@@ -104,6 +124,11 @@ class _HomeScreenState extends State<HomeScreen> {
             lessons: app.lessonService,
           )
         : <ContentSearchHit>[];
+
+    final filteredConditions = searchHits
+        .where((h) => h.kind == ContentSearchHitKind.condition)
+        .map((h) => h.condition!)
+        .toList();
     final filteredPosts = searchHits
         .where((h) => h.kind == ContentSearchHitKind.post)
         .map((h) => h.post!)
@@ -123,15 +148,24 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildHeader(context, app),
             const AppScreenMessageBanner(),
-            _buildSearchBar(context),
+            if (isSearchMode)
+              _buildSearchFilterChips(
+                isSearching: isSearching,
+                conditionsCount: filteredConditions.length,
+                postsCount: filteredPosts.length,
+                lessonsCount: filteredLessons.length,
+              ),
             Expanded(
-              child: isSearching
-                  ? _buildSearchResultsScroll(
-                      context,
-                      app,
-                      filteredPosts,
-                      filteredLessons,
-                    )
+              child: isSearchMode
+                  ? (isSearching
+                      ? _buildSearchResultsScroll(
+                          context,
+                          app,
+                          filteredConditions,
+                          filteredPosts,
+                          filteredLessons,
+                        )
+                      : _buildSearchSuggestions(context, app, content))
                   : PullToRefresh(
                       onRefresh: () => AppRefresh.catalog(context),
                       child: ListView(
@@ -142,10 +176,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _buildHeroCarousel(context),
                           const StatsStrip(),
-                          _buildLearningPathways(context, app),
+                          const GroupedCategoryHub(),
                           _buildDarasaHuru(context, app),
-                          _buildCategoryGrid(context, app),
-                          _buildVyakulaSection(context, app),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 20),
+                            child: HomeFeedBannerAd(),
+                          ),
                           _buildMakalaSection(context, app),
                         ],
                       ),
@@ -159,6 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeader(BuildContext context, AppProvider app) {
     final unread = context.watch<NotificationCenterService>().unreadCount;
+    final isSearchMode = _isInputFocused || _searchQuery.isNotEmpty;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -171,63 +208,91 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
         child: Row(
           children: [
-            _HeaderIconButton(
-              icon: Icons.menu_rounded,
-              onTap: () => _scaffoldKey.currentState?.openDrawer(),
-            ),
-            const SizedBox(width: 10),
+            isSearchMode
+                ? _HeaderIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    onTap: _exitSearch,
+                  )
+                : _HeaderIconButton(
+                    icon: Icons.menu_rounded,
+                    onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                  ),
             Expanded(
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.heroGradient,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.forest.withValues(alpha: 0.18),
-                          blurRadius: 14,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                height: 42,
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                  border: Border.all(
+                    color: _isInputFocused
+                        ? AppColors.emerald700.withValues(alpha: 0.5)
+                        : AppColors.forest.withValues(alpha: 0.08),
+                    width: _isInputFocused ? 1.3 : 1,
+                  ),
+                  boxShadow: _isInputFocused ? AppColors.elevationSm : null,
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocus,
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                  onSubmitted: _commitSearch,
+                  textInputAction: TextInputAction.search,
+                  style: TextStyle(
+                    fontSize: AppTypography.body,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.forest,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Tafuta dawa, magonjwa, makala...',
+                    hintStyle: TextStyle(
+                      fontSize: AppTypography.subtitle,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.forest.withValues(alpha: 0.4),
                     ),
-                    child: const Icon(
-                      Icons.spa_rounded,
-                      color: Colors.white,
+                    prefixIcon: Icon(
+                      Icons.search_rounded,
                       size: 20,
+                      color: _isInputFocused
+                          ? AppColors.emerald700
+                          : AppColors.forest.withValues(alpha: 0.45),
                     ),
+                    prefixIconConstraints:
+                        const BoxConstraints(minWidth: 38, minHeight: 38),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: AppColors.forest.withValues(alpha: 0.5),
+                            ),
+                          )
+                        : (isSearchMode
+                            ? GestureDetector(
+                                onTap: _exitSearch,
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: AppColors.forest.withValues(alpha: 0.35),
+                                ),
+                              )
+                            : null),
+                    suffixIconConstraints:
+                        const BoxConstraints(minWidth: 34, minHeight: 38),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 11),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Dawa Asili',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: AppColors.forest,
-                            letterSpacing: -0.55,
-                            height: 1.1,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Elimu ya dawa za asili',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 11.5,
-                            color: AppColors.gray500,
-                            letterSpacing: -0.1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             Stack(
@@ -270,193 +335,295 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchBar(BuildContext context) {
-    final showRecents = _isInputFocused &&
-        _searchQuery.trim().isEmpty &&
-        _recentSearches.isNotEmpty;
-
-    return DecoratedBox(
+  Widget _buildRecentSearchesBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated.withValues(alpha: 0.72),
-        border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.04)),
-        ),
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppColors.radiusMd),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+        boxShadow: AppColors.elevationSm,
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AnimatedContainer(
-              duration: 200.ms,
-              curve: Curves.easeOutCubic,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: _isInputFocused ? AppColors.elevationSm : null,
-                border: Border.all(
-                  color: _isInputFocused
-                      ? AppColors.emerald700.withValues(alpha: 0.45)
-                      : AppColors.forest.withValues(alpha: 0.07),
-                  width: _isInputFocused ? 1.4 : 1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Utafutaji wa hivi karibuni',
+                style: TextStyle(
+                  fontSize: AppTypography.caption,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.emerald800,
+                  letterSpacing: 0.2,
                 ),
               ),
-              child: TextField(
-                controller: _searchController,
-                focusNode: _searchFocus,
-                onChanged: (v) => setState(() => _searchQuery = v),
-                onSubmitted: _commitSearch,
-                textInputAction: TextInputAction.search,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.forest,
+              GestureDetector(
+                onTap: _clearRecentSearches,
+                child: Text(
+                  'Futa',
+                  style: TextStyle(
+                    fontSize: AppTypography.caption,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.red600,
+                  ),
                 ),
-                decoration: InputDecoration(
-                  hintText: 'Tafuta mimea, mizizi, miti, masomo...',
-                  hintStyle: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.forest.withValues(alpha: 0.38),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: _recentSearches.map((term) {
+              return PressableScale(
+                onTap: () {
+                  _searchController.text = term;
+                  setState(() {
+                    _searchQuery = term;
+                    _isInputFocused = false;
+                  });
+                  _searchFocus.unfocus();
+                  _commitSearch(term);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald50,
+                    borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                    border: Border.all(color: AppColors.borderLight),
                   ),
-                  prefixIcon: Icon(
-                    Icons.search_rounded,
-                    size: 22,
-                    color: _isInputFocused
-                        ? AppColors.emerald700
-                        : AppColors.forest.withValues(alpha: 0.45),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.history_rounded,
+                        size: 14,
+                        color: AppColors.forest,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        term,
+                        style: TextStyle(
+                          fontSize: AppTypography.subtitle,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.forest,
+                        ),
+                      ),
+                    ],
                   ),
-                  suffixIcon: _searchQuery.isNotEmpty
-                      ? IconButton(
-                          tooltip: 'Futa utafutaji',
-                          icon: Icon(
-                            Icons.close_rounded,
-                            size: 20,
-                            color: AppColors.forest.withValues(alpha: 0.5),
-                          ),
-                          onPressed: _clearSearch,
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchFilterChips({
+    required bool isSearching,
+    required int conditionsCount,
+    required int postsCount,
+    required int lessonsCount,
+  }) {
+    final chips = [
+      {'id': 'zote', 'label': isSearching ? 'Zote (${conditionsCount + postsCount + lessonsCount})' : 'Zote'},
+      {'id': 'magonjwa', 'label': isSearching ? 'Magonjwa ($conditionsCount)' : 'Magonjwa'},
+      {'id': 'makala', 'label': isSearching ? 'Makala ($postsCount)' : 'Makala'},
+      {'id': 'masomo', 'label': isSearching ? 'Masomo ($lessonsCount)' : 'Masomo'},
+    ];
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final chip = chips[i];
+          final id = chip['id']!;
+          final label = chip['label']!;
+          final selected = _searchFilter == id;
+
+          return PressableScale(
+            onTap: () => setState(() => _searchFilter = id),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: selected ? AppColors.forest : AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                border: Border.all(
+                  color: selected ? AppColors.forest : AppColors.forest.withValues(alpha: 0.1),
+                ),
+                boxShadow: selected ? AppColors.elevationSm : null,
+              ),
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? Colors.white : AppColors.forest,
                   ),
                 ),
               ),
             ),
-            if (showRecents) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchSuggestions(
+    BuildContext context,
+    AppProvider app,
+    ContentService content,
+  ) {
+    final suggestedConditions = app_catalog.conditions;
+    final suggestedPosts = content.allMakalaPosts.take(4).toList();
+
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        4,
+        16,
+        Responsive.scrollBottomPadding(context, extra: 16),
+      ),
+      children: [
+        if (_recentSearches.isNotEmpty) ...[
+          _buildRecentSearchesBar(),
+          const SizedBox(height: 14),
+        ],
+
+        // Mada Maarufu Quick Tags
+        const Text(
+          'MADA MAARUFU ZA KUTAFUTA',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            color: AppColors.emerald800,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            'Vidonda vya Tumbo',
+            'Kisukari',
+            'Shinikizo la Damu',
+            'Mwarobaini',
+            'Kikohozi na Mafua',
+            'Tangawizi',
+            'Magonjwa ya Ngozi',
+            'Mchaichai',
+          ].map((tag) {
+            return PressableScale(
+              onTap: () => _selectSearchTerm(tag),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.emerald50.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: AppColors.forest.withValues(alpha: 0.06),
-                  ),
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                  border: Border.all(color: AppColors.forest.withValues(alpha: 0.1)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Utafutaji wa hivi karibuni',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.emerald800,
-                            letterSpacing: 0.2,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: _clearRecentSearches,
-                          child: const Text(
-                            'Futa',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.red600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    ..._recentSearches.map(
-                      (term) => Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(10),
-                          onTap: () {
-                            _searchController.text = term;
-                            setState(() {
-                              _searchQuery = term;
-                              _isInputFocused = false;
-                            });
-                            _searchFocus.unfocus();
-                            _commitSearch(term);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.history_rounded,
-                                  size: 16,
-                                  color: AppColors.forest.withValues(alpha: 0.35),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    term,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.forest,
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.north_west_rounded,
-                                  size: 14,
-                                  color: AppColors.forest.withValues(alpha: 0.25),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                    const Icon(Icons.search_rounded, size: 13, color: AppColors.emerald800),
+                    const SizedBox(width: 4),
+                    Text(
+                      tag,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.forest,
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 22),
+
+        // Magonjwa Yanayotafutwa Zaidi
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'MAGONJWA YANAYOTAFUTWA ZAIDI',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: AppColors.emerald800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => app.navigate(AppScreen.conditions),
+              child: const Text(
+                'Ona Yote >',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.forest,
+                ),
+              ),
+            ),
           ],
         ),
-      ),
+        const SizedBox(height: 10),
+        ...suggestedConditions.take(4).map(
+              (cond) => _ConditionSearchTile(
+                condition: cond,
+                onTap: () {
+                  _commitSearch(cond.name);
+                  app.navigate(AppScreen.conditions, conditionId: cond.id);
+                },
+              ),
+            ),
+        const SizedBox(height: 18),
+
+        // Makala Zinazopendekezwa
+        if (suggestedPosts.isNotEmpty) ...[
+          const Text(
+            'MAKALA ZINAZOPENDEKEZWA',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: AppColors.emerald800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...suggestedPosts.map(
+            (post) => _ContentSearchTile(
+              post: post,
+              onTap: () {
+                _commitSearch(post.title);
+                openContentPost(context, post);
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
 
   Widget _buildSearchResultsScroll(
     BuildContext context,
     AppProvider app,
+    List<Condition> conditions,
     List<ContentPost> posts,
     List<DailyLesson> lessons,
   ) {
@@ -469,55 +636,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Responsive.scrollBottomPadding(context, extra: 16),
       ),
       children: [
-        _buildSearchResults(context, app, posts, lessons),
-      ],
-    );
-  }
-
-  Widget _buildVyakulaSection(BuildContext context, AppProvider app) {
-    final content = context.watch<ContentService>();
-    final cats = [
-      ('matunda', 'Matunda', Icons.apple_rounded, const [Color(0xFFF7F1E8), Color(0xFFEDE3D4)]),
-      ('mizizi', 'Mizizi', Icons.grass_rounded, const [Color(0xFFEDF5F0), Color(0xFFD7E8DE)]),
-      ('miti', 'Miti', Icons.park_rounded, const [Color(0xFFEEF4EF), Color(0xFFDCE8DF)]),
-      ('vyakula', 'Vyakula', Icons.restaurant_rounded, const [Color(0xFFEFF5F8), Color(0xFFDDE9F0)]),
-      ('mimea', 'Mimea', Icons.spa_rounded, const [Color(0xFFF0F3EF), Color(0xFFE0E7E2)]),
-    ];
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: 'Vyakula na Matunda',
-          subtitle: 'Makala kuhusu chakula na matunda ya asili',
-          badge: '${content.vyakulaMatundaPosts.length} makala',
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-          actionLabel: 'Zote',
-          onAction: () => app.navigate(
-            AppScreen.contentList,
-            contentSection: ContentSections.vyakulaMatunda,
-          ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: cats.map((cat) {
-              final count = content.countForCategory(cat.$1);
-              return _VyakulaChip(
-                label: cat.$2,
-                icon: cat.$3,
-                colors: cat.$4,
-                count: count,
-                onTap: () => app.navigate(
-                  AppScreen.contentList,
-                  contentSection: ContentSections.vyakulaMatunda,
-                  contentCategory: cat.$1,
-                ),
-              );
-            }).toList(),
-          ),
-        ),
+        _buildSearchResults(context, app, conditions, posts, lessons),
       ],
     );
   }
@@ -525,10 +644,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchResults(
     BuildContext context,
     AppProvider app,
+    List<Condition> conditions,
     List<ContentPost> posts,
     List<DailyLesson> lessons,
   ) {
-    final total = posts.length + lessons.length;
+    final showConditions = (_searchFilter == 'zote' || _searchFilter == 'magonjwa') && conditions.isNotEmpty;
+    final showPosts = (_searchFilter == 'zote' || _searchFilter == 'makala') && posts.isNotEmpty;
+    final showLessons = (_searchFilter == 'zote' || _searchFilter == 'masomo') && lessons.isNotEmpty;
+
+    final total = (_searchFilter == 'magonjwa'
+        ? conditions.length
+        : (_searchFilter == 'makala'
+            ? posts.length
+            : (_searchFilter == 'masomo'
+                ? lessons.length
+                : conditions.length + posts.length + lessons.length)));
     final query = _searchQuery.trim();
 
     return Column(
@@ -570,23 +700,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
           ],
         ),
-        if (lessons.isNotEmpty) ...[
+
+        // Magonjwa Results Section
+        if (showConditions) ...[
           const SizedBox(height: 18),
-          _SearchSectionLabel(icon: Icons.school_rounded, label: 'Masomo'),
+          _SearchSectionLabel(icon: Icons.monitor_heart_rounded, label: 'Magonjwa & Hali za Afya (${conditions.length})'),
           const SizedBox(height: 8),
-          ...lessons.map(
-            (lesson) => _LessonSearchTile(
-              lesson: lesson,
+          ...conditions.map(
+            (cond) => _ConditionSearchTile(
+              condition: cond,
               onTap: () {
                 _commitSearch(_searchQuery);
-                app.navigate(AppScreen.darasaHuru, lessonId: lesson.id);
+                app.navigate(AppScreen.conditions, conditionId: cond.id);
               },
             ),
           ),
         ],
-        if (posts.isNotEmpty) ...[
+
+        // Makala Results Section
+        if (showPosts) ...[
           const SizedBox(height: 18),
-          _SearchSectionLabel(icon: Icons.article_outlined, label: 'Makala'),
+          _SearchSectionLabel(icon: Icons.article_outlined, label: 'Makala ya Dawa & Mimea (${posts.length})'),
           const SizedBox(height: 8),
           ...posts.map(
             (post) => _ContentSearchTile(
@@ -598,7 +732,24 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
-        if (posts.isEmpty && lessons.isEmpty)
+
+        // Masomo Results Section
+        if (showLessons) ...[
+          const SizedBox(height: 18),
+          _SearchSectionLabel(icon: Icons.school_rounded, label: 'Masomo ya Darasa Huru (${lessons.length})'),
+          const SizedBox(height: 8),
+          ...lessons.map(
+            (lesson) => _LessonSearchTile(
+              lesson: lesson,
+              onTap: () {
+                _commitSearch(_searchQuery);
+                app.navigate(AppScreen.darasaHuru, lessonId: lesson.id);
+              },
+            ),
+          ),
+        ],
+
+        if (!showConditions && !showPosts && !showLessons)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Column(
@@ -610,13 +761,47 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Jaribu neno lingine — mimea, mizizi, miti, au somo.',
+                  'Hakuna matokeo yaliyopatikana kwa "$query".\nJaribu kutafuta kwa maneno haya:',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.gray400,
+                  style: const TextStyle(
+                    color: AppColors.gray500,
                     fontSize: 13,
                     height: 1.4,
                   ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    'Vidonda vya Tumbo',
+                    'Kisukari',
+                    'Mwarobaini',
+                    'Presha',
+                    'Tangawizi',
+                    'Kikohozi na Mafua',
+                  ].map((sugg) {
+                    return PressableScale(
+                      onTap: () => _selectSearchTerm(sugg),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.emerald50,
+                          borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                          border: Border.all(color: AppColors.emerald700.withValues(alpha: 0.2)),
+                        ),
+                        child: Text(
+                          sugg,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.emerald800,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ],
             ),
@@ -640,48 +825,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _handleCarouselTap(BuildContext context, CarouselSlide slide) {
     showCarouselContentPicker(context, slide: slide);
-  }
-
-  Widget _buildLearningPathways(BuildContext context, AppProvider app) {
-    final content = context.watch<ContentService>();
-    final dodosoCats = [
-      ('darasa_huru', 'Darasa Huru', 'Somo la kila siku', Icons.school_rounded, const [Color(0xFF0A1F1A), Color(0xFF163D32)]),
-      ('mizizi', 'Mizizi', 'Mizizi ya dawa asili', Icons.grass_rounded, const [Color(0xFF145C3E), Color(0xFF1B7A52)]),
-      ('miti', 'Miti', 'Miti na faida zake', Icons.park_rounded, const [Color(0xFF163D32), Color(0xFF0A1F1A)]),
-      ('matunda', 'Matunda', 'Matunda ya asili', Icons.apple_rounded, const [Color(0xFF8F5530), Color(0xFFC17A45)]),
-      ('mimea', 'Lishe', 'Lishe bora', Icons.restaurant_menu_rounded, const [Color(0xFF1A4A5C), Color(0xFF2A6B7A)]),
-    ];
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: 'Dodoso',
-          subtitle: 'Gusa Aina ili kuona makala zote',
-          badge: '${content.dodosoPosts.length} makala',
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-        ),
-        LearningPathwaysRow(
-          pathways: dodosoCats.map((c) => LearningPathway(
-            title: c.$2,
-            subtitle: c.$3,
-            icon: c.$4,
-            gradient: c.$5,
-            count: c.$1 == 'darasa_huru'
-                ? null
-                : content.countForCategory(c.$1),
-            onTap: () {
-              if (c.$1 == 'darasa_huru') {
-                app.navigate(AppScreen.darasaHuru);
-              } else {
-                app.navigate(AppScreen.contentList,
-                    contentSection: ContentSections.dodoso,
-                    contentCategory: c.$1);
-              }
-            },
-          )).toList(),
-        ),
-      ],
-    );
   }
 
   Widget _buildMakalaSection(BuildContext context, AppProvider app) {
@@ -822,217 +965,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
-
-  Widget _categoryTile(
-    BuildContext context,
-    AppProvider app,
-    (IconData, String, String, List<Color>) cat,
-    int count,
-    int index,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Material(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(20),
-        elevation: 0,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: () => app.navigate(
-            AppScreen.contentList,
-            contentSection: ContentSections.chaguaMada,
-            contentCategory: cat.$3,
-          ),
-          child: Ink(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: AppColors.surfaceElevated,
-              border: Border.all(color: AppColors.forest.withValues(alpha: 0.04)),
-              boxShadow: AppColors.elevationSm,
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: cat.$4,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(cat.$1, size: 22, color: AppColors.forest),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  cat.$2,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.forest,
-                    letterSpacing: -0.1,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (count > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      '$count',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.emerald800,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    ).animate().fadeIn(delay: (index * 50).ms).scale(begin: const Offset(0.92, 0.92));
-  }
-
-  Widget _buildCategoryGrid(BuildContext context, AppProvider app) {
-    final content = context.watch<ContentService>();
-    final cats = [
-      (Icons.spa, 'Mimea', 'mimea', const [Color(0xFFEDF5F0), Color(0xFFD7E8DE)]),
-      (Icons.female, 'Wanawake', 'wanawake', const [Color(0xFFF7F1E8), Color(0xFFEDE3D4)]),
-      (Icons.child_care, 'Watoto', 'watoto', const [Color(0xFFEFF5F8), Color(0xFFDDE9F0)]),
-      (Icons.male, 'Wanaume', 'wanaume', const [Color(0xFFF0F3EF), Color(0xFFE0E7E2)]),
-    ];
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: 'Chagua Mada',
-          subtitle: 'Gusa mada ili kuanza somo lako',
-          badge: '${content.chaguaMadaPosts.length} makala',
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
-          child: Responsive.isPhone(context)
-              ? Row(
-                  children: [
-                    for (var i = 0; i < cats.length; i++)
-                      Expanded(
-                        child: _categoryTile(
-                          context,
-                          app,
-                          cats[i],
-                          content.chaguaMadaPosts
-                              .where((p) => p.category == cats[i].$3)
-                              .length,
-                          i,
-                        ),
-                      ),
-                  ],
-                )
-              : GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 4,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 0.95,
-                  children: [
-                    for (var i = 0; i < cats.length; i++)
-                      _categoryTile(
-                        context,
-                        app,
-                        cats[i],
-                        content.chaguaMadaPosts
-                            .where((p) => p.category == cats[i].$3)
-                            .length,
-                        i,
-                      ),
-                  ],
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-class _VyakulaChip extends StatelessWidget {
-  const _VyakulaChip({
-    required this.label,
-    required this.icon,
-    required this.colors,
-    required this.count,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final List<Color> colors;
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surfaceElevated,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 148,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.forest.withValues(alpha: 0.05)),
-            boxShadow: AppColors.elevationSm,
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: colors),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 16, color: AppColors.forest),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.forest,
-                      ),
-                    ),
-                    if (count > 0)
-                      Text(
-                        '$count makala',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.emerald800,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ).animate().fadeIn(duration: 350.ms).scale(begin: const Offset(0.95, 0.95));
-  }
 }
 
 class _EmptySectionHint extends StatelessWidget {
@@ -1096,6 +1028,107 @@ class _SearchSectionLabel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ConditionSearchTile extends StatelessWidget {
+  const _ConditionSearchTile({
+    required this.condition,
+    required this.onTap,
+  });
+
+  final Condition condition;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+              boxShadow: AppColors.elevationSm,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: ConditionIconWidget(type: condition.iconType),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              condition.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.forest,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.emerald50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${condition.remedies.length} Tiba Asili',
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.emerald800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        condition.shortDesc,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.gray500,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.forest.withValues(alpha: 0.35),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1277,18 +1310,17 @@ class _HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.emerald50.withValues(alpha: 0.85),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: AppColors.forest, size: 22),
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: AppColors.emerald50.withValues(alpha: 0.85),
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.borderLight),
         ),
+        child: Icon(icon, color: AppColors.forest, size: 21),
       ),
     );
   }

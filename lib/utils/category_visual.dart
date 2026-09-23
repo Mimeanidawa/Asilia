@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+export '../widgets/pressable_scale.dart';
+
 /// Shared iconography and cover art for content categories.
 class CategoryVisual {
   CategoryVisual._();
@@ -88,42 +90,6 @@ class BrandedCover extends StatelessWidget {
       ),
       child: Center(
         child: Icon(icon, color: Colors.white.withValues(alpha: 0.88), size: 32),
-      ),
-    );
-  }
-}
-
-class PressableScale extends StatefulWidget {
-  const PressableScale({
-    super.key,
-    required this.child,
-    required this.onTap,
-    this.borderRadius,
-  });
-
-  final Widget child;
-  final VoidCallback onTap;
-  final BorderRadius? borderRadius;
-
-  @override
-  State<PressableScale> createState() => _PressableScaleState();
-}
-
-class _PressableScaleState extends State<PressableScale> {
-  bool _down = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _down = true),
-      onTapUp: (_) => setState(() => _down = false),
-      onTapCancel: () => setState(() => _down = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _down ? 0.985 : 1,
-        duration: const Duration(milliseconds: 140),
-        curve: Curves.easeOutCubic,
-        child: widget.child,
       ),
     );
   }

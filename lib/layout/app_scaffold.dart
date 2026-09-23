@@ -5,7 +5,7 @@ import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../widgets/app_bottom_nav.dart';
 
-/// Full-screen shell with a fixed flat bottom tab bar.
+/// Full-screen shell with a compact floating navigation dock.
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
     super.key,
@@ -51,7 +51,16 @@ class AppScaffold extends StatelessWidget {
                     child: ResponsivePage(child: child),
                   ),
                 ),
-                if (showBottomNav) const AppBottomNav(),
+                if (showBottomNav)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: Responsive.bottomNavMaxWidth(context),
+                      ),
+                      child: const AppBottomNav(),
+                    ),
+                  ),
               ],
             ),
           ),

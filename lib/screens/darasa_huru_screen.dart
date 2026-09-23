@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../services/ads_service.dart';
 import '../services/mwalimu_service.dart';
+import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
 import '../utils/category_visual.dart';
@@ -13,6 +15,7 @@ import '../widgets/circle_back_button.dart';
 import '../widgets/darasa_huru_card.dart';
 import '../widgets/darasa_huru_carousel.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/makala_ads.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/screen_header.dart';
@@ -160,6 +163,12 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
                                     ),
                                   ),
                                 ),
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                                  child: const HomeFeedBannerAd(),
+                                ),
+                              ),
                               if (rest.isNotEmpty)
                                 SliverToBoxAdapter(
                                   child: Padding(
@@ -195,8 +204,8 @@ class _DarasaHuruScreenState extends State<DarasaHuruScreen> {
                                   ),
                                 ),
                               SliverToBoxAdapter(
-                                child: ColoredBox(
-                                  color: AppColors.surfaceElevated,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: gutter),
                                   child: Column(
                                     children: [
                                       for (final lesson in rest)
@@ -366,6 +375,9 @@ class _LessonReader extends StatelessWidget {
   Widget build(BuildContext context) {
     final paragraphs = lesson.content.split('\n\n');
     final authorName = context.watch<MwalimuService>().displayName;
+    final user = context.watch<UserService>();
+    final ads = context.watch<AdsService>();
+    final showAds = ads.shouldShowAds(user);
 
     return SizedBox.expand(
       child: Column(
@@ -495,7 +507,8 @@ class _LessonReader extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      if (showAds) const MakalaInlineBannerAd(),
+                      const SizedBox(height: 12),
                       ...paragraphs.map(_buildParagraph),
                     ],
                   ),
@@ -503,6 +516,7 @@ class _LessonReader extends StatelessWidget {
               ],
             ),
           ),
+          if (showAds) const MakalaBannerAd(),
         ],
       ),
     );

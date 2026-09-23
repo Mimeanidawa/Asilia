@@ -46,6 +46,18 @@ function buildConfig(settings) {
         'A new version of Dawa Asili is available. Update now to continue.',
       storeUrl: settings.store_url || PLAY_STORE_DEFAULT,
     },
+    about: {
+      appName: settings.about_app_name || 'Dawa Asili',
+      appVersion: settings.about_app_version || '1.1.6',
+      appDescription: settings.about_app_description ||
+        'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.',
+      contactPhone: settings.about_contact_phone || '+255 700 000 000',
+      contactEmail: settings.about_contact_email || 'info@dawaasili.com',
+      website: settings.about_website || 'https://dawaasili.co.tz',
+      disclaimer: settings.about_disclaimer ||
+        'Elimu na taarifa zote zilizomo humu ni kwa ajili ya kujifunza na kuelimisha tu.',
+      showLicenses: truthy(settings.about_show_licenses),
+    },
   };
 }
 
@@ -119,6 +131,38 @@ router.put('/config', requireAdmin, async (req, res) => {
       'store_url',
       (update.storeUrl || '').trim() || PLAY_STORE_DEFAULT,
     );
+
+    const about = body.about || {};
+    if (body.about !== undefined) {
+      if (about.appName !== undefined) {
+        await upsertSetting(db, 'about_app_name', (about.appName || '').trim());
+      }
+      if (about.appVersion !== undefined) {
+        await upsertSetting(db, 'about_app_version', (about.appVersion || '').trim());
+      }
+      if (about.appDescription !== undefined) {
+        await upsertSetting(db, 'about_app_description', (about.appDescription || '').trim());
+      }
+      if (about.contactPhone !== undefined) {
+        await upsertSetting(db, 'about_contact_phone', (about.contactPhone || '').trim());
+      }
+      if (about.contactEmail !== undefined) {
+        await upsertSetting(db, 'about_contact_email', (about.contactEmail || '').trim());
+      }
+      if (about.website !== undefined) {
+        await upsertSetting(db, 'about_website', (about.website || '').trim());
+      }
+      if (about.disclaimer !== undefined) {
+        await upsertSetting(db, 'about_disclaimer', (about.disclaimer || '').trim());
+      }
+      if (about.showLicenses !== undefined) {
+        await upsertSetting(
+          db,
+          'about_show_licenses',
+          truthy(about.showLicenses) ? 'true' : 'false',
+        );
+      }
+    }
 
     const { rows } = await db.query('SELECT key, value FROM app_settings');
     res.json({ ok: true, config: buildConfig(readSettingsMap(rows)) });

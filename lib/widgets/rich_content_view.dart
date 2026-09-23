@@ -292,12 +292,16 @@ class _AudioBlockState extends State<_AudioBlock> {
     }
     try {
       await _player.setUrl(widget.url);
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     } catch (_) {
-      if (mounted) setState(() {
-        _loading = false;
-        _error = true;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
   }
 

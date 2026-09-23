@@ -6,6 +6,7 @@ import '../models/content_models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import '../utils/app_refresh.dart';
 import '../utils/category_visual.dart';
 import '../utils/content_tag_style.dart';
@@ -13,6 +14,8 @@ import '../utils/premium_content_flow.dart';
 import '../utils/responsive.dart';
 import '../widgets/circle_back_button.dart';
 import '../widgets/content_post_card.dart';
+import '../widgets/makala_ads.dart';
+import '../widgets/modern_tab_rail.dart';
 import '../widgets/pull_to_refresh.dart';
 
 class ContentListScreen extends StatefulWidget {
@@ -114,9 +117,16 @@ class _ContentListScreenState extends State<ContentListScreen> {
             onBack: app.goBack,
           ),
           if (chips.isNotEmpty)
-            _FilterRail(
-              chips: chips,
-              selected: _filter,
+            ModernTabRail(
+              items: chips
+                  .map((c) => TabRailItem(
+                        id: c.id,
+                        label: c.label,
+                        icon: c.icon,
+                        color: c.color,
+                      ))
+                  .toList(),
+              selectedId: _filter,
               onSelect: (id) => setState(() => _filter = id),
             ),
           Expanded(
@@ -166,50 +176,46 @@ class _ContentListScreenState extends State<ContentListScreen> {
                                 children: [
                                   Text(
                                     featured == null ? title : 'Makala zaidi',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.forest,
-                                      letterSpacing: -0.2,
-                                    ),
+                                    style: AppTypography.section(color: AppColors.forest),
                                   ),
                                   const Spacer(),
-                                  Text(
-                                    '${rest.length}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.forest
-                                          .withValues(alpha: 0.4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.forest.withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                                    ),
+                                    child: Text(
+                                      '${rest.length}',
+                                      style: TextStyle(
+                                        fontSize: AppTypography.badge,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.forest.withValues(alpha: 0.6),
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
+                        const SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            child: HomeFeedBannerAd(),
+                          ),
+                        ),
                         if (rest.isNotEmpty && columns == 1)
-                          SliverToBoxAdapter(
-                            child: ColoredBox(
-                              color: AppColors.surfaceElevated,
-                              child: Column(
-                                children: [
-                                  for (var i = 0; i < rest.length; i++)
-                                    ContentPostCard(
-                                      post: rest[i],
-                                      showSectionLabel: section ==
-                                          ContentSections.allMakala,
-                                      margin: EdgeInsets.zero,
-                                      animationIndex: i,
-                                      onTap: () =>
-                                          openContentPost(context, rest[i]),
-                                    ),
-                                  SizedBox(
-                                    height: Responsive.scrollBottomPadding(
-                                      context,
-                                      extra: 12,
-                                    ),
-                                  ),
-                                ],
+                          SliverPadding(
+                            padding: EdgeInsets.symmetric(horizontal: gutter),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, i) => ContentPostCard(
+                                  post: rest[i],
+                                  showSectionLabel: section == ContentSections.allMakala,
+                                  animationIndex: i,
+                                  onTap: () => openContentPost(context, rest[i]),
+                                ),
+                                childCount: rest.length,
                               ),
                             ),
                           ),
@@ -350,26 +356,15 @@ class _MakalaHeader extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.forest,
-                      height: 1.1,
-                      letterSpacing: -0.55,
-                    ),
+                    style: AppTypography.screen(),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.forest.withValues(alpha: 0.5),
-                        height: 1.25,
-                      ),
+                      style: AppTypography.sub(),
                     ),
                   ],
                 ],
@@ -378,17 +373,18 @@ class _MakalaHeader extends StatelessWidget {
             if (count > 0)
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.emerald50,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                  border: Border.all(color: AppColors.borderLight),
                 ),
                 child: Text(
                   '$count',
                   style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.emerald800,
+                    fontSize: AppTypography.caption,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.forest,
                   ),
                 ),
               ),
@@ -396,82 +392,6 @@ class _MakalaHeader extends StatelessWidget {
         ),
       ),
     ).animate().fadeIn(duration: 260.ms);
-  }
-}
-
-class _FilterRail extends StatelessWidget {
-  const _FilterRail({
-    required this.chips,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  final List<_FilterChipData> chips;
-  final String selected;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 54,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
-        border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
-        ),
-      ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-        itemCount: chips.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) {
-          final chip = chips[i];
-          final isOn = selected == chip.id;
-          final accent = chip.color ?? AppColors.forest;
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => onSelect(chip.id),
-              borderRadius: BorderRadius.circular(20),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                decoration: BoxDecoration(
-                  color: isOn ? accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isOn
-                        ? Colors.transparent
-                        : AppColors.forest.withValues(alpha: 0.1),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      chip.icon,
-                      size: 15,
-                      color: isOn ? Colors.white : accent,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      chip.label,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: isOn ? Colors.white : AppColors.forest,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 }
 

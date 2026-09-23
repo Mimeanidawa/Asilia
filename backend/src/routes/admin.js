@@ -193,4 +193,318 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
   }
 });
 
+// ==========================================
+// ADMIN PRODUCTS MANAGEMENT
+// ==========================================
+
+// GET /admin/products - list all products
+router.get('/products', requireAdmin, async (_req, res) => {
+  try {
+    const db = getPool();
+    const { rows } = await db.query(
+      `SELECT * FROM products ORDER BY created_at DESC`
+    );
+    const products = rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      subtitle: r.subtitle,
+      description: r.description,
+      price: r.price,
+      originalPrice: r.original_price,
+      original_price: r.original_price,
+      discountPercent: r.discount_percent,
+      discount_percent: r.discount_percent,
+      imageUrl: r.image_url,
+      image_url: r.image_url,
+      badgeText: r.badge_text,
+      badge_text: r.badge_text,
+      stockQuantity: r.stock_quantity,
+      stock_quantity: r.stock_quantity,
+      category: r.category,
+      benefits: Array.isArray(r.benefits) ? r.benefits : JSON.parse(r.benefits || '[]'),
+      howToUse: r.how_to_use,
+      how_to_use: r.how_to_use,
+      isPublished: r.is_published,
+      is_published: r.is_published,
+      createdAt: r.created_at,
+    }));
+    res.json({ products });
+  } catch (err) {
+    console.error('GET /admin/products:', err);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// POST /admin/products - create new product
+router.post('/products', requireAdmin, async (req, res) => {
+  try {
+    const {
+      id,
+      title,
+      subtitle = '',
+      description = '',
+      price = 25000,
+      originalPrice = 50000,
+      discountPercent = 50,
+      imageUrl = '',
+      badgeText = 'PUNGUZO LA 50% 🔥',
+      stockQuantity = 50,
+      category = 'general',
+      benefits = [],
+      howToUse = '',
+      isPublished = true,
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    const db = getPool();
+    const productId = id || `dawa_${Date.now()}`;
+    const benefitsJson = JSON.stringify(Array.isArray(benefits) ? benefits : []);
+
+    const { rows } = await db.query(
+      `INSERT INTO products (
+        id, title, subtitle, description, price, original_price, discount_percent,
+        image_url, badge_text, stock_quantity, category, benefits, how_to_use, is_published,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, NOW(), NOW())
+      RETURNING *`,
+      [
+        productId,
+        title,
+        subtitle,
+        description,
+        price,
+        originalPrice,
+        discountPercent,
+        imageUrl,
+        badgeText,
+        stockQuantity,
+        category,
+        benefitsJson,
+        howToUse,
+        isPublished,
+      ]
+    );
+
+    const r = rows[0];
+    res.status(201).json({
+      product: {
+        id: r.id,
+        title: r.title,
+        subtitle: r.subtitle,
+        description: r.description,
+        price: r.price,
+        originalPrice: r.original_price,
+        discountPercent: r.discount_percent,
+        imageUrl: r.image_url,
+        badgeText: r.badge_text,
+        stockQuantity: r.stock_quantity,
+        category: r.category,
+        benefits: Array.isArray(r.benefits) ? r.benefits : JSON.parse(r.benefits || '[]'),
+        howToUse: r.how_to_use,
+        isPublished: r.is_published,
+      },
+    });
+  } catch (err) {
+    console.error('POST /admin/products:', err);
+    res.status(500).json({ error: 'Failed to create product' });
+  }
+});
+
+// PUT /admin/products/:id - update product
+router.put('/products/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      subtitle,
+      description,
+      price,
+      originalPrice,
+      discountPercent,
+      imageUrl,
+      badgeText,
+      stockQuantity,
+      category,
+      benefits,
+      howToUse,
+      isPublished,
+    } = req.body;
+
+    const db = getPool();
+    const benefitsJson = benefits !== undefined
+      ? JSON.stringify(Array.isArray(benefits) ? benefits : [])
+      : null;
+
+    const { rows } = await db.query(
+      `UPDATE products SET
+        title = COALESCE($2, title),
+        subtitle = COALESCE($3, subtitle),
+        description = COALESCE($4, description),
+        price = COALESCE($5, price),
+        original_price = COALESCE($6, original_price),
+        discount_percent = COALESCE($7, discount_percent),
+        image_url = COALESCE($8, image_url),
+        badge_text = COALESCE($9, badge_text),
+        stock_quantity = COALESCE($10, stock_quantity),
+        category = COALESCE($11, category),
+        benefits = CASE WHEN $12::text IS NOT NULL THEN $12::jsonb ELSE benefits END,
+        how_to_use = COALESCE($13, how_to_use),
+        is_published = COALESCE($14, is_published),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+      [
+        id,
+        title,
+        subtitle,
+        description,
+        price,
+        originalPrice,
+        discountPercent,
+        imageUrl,
+        badgeText,
+        stockQuantity,
+        category,
+        benefitsJson,
+        howToUse,
+        isPublished,
+      ]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const r = rows[0];
+    res.json({
+      product: {
+        id: r.id,
+        title: r.title,
+        subtitle: r.subtitle,
+        description: r.description,
+        price: r.price,
+        originalPrice: r.original_price,
+        discountPercent: r.discount_percent,
+        imageUrl: r.image_url,
+        badgeText: r.badge_text,
+        stockQuantity: r.stock_quantity,
+        category: r.category,
+        benefits: Array.isArray(r.benefits) ? r.benefits : JSON.parse(r.benefits || '[]'),
+        howToUse: r.how_to_use,
+        isPublished: r.is_published,
+      },
+    });
+  } catch (err) {
+    console.error('PUT /admin/products/:id:', err);
+    res.status(500).json({ error: 'Failed to update product' });
+  }
+});
+
+// DELETE /admin/products/:id - delete product
+router.delete('/products/:id', requireAdmin, async (req, res) => {
+  try {
+    const db = getPool();
+    await db.query(`DELETE FROM products WHERE id = $1`, [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /admin/products/:id:', err);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+});
+
+// ==========================================
+// ADMIN ORDERS & RECEIPT MANAGEMENT
+// ==========================================
+
+// GET /admin/orders - list all customer orders
+router.get('/orders', requireAdmin, async (req, res) => {
+  try {
+    const db = getPool();
+    const { status } = req.query;
+
+    let query = `SELECT * FROM product_orders`;
+    const params = [];
+    if (status) {
+      query += ` WHERE delivery_status = $1`;
+      params.push(status);
+    }
+    query += ` ORDER BY created_at DESC`;
+
+    const { rows } = await db.query(query, params);
+    const orders = rows.map((r) => ({
+      id: r.id,
+      receiptNumber: r.receipt_number,
+      userId: r.user_id,
+      productId: r.product_id,
+      productTitle: r.product_title,
+      productImageUrl: r.product_image_url,
+      unitPrice: r.unit_price,
+      quantity: r.quantity,
+      totalAmount: r.total_amount,
+      customerName: r.customer_name,
+      customerPhone: r.customer_phone,
+      region: r.region,
+      district: r.district,
+      ward: r.ward,
+      paymentMethod: r.payment_method,
+      paymentStatus: r.payment_status,
+      deliveryStatus: r.delivery_status,
+      trackingInfo: r.tracking_info,
+      adminNotes: r.admin_notes,
+      createdAt: r.created_at,
+    }));
+
+    res.json({ orders });
+  } catch (err) {
+    console.error('GET /admin/orders:', err);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+// PUT /admin/orders/:id/status - update delivery status & tracking info
+router.put('/orders/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deliveryStatus, trackingInfo, adminNotes } = req.body;
+
+    if (!deliveryStatus) {
+      return res.status(400).json({ error: 'deliveryStatus is required' });
+    }
+
+    const db = getPool();
+    const { rows } = await db.query(
+      `UPDATE product_orders SET
+        delivery_status = $2,
+        tracking_info = COALESCE($3, tracking_info),
+        admin_notes = COALESCE($4, admin_notes),
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING *`,
+      [id, deliveryStatus, trackingInfo, adminNotes]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const r = rows[0];
+    res.json({
+      success: true,
+      order: {
+        id: r.id,
+        receiptNumber: r.receipt_number,
+        deliveryStatus: r.delivery_status,
+        trackingInfo: r.tracking_info,
+        adminNotes: r.admin_notes,
+      },
+    });
+  } catch (err) {
+    console.error('PUT /admin/orders/:id/status:', err);
+    res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
 export default router;

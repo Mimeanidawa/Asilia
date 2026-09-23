@@ -65,14 +65,54 @@ class AppUpdateConfig {
   }
 }
 
+class AboutAppConfig {
+  const AboutAppConfig({
+    this.appName = 'Dawa Asili',
+    this.appVersion = '1.1.6',
+    this.appDescription =
+        'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.',
+    this.contactPhone = '+255 700 000 000',
+    this.contactEmail = 'info@dawaasili.com',
+    this.website = 'https://dawaasili.co.tz',
+    this.disclaimer =
+        'Elimu na taarifa zote zilizomo humu ni kwa ajili ya kujifunza na kuelimisha tu.',
+    this.showLicenses = false,
+  });
+
+  final String appName;
+  final String appVersion;
+  final String appDescription;
+  final String contactPhone;
+  final String contactEmail;
+  final String website;
+  final String disclaimer;
+  final bool showLicenses;
+
+  factory AboutAppConfig.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const AboutAppConfig();
+    return AboutAppConfig(
+      appName: '${json['appName'] ?? 'Dawa Asili'}',
+      appVersion: '${json['appVersion'] ?? '1.1.6'}',
+      appDescription: '${json['appDescription'] ?? 'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha.'}',
+      contactPhone: '${json['contactPhone'] ?? '+255 700 000 000'}',
+      contactEmail: '${json['contactEmail'] ?? 'info@dawaasili.com'}',
+      website: '${json['website'] ?? 'https://dawaasili.co.tz'}',
+      disclaimer: '${json['disclaimer'] ?? 'Elimu na taarifa zote zilizomo humu ni kwa ajili ya kujifunza na kuelimisha tu.'}',
+      showLicenses: json['showLicenses'] == true,
+    );
+  }
+}
+
 class RemoteAppConfig {
   const RemoteAppConfig({
     this.screenMessage = const ScreenMessageConfig(),
     this.update = const AppUpdateConfig(),
+    this.about = const AboutAppConfig(),
   });
 
   final ScreenMessageConfig screenMessage;
   final AppUpdateConfig update;
+  final AboutAppConfig about;
 
   factory RemoteAppConfig.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const RemoteAppConfig();
@@ -82,6 +122,9 @@ class RemoteAppConfig {
       ),
       update: AppUpdateConfig.fromJson(
         json['update'] as Map<String, dynamic>?,
+      ),
+      about: AboutAppConfig.fromJson(
+        json['about'] as Map<String, dynamic>?,
       ),
     );
   }

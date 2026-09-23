@@ -6,10 +6,15 @@ import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import '../utils/app_refresh.dart';
 import '../utils/responsive.dart';
 import '../widgets/condition_icon_widget.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/makala_ads.dart';
+import '../services/dawa_order_service.dart';
+import '../widgets/order_product_sheet.dart';
+import '../widgets/pressable_scale.dart';
 import '../widgets/pull_to_refresh.dart';
 
 class ConditionsScreen extends StatefulWidget {
@@ -51,40 +56,70 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
         Column(
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-              color: Colors.white,
-              child: const Row(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                border: Border(
+                  bottom: BorderSide(color: AppColors.borderLight),
+                ),
+              ),
+              child: Row(
                 children: [
-                  Icon(Icons.monitor_heart_outlined, color: AppColors.emerald800, size: 18),
-                  SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald50,
+                      borderRadius: BorderRadius.circular(AppColors.radiusSm),
+                    ),
+                    child: const Icon(Icons.monitor_heart_outlined, color: AppColors.forest, size: 20),
+                  ),
+                  const SizedBox(width: 12),
                   Text(
-                    'CONDITIONS',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
+                    'Hali za Afya',
+                    style: AppTypography.screen(
                       color: AppColors.forest,
+                      size: AppTypography.screenTitle,
                     ),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              color: AppColors.surfaceElevated,
               child: TextField(
                 onChanged: (v) => setState(() => _search = v),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
                 decoration: InputDecoration(
-                  hintText: 'Search health conditions...',
-                  hintStyle: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.forest.withValues(alpha: 0.45),
+                  hintText: 'Tafuta hali ya afya au tatizo...',
+                  hintStyle: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
                   ),
-                  prefixIcon: Icon(
+                  prefixIcon: const Icon(
                     Icons.search,
-                    size: 18,
-                    color: AppColors.forest.withValues(alpha: 0.5),
+                    size: 20,
+                    color: AppColors.forest,
                   ),
-                  fillColor: AppColors.emerald50.withValues(alpha: 0.1),
+                  filled: true,
+                  fillColor: AppColors.inputFill,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                    borderSide: const BorderSide(color: AppColors.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                    borderSide: const BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                    borderSide: const BorderSide(color: AppColors.forest, width: 1.5),
+                  ),
                 ),
               ),
             ),
@@ -100,15 +135,17 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                   Responsive.scrollBottomPadding(context, extra: 8),
                 ),
                 children: [
-                  Text(
-                    'TARGET HEALTH AREAS',
+                  const Text(
+                    'VIPENGELE VYA KIAFYA',
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.gray400,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textSecondary,
                       letterSpacing: 1,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  const HomeFeedBannerAd(),
                   const SizedBox(height: 12),
                   if (filtered.isEmpty)
                     Center(
@@ -116,17 +153,18 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 48),
                         child: Column(
                           children: [
-                            Text(
-                              'No matched health categories found.',
-                              style: TextStyle(color: AppColors.gray400),
+                            const Text(
+                              'Hakuna vipengele vilivyolingana na utafutaji wako.',
+                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                             ),
+                            const SizedBox(height: 8),
                             TextButton(
                               onPressed: () => setState(() => _search = ''),
                               child: const Text(
-                                'Reset Filter',
+                                'Onyesha Zote',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.emerald800,
+                                  color: AppColors.forest,
                                   decoration: TextDecoration.underline,
                                 ),
                               ),
@@ -139,61 +177,64 @@ class _ConditionsScreenState extends State<ConditionsScreen> {
                     ...filtered.map(
                       (cond) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => setState(() => _activeCondition = cond),
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.emerald50.withValues(alpha: 0.4),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: AppColors.forest.withValues(alpha: 0.1),
+                        child: PressableScale(
+                          onTap: () => setState(() => _activeCondition = cond),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceElevated,
+                              borderRadius: BorderRadius.circular(AppColors.radiusLg),
+                              boxShadow: AppColors.elevationSm,
+                              border: Border.all(color: AppColors.borderLight),
+                            ),
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.emerald50,
+                                    borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                                    border: Border.all(
+                                      color: AppColors.forest.withValues(alpha: 0.1),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: ConditionIconWidget(type: cond.iconType),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        cond.name,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.forest,
+                                        ),
                                       ),
-                                    ),
-                                    child: Center(
-                                      child: ConditionIconWidget(type: cond.iconType),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          cond.name,
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w900,
-                                            color: AppColors.forest,
-                                          ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        cond.shortDesc,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary,
                                         ),
-                                        Text(
-                                          cond.shortDesc,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: AppColors.gray500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: AppColors.forest.withValues(alpha: 0.3),
-                                  ),
-                                ],
-                              ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: AppColors.forest,
+                                  size: 20,
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -257,9 +298,10 @@ class _ConditionSheet extends StatelessWidget {
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.sizeOf(context).height * 0.85,
               ),
-              decoration: const BoxDecoration(
-                color: AppColors.cream,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppColors.radiusXl)),
+                boxShadow: AppColors.elevationLg,
               ),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -271,11 +313,12 @@ class _ConditionSheet extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            width: 40,
-                            height: 40,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: AppColors.emerald100,
-                              borderRadius: BorderRadius.circular(12),
+                              color: AppColors.emerald50,
+                              borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                              border: Border.all(color: AppColors.borderLight),
                             ),
                             child: Center(
                               child: ConditionIconWidget(type: condition.iconType),
@@ -293,12 +336,13 @@ class _ConditionSheet extends StatelessWidget {
                                   color: AppColors.forest,
                                 ),
                               ),
-                              Text(
-                                'CONDITION ANALYSIS',
+                              const Text(
+                                'UCHAMBUZI WA KINA',
                                 style: TextStyle(
                                   fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.gray400,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textSecondary,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
                             ],
@@ -307,41 +351,74 @@ class _ConditionSheet extends StatelessWidget {
                       ),
                       IconButton(
                         onPressed: onClose,
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(Icons.close, color: AppColors.forest),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'HOLISTIC UNDERSTANDING',
+                  const Text(
+                    'MAELEZO NA UFAHAMU',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.gray400,
+                      color: AppColors.textSecondary,
                       letterSpacing: 1,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     condition.longDesc,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.gray600,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
                       height: 1.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+                  InkWell(
+                    onTap: () {
+                      final product = context.read<DawaOrderService>().getProductForCondition(condition);
+                      OrderProductSheet.show(context, product);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.emerald50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.emerald800.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.shopping_bag_outlined, size: 16, color: AppColors.emerald800),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Agiza Dawa ya ${condition.name} (Punguzo 50%)',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.emerald800,
+                              ),
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.emerald800),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
                   const Row(
                     children: [
                       Icon(Icons.auto_awesome, size: 14, color: AppColors.amber),
                       SizedBox(width: 6),
                       Text(
-                        'RECOMMENDED BOTANICAL REMEDIES',
+                        'TIBA ASILI ZINAZOPENDEKEZWA',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.emerald800,
+                          color: AppColors.forest,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -351,70 +428,75 @@ class _ConditionSheet extends StatelessWidget {
                   ...remedyHerbs.map(
                     (herb) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Material(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () => onHerbTap(herb.id),
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: Row(
-                              children: [
-                                HerbImage(url: herb.imageUrl, width: 48, height: 48),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        herb.name,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.forest,
-                                        ),
+                      child: PressableScale(
+                        onTap: () => onHerbTap(herb.id),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(AppColors.radiusMd),
+                            border: Border.all(color: AppColors.borderLight),
+                            boxShadow: AppColors.elevationSm,
+                          ),
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              HerbImage(url: herb.imageUrl, width: 48, height: 48),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      herb.name,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.forest,
                                       ),
-                                      Text(
-                                        herb.scientificName,
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          color: AppColors.gray400,
-                                          fontStyle: FontStyle.italic,
-                                        ),
+                                    ),
+                                    Text(
+                                      herb.scientificName,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: AppColors.textSecondary,
+                                        fontStyle: FontStyle.italic,
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: AppColors.forest.withValues(alpha: 0.3),
-                                ),
-                              ],
-                            ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: AppColors.forest,
+                                size: 18,
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  const MakalaInlineBannerAd(),
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: onAskExpert,
+                      icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                      label: Text(
+                        'Jadili "${condition.name}" na $expertName',
+                        style: TextStyle(
+                          fontSize: AppTypography.button,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.forest,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        'Jadili "${condition.name}" na $expertName',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                          borderRadius: BorderRadius.circular(AppColors.radiusPill),
                         ),
                       ),
                     ),

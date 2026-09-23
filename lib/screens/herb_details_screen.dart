@@ -5,9 +5,13 @@ import '../data/app_data.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_typography.dart';
 import '../utils/app_refresh.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/herb_image.dart';
+import '../widgets/makala_ads.dart';
+import '../services/dawa_order_service.dart';
+import '../widgets/order_product_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/screen_header.dart';
 
@@ -57,7 +61,7 @@ class HerbDetailsScreen extends StatelessWidget {
       child: Column(
       children: [
         ScreenHeader(
-          title: 'HERB DETAILS',
+          title: 'MAELEZO YA MMEA',
           onBack: app.goBack,
           trailing: IconButton(
             icon: Icon(
@@ -78,7 +82,7 @@ class HerbDetailsScreen extends StatelessWidget {
                 children: [
                   HerbImage(
                     url: herb.imageUrl,
-                    height: 192,
+                    height: 220,
                     borderRadius: 0,
                   ),
                   Positioned(
@@ -90,11 +94,11 @@ class HerbDetailsScreen extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.amber,
-                        borderRadius: BorderRadius.circular(20),
+                        color: AppColors.forest,
+                        borderRadius: BorderRadius.circular(AppColors.radiusSm),
                       ),
                       child: const Text(
-                        '100% NATURAL',
+                        '100% ASILI',
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
@@ -117,7 +121,7 @@ class HerbDetailsScreen extends StatelessWidget {
                           child: Text(
                             herb.name,
                             style: const TextStyle(
-                              fontSize: 20,
+                              fontSize: 22,
                               fontWeight: FontWeight.w900,
                               color: AppColors.forest,
                             ),
@@ -128,13 +132,13 @@ class HerbDetailsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
-                              vertical: 2,
+                              vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.emerald100.withValues(alpha: 0.6),
-                              borderRadius: BorderRadius.circular(20),
+                              color: AppColors.emerald50,
+                              borderRadius: BorderRadius.circular(AppColors.radiusSm),
                               border: Border.all(
-                                color: AppColors.forest.withValues(alpha: 0.1),
+                                color: AppColors.forest.withValues(alpha: 0.15),
                               ),
                             ),
                             child: Text(
@@ -142,52 +146,54 @@ class HerbDetailsScreen extends StatelessWidget {
                               style: const TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.emerald900,
+                                color: AppColors.forest,
                               ),
                             ),
                           ),
                         ],
                       ],
                     ),
+                    const SizedBox(height: 4),
                     Text(
                       herb.scientificName,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
-                        color: AppColors.gray400,
+                        color: AppColors.textSecondary,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text(
-                      'USED FOR',
+                    const Text(
+                      'MATUMIZI MAKUU',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.gray400,
+                        color: AppColors.textSecondary,
                         letterSpacing: 1,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: herb.usedFor.map((use) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 10,
-                            vertical: 4,
+                            vertical: 5,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(AppColors.radiusSm),
                             border: Border.all(
-                              color: AppColors.forest.withValues(alpha: 0.1),
+                              color: AppColors.borderLight,
                             ),
+                            boxShadow: AppColors.elevationSm,
                           ),
                           child: Text(
                             use,
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 11,
                               fontWeight: FontWeight.bold,
                               color: AppColors.forest,
                             ),
@@ -196,31 +202,31 @@ class HerbDetailsScreen extends StatelessWidget {
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
-                    Text(
-                      'ABOUT',
+                    const Text(
+                      'KUHUSU MMEA HUU',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.forest.withValues(alpha: 0.5),
+                        color: AppColors.textSecondary,
                         letterSpacing: 1,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
                       herb.description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.gray600,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textPrimary,
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text(
-                      'BENEFITS',
+                    const Text(
+                      'FAIDA ZA KIAFYA',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.gray400,
+                        color: AppColors.textSecondary,
                         letterSpacing: 1,
                       ),
                     ),
@@ -229,20 +235,24 @@ class HerbDetailsScreen extends StatelessWidget {
                       (b) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
-                              Icons.check_circle,
-                              size: 16,
-                              color: AppColors.emerald700,
+                            const Padding(
+                              padding: EdgeInsets.only(top: 2),
+                              child: Icon(
+                                Icons.check_circle,
+                                size: 16,
+                                color: AppColors.forest,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 b,
                                 style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.forest,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -254,25 +264,26 @@ class HerbDetailsScreen extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(AppColors.radiusMd),
                         border: Border.all(
-                          color: AppColors.forest.withValues(alpha: 0.04),
+                          color: AppColors.borderLight,
                         ),
+                        boxShadow: AppColors.elevationSm,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.science, size: 16, color: AppColors.amber),
+                              Icon(Icons.science, size: 16, color: AppColors.forest),
                               SizedBox(width: 8),
                               Text(
-                                'HOW TO USE',
+                                'JINSI YA KUTUMIA',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
-                                  color: AppColors.amber,
+                                  color: AppColors.forest,
                                   letterSpacing: 1,
                                 ),
                               ),
@@ -281,21 +292,23 @@ class HerbDetailsScreen extends StatelessWidget {
                           const SizedBox(height: 8),
                           Text(
                             herb.howToUse,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.gray600,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary,
                               height: 1.4,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+                    const MakalaInlineBannerAd(),
+                    const SizedBox(height: 14),
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AppColors.orange50,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppColors.radiusMd),
                         border: Border.all(color: AppColors.orange200),
                       ),
                       child: Row(
@@ -303,16 +316,16 @@ class HerbDetailsScreen extends StatelessWidget {
                         children: [
                           Icon(
                             Icons.warning_amber_rounded,
-                            size: 16,
-                            color: Colors.orange.shade600,
+                            size: 18,
+                            color: Colors.orange.shade700,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          const SizedBox(width: 10),
+                          const Expanded(
                             child: Text(
-                              '**Caution**: Herbal infusions are highly active naturally. Start with a smaller mug to check body compatibility. Consistently monitor symptoms.',
+                              'Tahadhari: Mimea ya asili ina nguvu kubwa ya kibaolojia. Inashauriwa kuanza na kiasi kidogo ili kuona jinsi mwili unavyopokea, na kufuata mwongozo sahihi.',
                               style: TextStyle(
-                                fontSize: 9,
-                                color: AppColors.gray500,
+                                fontSize: 11,
+                                color: AppColors.textSecondary,
                                 height: 1.4,
                               ),
                             ),
@@ -320,25 +333,57 @@ class HerbDetailsScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: () {
+                        final product = context.read<DawaOrderService>().getProductForHerb(herb.name);
+                        OrderProductSheet.show(context, product);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.emerald50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.emerald800.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.shopping_bag_outlined, size: 16, color: AppColors.emerald800),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Agiza Dawa Asili ya ${herb.name} (Punguzo 50%)',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.emerald800,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppColors.emerald800),
+                          ],
+                        ),
+                      ),
+                    ),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () => app.navigate(AppScreen.conditions),
                         icon: const Icon(Icons.auto_awesome, size: 16, color: AppColors.amber),
-                        label: const Text(
-                          'View More Remedies',
+                        label: Text(
+                          'Tazama Hali za Afya na Tiba Zaidi',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppTypography.button,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.forest,
-                          foregroundColor: AppColors.cream,
+                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(AppColors.radiusPill),
                           ),
                         ),
                       ),
@@ -350,6 +395,7 @@ class HerbDetailsScreen extends StatelessWidget {
           ),
           ),
         ),
+        const MakalaBannerAd(),
         const AppBottomNav(),
       ],
     ),

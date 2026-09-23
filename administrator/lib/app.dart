@@ -13,6 +13,8 @@ import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/admin_products_screen.dart';
+import 'screens/admin_orders_screen.dart';
 import 'screens/users_screen.dart';
 import 'theme/admin_colors.dart';
 import 'theme/admin_theme.dart';
@@ -154,6 +156,10 @@ class _MainShell extends StatelessWidget {
         screen = const MwalimuAdminScreen();
       case AdminScreen.settings:
         screen = const SettingsScreen();
+      case AdminScreen.products:
+        screen = const AdminProductsScreen();
+      case AdminScreen.orders:
+        screen = const AdminOrdersScreen();
     }
 
     return AdminBackground(

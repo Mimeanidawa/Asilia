@@ -129,6 +129,8 @@ class _CarouselContentPickerSheet extends StatelessWidget {
         openContentPost(context, hit.post!);
       case ContentSearchHitKind.lesson:
         app.navigate(AppScreen.darasaHuru, lessonId: hit.lesson!.id);
+      case ContentSearchHitKind.condition:
+        app.navigate(AppScreen.conditions, conditionId: hit.condition!.id);
     }
   }
 }
@@ -147,6 +149,81 @@ class _SearchHitTile extends StatelessWidget {
         showSectionLabel: true,
         compact: true,
         onTap: onTap,
+      );
+    }
+
+    if (hit.kind == ContentSearchHitKind.condition) {
+      final cond = hit.condition!;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.healing_rounded, color: AppColors.emerald800),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.emerald50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Ugonjwa & Afya',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.emerald800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          cond.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.forest,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          cond.shortDesc,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: AppColors.gray500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.gray400),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
 

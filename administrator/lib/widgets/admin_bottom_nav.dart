@@ -299,6 +299,22 @@ class _MoreMenuSheet extends StatelessWidget {
             ),
           ),
           _MoreTile(
+            icon: Icons.medication_rounded,
+            label: 'Dawa & Bidhaa',
+            subtitle: 'Post & manage dawa (50% off)',
+            color: AdminColors.emerald,
+            active: current == AdminScreen.products,
+            onTap: () => onSelect(AdminScreen.products),
+          ),
+          _MoreTile(
+            icon: Icons.local_shipping_rounded,
+            label: 'Oda & Risiti',
+            subtitle: 'Customer orders & transit',
+            color: AdminColors.rose,
+            active: current == AdminScreen.orders,
+            onTap: () => onSelect(AdminScreen.orders),
+          ),
+          _MoreTile(
             icon: Icons.insights_rounded,
             label: 'Analytics',
             subtitle: 'Charts & performance',

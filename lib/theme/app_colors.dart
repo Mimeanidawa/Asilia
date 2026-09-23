@@ -1,150 +1,166 @@
 import 'package:flutter/material.dart';
 
-/// Dawa Asili — refined botanical system.
-/// Soft mist canvas, deep forest ink, leaf accent, warm copper spark.
+/// Dawa Asili — Modern, premium botanical design system.
+/// Crisp luminous canvas, deep forest ink, emerald accents, and warm golden embers.
 class AppColors {
-  // Canvas (cream* kept for API compatibility)
-  static const cream = Color(0xFFF3F7F4);
-  static const creamDark = Color(0xFFE4EDE7);
+  // Canvas & surfaces
+  static const cream = Color(0xFFF4F7F4);
+  static const creamDark = Color(0xFFE8EFEA);
+  static const surface = Color(0xFFF9FBF9);
+  static const surfaceElevated = Color(0xFFFFFFFF);
+  static const canvas = Color(0xFFF6F9F7);
 
   // Brand ink
-  static const forest = Color(0xFF0C231C);
-  static const forestLight = Color(0xFF1A4034);
-  static const amber = Color(0xFFC17A45);
-  static const amberLight = Color(0xFFE4BC96);
-  static const deviceBorder = Color(0xFF041510);
+  static const forest = Color(0xFF09281E);
+  static const forestLight = Color(0xFF144534);
+  static const deviceBorder = Color(0xFF061A13);
 
-  // Surfaces
-  static const surface = Color(0xFFF7FAF8);
-  static const surfaceElevated = Color(0xFFFFFFFF);
+  // Accent & Sparks
+  static const amber = Color(0xFFD97706);
+  static const amberLight = Color(0xFFFDE68A);
+  static const gold = Color(0xFFF59E0B);
 
-  // Leaf scale
-  static const emerald50 = Color(0xFFE8F3EC);
-  static const emerald100 = Color(0xFFD0E6D9);
-  static const emerald200 = Color(0xFFA8D4BC);
-  static const emerald400 = Color(0xFF3FAE78);
-  static const emerald700 = Color(0xFF1B7A52);
-  static const emerald800 = Color(0xFF145C3E);
-  static const emerald900 = Color(0xFF0C3D2A);
+  // Emerald leaf scale
+  static const emerald50 = Color(0xFFECFDF5);
+  static const emerald100 = Color(0xFFD1FAE5);
+  static const emerald200 = Color(0xFFA7F3D0);
+  static const emerald400 = Color(0xFF34D399);
+  static const emerald500 = Color(0xFF10B981);
+  static const emerald700 = Color(0xFF047857);
+  static const emerald800 = Color(0xFF065F46);
+  static const emerald900 = Color(0xFF064E3B);
 
-  // Neutrals — cool green undertone
-  static const gray200 = Color(0xFFD0DAD4);
-  static const gray400 = Color(0xFF84928B);
-  static const gray500 = Color(0xFF5E6E66);
-  static const gray600 = Color(0xFF3A4741);
+  // Neutrals with subtle botanic undertone
+  static const gray100 = Color(0xFFF3F4F6);
+  static const gray200 = Color(0xFFE5E7EB);
+  static const gray300 = Color(0xFFD1D5DB);
+  static const gray400 = Color(0xFF9CA3AF);
+  static const gray500 = Color(0xFF6B7280);
+  static const gray600 = Color(0xFF4B5563);
+  static const gray700 = Color(0xFF374151);
+
+  // Modern typography & input helpers
+  static const textPrimary = Color(0xFF09281E);
+  static const textSecondary = Color(0xFF6B7280);
+  static const textTertiary = Color(0xFF9CA3AF);
+  static const borderLight = Color(0x1409281E);
+  static const inputFill = Color(0xFFF9FBF9);
 
   // Semantic
-  static const orange50 = Color(0xFFFFF4EB);
-  static const orange200 = Color(0xFFF5C9A8);
-  static const red50 = Color(0xFFFFF1F1);
-  static const red600 = Color(0xFFD14343);
-  static const blue50 = Color(0xFFEEF5FB);
-  static const blue900 = Color(0xFF1A3A5C);
+  static const orange50 = Color(0xFFFFF7ED);
+  static const orange200 = Color(0xFFFED7AA);
+  static const red50 = Color(0xFFFEF2F2);
+  static const red600 = Color(0xFFDC2626);
+  static const blue50 = Color(0xFFEFF6FF);
+  static const blue900 = Color(0xFF1E3A8A);
 
-  static const cardShadow = Color(0x140C231C);
-  static const softShadow = Color(0x0D0C231C);
+  // Modern soft shadows
+  static const cardShadow = Color(0x0C09281E);
+  static const softShadow = Color(0x0809281E);
 
-  static const radiusSm = 14.0;
-  static const radiusMd = 18.0;
-  static const radiusLg = 22.0;
-  static const radiusXl = 28.0;
+  // Standard radii
+  static const radiusXs = 8.0;
+  static const radiusSm = 12.0;
+  static const radiusMd = 16.0;
+  static const radiusLg = 20.0;
+  static const radiusXl = 26.0;
   static const radiusPill = 999.0;
 
   static List<BoxShadow> get elevationSm => [
-        BoxShadow(
-          color: softShadow,
-          blurRadius: 16,
-          offset: const Offset(0, 6),
+        const BoxShadow(
+          color: Color(0x08000000),
+          blurRadius: 12,
+          offset: Offset(0, 3),
         ),
       ];
 
   static List<BoxShadow> get elevationMd => [
-        BoxShadow(
-          color: cardShadow,
-          blurRadius: 28,
-          offset: const Offset(0, 12),
-          spreadRadius: -8,
+        const BoxShadow(
+          color: Color(0x0F000000),
+          blurRadius: 20,
+          offset: Offset(0, 6),
+          spreadRadius: -2,
         ),
       ];
 
   static List<BoxShadow> get elevationLg => [
-        BoxShadow(
-          color: forest.withValues(alpha: 0.12),
-          blurRadius: 36,
-          offset: const Offset(0, 18),
-          spreadRadius: -10,
+        const BoxShadow(
+          color: Color(0x1409281E),
+          blurRadius: 32,
+          offset: Offset(0, 12),
+          spreadRadius: -4,
         ),
       ];
 
   static List<BoxShadow> get navShadow => [
-        BoxShadow(
-          color: forest.withValues(alpha: 0.10),
-          blurRadius: 32,
-          offset: const Offset(0, 12),
-          spreadRadius: -4,
+        const BoxShadow(
+          color: Color(0x1209281E),
+          blurRadius: 28,
+          offset: Offset(0, 8),
+          spreadRadius: -2,
         ),
-        BoxShadow(
-          color: forest.withValues(alpha: 0.04),
+        const BoxShadow(
+          color: Color(0x06000000),
           blurRadius: 8,
-          offset: const Offset(0, 2),
+          offset: Offset(0, 2),
         ),
       ];
 
   static LinearGradient get heroGradient => const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF1F6B52), forest],
+        colors: [Color(0xFF0D3D2E), forest],
       );
 
   static LinearGradient get warmGradient => const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFFE8F0EB), cream],
+        colors: [Color(0xFFF1F6F2), cream],
       );
 
   static LinearGradient get canvasGradient => const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xFFF7FAF8),
-          cream,
-          Color(0xFFEAF1EC),
+          Color(0xFFFAFBF9),
+          Color(0xFFF4F7F4),
+          Color(0xFFEEF3EF),
         ],
-        stops: [0.0, 0.45, 1.0],
+        stops: [0.0, 0.5, 1.0],
       );
 
   static const accentGlow = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0xFFE8F3EC),
-          Color(0xFFF2F7F4),
-          Color(0xFFE0EDE5),
+          Color(0xFFECFDF5),
+          Color(0xFFF4F7F4),
+          Color(0xFFD1FAE5),
         ],
       );
 
-  static LinearGradient get inkWash => LinearGradient(
+  static LinearGradient get inkWash => const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          forestLight.withValues(alpha: 0.96),
+          forestLight,
           forest,
-          const Color(0xFF061610),
+          Color(0xFF04140F),
         ],
       );
 
   static LinearGradient get leafSheen => const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFF2D9B6F), Color(0xFF1B7A52)],
+        colors: [Color(0xFF10B981), Color(0xFF047857)],
       );
 
   static LinearGradient get headerSheen => LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          surfaceElevated.withValues(alpha: 0.98),
-          surfaceElevated.withValues(alpha: 0.92),
+          surfaceElevated,
+          surfaceElevated.withValues(alpha: 0.94),
         ],
       );
 }

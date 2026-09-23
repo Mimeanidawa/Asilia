@@ -375,4 +375,6 @@ class ContentSections {
       default: return section;
     }
   }
+
+  static String sectionTitle(String section) => sectionLabel(section);
 }

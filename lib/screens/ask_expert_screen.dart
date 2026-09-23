@@ -187,7 +187,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
               Navigator.pop(ctx);
               final svc = context.read<MwalimuService>();
               await svc.loadSettings();
-              if (!context.mounted) return;
+              if (!mounted) return;
               final result = await showAuraxPayment(
                 context,
                 type: PaymentType.premium,
@@ -196,9 +196,9 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                     'Fungua makala zote + maswali bila kikomo kwa Mwalimu (siku 30)',
                 amount: svc.settings.premiumPrice,
               );
-              if (result == AuraxPaymentResult.success && context.mounted) {
+              if (result == AuraxPaymentResult.success && mounted) {
                 await AppRefresh.afterPremiumPurchase(context);
-                if (!context.mounted) return;
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
@@ -680,7 +680,7 @@ class _SharedArticleCard extends StatelessWidget {
                 child: CachedNetworkImage(
                   imageUrl: ImageUrl.display(part.imageUrl!),
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
+                  placeholder: (context, url) => Container(
                     color: AppColors.emerald50,
                     alignment: Alignment.center,
                     child: const SizedBox(
@@ -692,7 +692,7 @@ class _SharedArticleCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  errorWidget: (_, __, ___) => Container(
+                  errorWidget: (context, url, error) => Container(
                     color: AppColors.emerald50,
                     alignment: Alignment.center,
                     child: const Icon(

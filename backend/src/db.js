@@ -250,7 +250,15 @@ export async function initDb() {
       ('min_app_build', '0'),
       ('update_title', 'Update Required'),
       ('update_message', 'A new version of Dawa Asili is available. Update now to continue.'),
-      ('store_url', 'https://play.google.com/store/apps/details?id=com.asilia')
+      ('store_url', 'https://play.google.com/store/apps/details?id=com.asilia'),
+      ('about_app_name', 'Dawa Asili'),
+      ('about_app_version', '1.1.6'),
+      ('about_app_description', 'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.'),
+      ('about_contact_phone', '+255 700 000 000'),
+      ('about_contact_email', 'info@dawaasili.com'),
+      ('about_website', 'https://dawaasili.co.tz'),
+      ('about_disclaimer', 'Elimu na taarifa zote zilizomo humu ni kwa ajili ya kujifunza na kuelimisha tu.'),
+      ('about_show_licenses', 'false')
     ON CONFLICT (key) DO NOTHING
   `);
 
@@ -335,6 +343,63 @@ export async function initDb() {
   await db.query(`
     ALTER TABLE admins
       ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS products (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      subtitle TEXT NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      price INTEGER NOT NULL DEFAULT 25000,
+      original_price INTEGER NOT NULL DEFAULT 50000,
+      discount_percent INTEGER NOT NULL DEFAULT 50,
+      image_url TEXT NOT NULL DEFAULT '',
+      badge_text TEXT NOT NULL DEFAULT 'PUNGUZO LA 50% 🔥',
+      stock_quantity INTEGER NOT NULL DEFAULT 50,
+      category TEXT NOT NULL DEFAULT 'general',
+      benefits JSONB NOT NULL DEFAULT '[]'::jsonb,
+      how_to_use TEXT NOT NULL DEFAULT '',
+      is_published BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS product_orders (
+      id TEXT PRIMARY KEY,
+      receipt_number TEXT UNIQUE NOT NULL,
+      user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+      product_id TEXT NOT NULL,
+      product_title TEXT NOT NULL,
+      product_image_url TEXT NOT NULL DEFAULT '',
+      unit_price INTEGER NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      total_amount INTEGER NOT NULL,
+      customer_name TEXT NOT NULL,
+      customer_phone TEXT NOT NULL,
+      region TEXT NOT NULL,
+      district TEXT NOT NULL,
+      ward TEXT NOT NULL,
+      payment_method TEXT NOT NULL DEFAULT 'M-Pesa',
+      payment_status TEXT NOT NULL DEFAULT 'paid',
+      delivery_status TEXT NOT NULL DEFAULT 'pending',
+      tracking_info TEXT NOT NULL DEFAULT '',
+      admin_notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_product_orders_receipt ON product_orders (receipt_number);
+    CREATE INDEX IF NOT EXISTS idx_product_orders_user ON product_orders (user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_product_orders_delivery ON product_orders (delivery_status, created_at DESC);
+
+    INSERT INTO products (id, title, subtitle, description, price, original_price, discount_percent, image_url, badge_text, stock_quantity, category, benefits, how_to_use)
+    VALUES 
+    ('dawa_tumbo', 'Dawa Asili ya Vidonda vya Tumbo & Gesi', 'Mchanganyiko maalum wa Mshubiri & Mizizi ya Asili', 'Tiba madhubuti ya vidonda vya tumbo sugu (peptic ulcers), kiungulia, gesi kujaa tumboni, na kurekebisha tindikali.', 25000, 50000, 50, 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600', 'PUNGUZO LA 50% 🔥', 45, 'tumbo', '["Huponya vidonda vya tumbo kuanzia siku 7 za mwanzo", "Huondoa kiungulia kikali na kutapika maji machungu", "Hulainisha kuta za tumbo na kusawazisha tindikali", "Inafaa kwa watoto na watu wazima (100% asilia)"]', 'Kijiko 1 cha chakula kwenye maji vuguvugu asubuhi kabla ya kula na usiku kabla ya kulala.'),
+    ('dawa_kisukari', 'Mchanganyiko wa Asili wa Kudhibiti Kisukari', 'Magome na Majani ya Mwarobaini & Mlonge', 'Tiba asilia ya kusaidia kongosho kuzalisha homoni ya insulini, kusafisha damu, na kudhibiti viwango vya juu vya sukari.', 30000, 60000, 50, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600', 'PUNGUZO LA 50% 🔥', 30, 'kisukari', '["Hushusha sukari na kuweka kiwango thabiti", "Huondoa uchovu mwingi na kizunguzungu", "Hulinda macho na mafigo dhidi ya madhara ya sukari"]', 'Kikombe nusu asubuhi na jioni kwa siku 14 mfululizo.'),
+    ('dawa_presha', 'Dawa ya Kusafisha Mishipa & Presha ya Juu', 'Mvuke na Dondoo ya Kitunguu Saumu & Tangawizi', 'Huongeza upenyaji wa damu, kuyeyusha mafuta mabaya (cholesterol), na kushusha shinikizo la damu kwenye mishipa ya moyo.', 28000, 56000, 50, 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=600', 'PUNGUZO LA 50% 🔥', 25, 'presha', '["Hushusha presha na kupunguza maumivu ya kisogo", "Huyeyusha cholesterol na kusafisha damu", "Huleta utulivu mzito wa mapigo ya moyo"]', 'Kijiko 1 asubuhi kwenye chai au maji ya vuguvugu.'),
+    ('dawa_ngozi', 'Mafuta & Sabuni ya Asili ya Ngozi na Chunusi', 'Mshubiri, Mwarobaini & Manjano Safi', 'Huondoa chunusi sugu, vipele, muwasho wa ngozi, fangasi, mabaka meusi, na kurejesha ngozi kuwa nyororo na yenye mng’ao.', 20000, 40000, 50, 'https://images.unsplash.com/photo-1608248597359-598d1a100a73?auto=format&fit=crop&q=80&w=600', 'PUNGUZO LA 50% 🔥', 60, 'ngozi', '["Hukausha chunusi ndani ya masaa 48", "Huondoa madoa na makovu ya zamani", "Hutibu fangasi sugu na kuwasha kwa ngozi"]', 'Paka mara 2 kwa siku baada ya kuosha uso au eneo lililoathirika.')
+    ON CONFLICT (id) DO NOTHING;
   `);
 
   console.log('Database schema ready');

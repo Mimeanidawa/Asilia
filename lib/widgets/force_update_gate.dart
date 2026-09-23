@@ -200,7 +200,7 @@ class ForceUpdateGate extends StatelessWidget {
         child: Image.asset(
           'assets/app_icon.png',
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(
+          errorBuilder: (_, _, _) => Container(
             color: AppColors.emerald800,
             child: const Icon(
               Icons.system_update_rounded,
