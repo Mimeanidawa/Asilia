@@ -375,7 +375,39 @@ router.post('/aurax/webhook', async (req, res) => {
        LIMIT 1`,
       [providerOrderId, metadataOrderId || ''],
     );
-    if (!rows.length) return res.json({ ok: true, notFound: true });
+    if (!rows.length) {
+      const { rows: pRows } = await db.query(
+        `SELECT * FROM product_orders
+         WHERE (provider = 'aurax' AND provider_order_id = $1)
+            OR id = $2
+            OR receipt_number = $2
+         LIMIT 1`,
+        [providerOrderId, metadataOrderId || ''],
+      );
+
+      if (pRows.length) {
+        const pOrder = pRows[0];
+        if (normalizedStatus === 'failed') {
+          await db.query(
+            `UPDATE product_orders SET payment_status = 'failed', updated_at = NOW() WHERE id = $1`,
+            [pOrder.id],
+          );
+        } else if (normalizedStatus === 'success') {
+          await db.query(
+            `UPDATE product_orders
+             SET payment_status = 'paid',
+                 payment_reference = $2,
+                 tracking_info = 'Agizo lako limethibitishwa na malipo yamepokelewa kikamilifu.',
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [pOrder.id, auraxTransactionId(payload) || providerOrderId],
+          );
+        }
+        return res.json({ ok: true, productOrder: true });
+      }
+
+      return res.json({ ok: true, notFound: true });
+    }
 
     const order = rows[0];
     assertAuraxPaymentMatches(order, payload);

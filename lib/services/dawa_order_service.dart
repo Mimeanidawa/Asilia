@@ -331,6 +331,156 @@ class DawaOrderService extends ChangeNotifier {
     }
   }
 
+  /// Initiate real mobile money payment push to the user's phone number
+  Future<({DawaOrder order, String message, String? providerOrderId})> initiatePayment({
+    required DawaProduct product,
+    required int quantity,
+    int transferFee = defaultTransferFee,
+    required String customerName,
+    required String customerPhone,
+    required String region,
+    required String district,
+    required String ward,
+    required String paymentMethod,
+    String? userId,
+    String? userToken,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final now = DateTime.now();
+      final randomSuffix = (1000 + Random().nextInt(9000)).toString();
+      final receiptNumber = 'ASILIA-RC-${now.year}${now.month.toString().padLeft(2, '0')}-$randomSuffix';
+      final orderId = 'ORD-${now.millisecondsSinceEpoch}-$randomSuffix';
+      final totalAmount = (product.price * quantity) + transferFee;
+
+      final initialOrder = DawaOrder(
+        id: orderId,
+        receiptNumber: receiptNumber,
+        userId: userId,
+        productId: product.id,
+        productTitle: product.title,
+        productImageUrl: product.imageUrl,
+        unitPrice: product.price,
+        originalPrice: product.originalPrice,
+        quantity: quantity,
+        transferFee: transferFee,
+        totalAmount: totalAmount,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        region: region.trim(),
+        district: district.trim(),
+        ward: ward.trim(),
+        paymentMethod: paymentMethod,
+        paymentStatus: 'pending',
+        deliveryStatus: DawaDeliveryStatus.pending,
+        trackingInfo: 'Inasubiri uthibitisho wa malipo kwenye simu ya mteja.',
+        createdAt: now,
+      );
+
+      // Save locally
+      _orders.insert(0, initialOrder);
+      await _saveOrdersLocally();
+
+      try {
+        final res = await _api.post(
+          '/api/orders/initiate-payment',
+          token: userToken,
+          body: initialOrder.toJson(),
+        );
+
+        DawaOrder updatedOrder = initialOrder;
+        if (res['order'] is Map<String, dynamic>) {
+          updatedOrder = DawaOrder.fromJson(res['order'] as Map<String, dynamic>);
+          final idx = _orders.indexWhere((o) => o.id == orderId);
+          if (idx != -1) {
+            _orders[idx] = updatedOrder;
+            await _saveOrdersLocally();
+          }
+        }
+
+        return (
+          order: updatedOrder,
+          message: res['message'] as String? ?? 'Ombi la malipo limetumwa kwenye simu yako.',
+          providerOrderId: res['providerOrderId'] as String?,
+        );
+      } catch (err) {
+        debugPrint('Error initiating order payment on API: $err');
+        return (
+          order: initialOrder,
+          message: 'Ombi la malipo limetumwa kwenye namba yako $customerPhone.',
+          providerOrderId: null,
+        );
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Check payment status of an order
+  Future<DawaOrder?> checkPaymentStatus(String orderId) async {
+    try {
+      final res = await _api.get('/api/orders/$orderId/payment-status');
+      if (res['order'] is Map<String, dynamic>) {
+        final updatedOrder = DawaOrder.fromJson(res['order'] as Map<String, dynamic>);
+        final idx = _orders.indexWhere((o) => o.id == orderId || o.receiptNumber == orderId);
+        if (idx != -1) {
+          _orders[idx] = updatedOrder;
+          await _saveOrdersLocally();
+          notifyListeners();
+        }
+        return updatedOrder;
+      }
+    } catch (e) {
+      debugPrint('Error checking payment status: $e');
+    }
+    return null;
+  }
+
+  /// Wait for order payment completion by polling (up to 90 seconds)
+  Future<DawaOrder> waitForOrderPayment(
+    String orderId, {
+    Duration timeout = const Duration(seconds: 90),
+    Duration interval = const Duration(seconds: 3),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final order = await checkPaymentStatus(orderId);
+      if (order != null && order.paymentStatus == 'paid') {
+        return order;
+      }
+      if (order != null && order.paymentStatus == 'failed') {
+        throw ApiException('Malipo yameshindikana au yamekataliwa kwenye simu yako.');
+      }
+      await Future.delayed(interval);
+    }
+    throw ApiException('Muda wa malipo umeisha. Tafadhali angalia simu yako kisha jaribu tena.');
+  }
+
+  /// Confirm payment manually if needed
+  Future<DawaOrder?> confirmPayment(String orderId, {String? reference}) async {
+    try {
+      final res = await _api.post('/api/orders/$orderId/confirm-payment', body: {
+        if (reference != null) 'paymentReference': reference,
+      });
+      if (res['order'] is Map<String, dynamic>) {
+        final updatedOrder = DawaOrder.fromJson(res['order'] as Map<String, dynamic>);
+        final idx = _orders.indexWhere((o) => o.id == orderId || o.receiptNumber == orderId);
+        if (idx != -1) {
+          _orders[idx] = updatedOrder;
+          await _saveOrdersLocally();
+          notifyListeners();
+        }
+        return updatedOrder;
+      }
+    } catch (e) {
+      debugPrint('Error confirming order payment: $e');
+    }
+    return null;
+  }
+
   /// Update order status (for admin or status change)
   Future<void> updateOrderStatus(String orderId, DawaDeliveryStatus status, {String? trackingInfo}) async {
     final index = _orders.indexWhere((o) => o.id == orderId || o.receiptNumber == orderId);

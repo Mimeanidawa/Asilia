@@ -391,6 +391,11 @@ export async function initDb() {
     );
 
     ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS transfer_fee INTEGER NOT NULL DEFAULT 12000;
+    ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'aurax';
+    ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS provider_order_id TEXT;
+    ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS payment_reference TEXT DEFAULT '';
+
+    CREATE INDEX IF NOT EXISTS idx_product_orders_provider_order ON product_orders (provider, provider_order_id);
 
     CREATE INDEX IF NOT EXISTS idx_product_orders_receipt ON product_orders (receipt_number);
     CREATE INDEX IF NOT EXISTS idx_product_orders_user ON product_orders (user_id, created_at DESC);
