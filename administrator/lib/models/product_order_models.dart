@@ -11,6 +11,7 @@ class AdminProduct {
     required this.badgeText,
     required this.stockQuantity,
     required this.category,
+    this.targetKeywords = '',
     required this.benefits,
     this.howToUse = '',
     required this.isPublished,
@@ -28,6 +29,7 @@ class AdminProduct {
   final String badgeText;
   final int stockQuantity;
   final String category;
+  final String targetKeywords;
   final List<String> benefits;
   final String howToUse;
   final bool isPublished;
@@ -46,6 +48,7 @@ class AdminProduct {
       badgeText: json['badgeText'] ?? json['badge_text'] as String? ?? 'PUNGUZO LA 50% 🔥',
       stockQuantity: (json['stockQuantity'] ?? json['stock_quantity'] as num?)?.toInt() ?? 0,
       category: json['category'] as String? ?? 'general',
+      targetKeywords: json['targetKeywords'] ?? json['target_keywords'] as String? ?? '',
       benefits: json['benefits'] is List
           ? (json['benefits'] as List).map((e) => e.toString()).toList()
           : [],
@@ -67,6 +70,8 @@ class AdminProduct {
         'badgeText': badgeText,
         'stockQuantity': stockQuantity,
         'category': category,
+        'targetKeywords': targetKeywords,
+        'target_keywords': targetKeywords,
         'benefits': benefits,
         'howToUse': howToUse,
         'isPublished': isPublished,

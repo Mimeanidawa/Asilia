@@ -11,6 +11,7 @@ class DawaProduct {
     this.badgeText = 'PUNGUZO LA HADI 50% 🔥',
     this.stockQuantity = 100,
     this.category = 'dawa_asili',
+    this.targetKeywords = '',
     this.benefits = const [],
     this.howToUse = '',
     this.isAvailable = true,
@@ -27,6 +28,7 @@ class DawaProduct {
   final String badgeText;
   final int stockQuantity;
   final String category;
+  final String targetKeywords;
   final List<String> benefits;
   final String howToUse;
   final bool isAvailable;
@@ -45,6 +47,8 @@ class DawaProduct {
         'badgeText': badgeText,
         'stockQuantity': stockQuantity,
         'category': category,
+        'targetKeywords': targetKeywords,
+        'target_keywords': targetKeywords,
         'benefits': benefits,
         'howToUse': howToUse,
         'isAvailable': isAvailable,
@@ -62,6 +66,7 @@ class DawaProduct {
         badgeText: json['badgeText'] as String? ?? 'PUNGUZO LA HADI 50% 🔥',
         stockQuantity: (json['stockQuantity'] as num?)?.toInt() ?? 100,
         category: json['category'] as String? ?? 'dawa_asili',
+        targetKeywords: json['targetKeywords'] ?? json['target_keywords'] as String? ?? '',
         benefits: (json['benefits'] as List?)?.map((e) => e.toString()).toList() ?? const [],
         howToUse: json['howToUse'] as String? ?? '',
         isAvailable: json['isAvailable'] as bool? ?? true,

@@ -310,6 +310,64 @@ class _ProductCard extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AdminColors.emerald.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.category_outlined, size: 12, color: AdminColors.emerald),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Kategoria: ${_formatCategory(product.category)}',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: AdminColors.emerald,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (product.targetKeywords.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.vpn_key_outlined, size: 11, color: AdminColors.amber),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Makala: ${product.targetKeywords}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             const Divider(color: AdminColors.divider, height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -338,6 +396,22 @@ class _ProductCard extends StatelessWidget {
       ),
     );
   }
+
+  String _formatCategory(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'jino': return '🦷 Jino & Meno';
+      case 'typhoid': return '🌡️ Typhoid';
+      case 'tumbo': return '🥣 Vidonda vya Tumbo';
+      case 'kisukari': return '🩸 Kisukari';
+      case 'presha': return '❤️ Presha & Moyo';
+      case 'ngozi': return '✨ Ngozi & Chunusi';
+      case 'uzazi': return '🌿 Uzazi';
+      case 'macho': return '👁️ Macho';
+      case 'mifupa': return '🦴 Mifupa & Viungo';
+      case 'pumu': return '🫁 Pumu & Kifua';
+      default: return cat.isNotEmpty ? cat : 'General';
+    }
+  }
 }
 
 class _ProductFormSheet extends StatefulWidget {
@@ -351,6 +425,7 @@ class _ProductFormSheet extends StatefulWidget {
 class _ProductFormSheetState extends State<_ProductFormSheet> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _subtitleCtrl;
+  late final TextEditingController _targetKeywordsCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _origPriceCtrl;
   late final TextEditingController _priceCtrl;
@@ -358,7 +433,66 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
   late final TextEditingController _stockCtrl;
   late final TextEditingController _benefitsCtrl;
   late final TextEditingController _howToUseCtrl;
+  String _selectedCategory = 'general';
   bool _saving = false;
+
+  static const List<Map<String, String>> _categories = [
+    {
+      'id': 'jino',
+      'name': '🦷 Jino & Meno',
+      'keywords': 'jino, meno, fizi, kungoa jino, toothache, kutoboka jino, maumivu ya jino, maumivu ya meno, kinywa',
+    },
+    {
+      'id': 'typhoid',
+      'name': '🌡️ Typhoid (Homa ya Matumbo)',
+      'keywords': 'typhoid, homa ya matumbo, salmonella, taifodi, homa ya tumbo, kichefuchefu, kuumwa tumbo',
+    },
+    {
+      'id': 'tumbo',
+      'name': '🥣 Vidonda vya Tumbo & Gesi',
+      'keywords': 'tumbo, vidonda vya tumbo, gesi, ulcers, kiungulia, acid reflux, tumbo kuwaka moto',
+    },
+    {
+      'id': 'kisukari',
+      'name': '🩸 Kisukari & Sukari',
+      'keywords': 'sukari, kisukari, diabetes, insulini, kupanda sukari',
+    },
+    {
+      'id': 'presha',
+      'name': '❤️ Presha & Moyo',
+      'keywords': 'presha, shinikizo la damu, cholesterol, moyo, mishipa ya damu, kizunguzungu',
+    },
+    {
+      'id': 'ngozi',
+      'name': '✨ Ngozi & Chunusi',
+      'keywords': 'ngozi, chunusi, upele, fangasi, mabaka, muwasho wa ngozi, madoa',
+    },
+    {
+      'id': 'uzazi',
+      'name': '🌿 Uzazi & Nguvu za Kiume',
+      'keywords': 'uzazi, nguvu za kiume, mbegu, hedhi, maumivu ya hedhi',
+    },
+    {
+      'id': 'macho',
+      'name': '👁️ Macho & Kuona',
+      'keywords': 'macho, kutoona vizuri, mtoto wa jicho, maumivu ya macho',
+    },
+    {
+      'id': 'mifupa',
+      'name': '🦴 Mifupa & Viungo',
+      'keywords': 'mifupa, maumivu ya mgongo, viungo, ganzi, baridi yabisi',
+    },
+    {
+      'id': 'pumu',
+      'name': '🫁 Pumu & Kifua',
+      'keywords': 'pumu, kifua, kikohozi, mafua sugu, kupumua kwa shida',
+    },
+    {
+      'id': 'general',
+      'name': '🌿 Dawa ya Jumla (General)',
+      'keywords': 'afya, kinga ya mwili, uchovu, lishe bora',
+    },
+  ];
 
   @override
   void initState() {
@@ -366,6 +500,8 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     final p = widget.existing;
     _titleCtrl = TextEditingController(text: p?.title ?? '');
     _subtitleCtrl = TextEditingController(text: p?.subtitle ?? '');
+    _selectedCategory = p?.category ?? 'general';
+    _targetKeywordsCtrl = TextEditingController(text: p?.targetKeywords ?? '');
     _descCtrl = TextEditingController(text: p?.description ?? '');
     _origPriceCtrl = TextEditingController(text: (p?.originalPrice ?? 50000).toString());
     _priceCtrl = TextEditingController(text: (p?.price ?? 25000).toString());
@@ -373,12 +509,19 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     _stockCtrl = TextEditingController(text: (p?.stockQuantity ?? 50).toString());
     _benefitsCtrl = TextEditingController(text: p?.benefits.join('\n') ?? 'Huponya haraka na kutuliza maumivu\n100% mimea asilia bila kemikali\nInafaa kwa rika zote');
     _howToUseCtrl = TextEditingController(text: p?.howToUse ?? 'Kijiko 1 asubuhi na jioni kabla ya chakula.');
+
+    // If new product and keywords empty, suggest default for category
+    if (_targetKeywordsCtrl.text.isEmpty) {
+      final found = _categories.firstWhere((c) => c['id'] == _selectedCategory, orElse: () => _categories.last);
+      _targetKeywordsCtrl.text = found['keywords']!;
+    }
   }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _subtitleCtrl.dispose();
+    _targetKeywordsCtrl.dispose();
     _descCtrl.dispose();
     _origPriceCtrl.dispose();
     _priceCtrl.dispose();
@@ -421,7 +564,8 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
       imageUrl: _imageCtrl.text.trim(),
       badgeText: 'PUNGUZO LA $discountPercent% 🔥',
       stockQuantity: int.tryParse(_stockCtrl.text.trim()) ?? 50,
-      category: 'general',
+      category: _selectedCategory,
+      targetKeywords: _targetKeywordsCtrl.text.trim(),
       benefits: benefits,
       howToUse: _howToUseCtrl.text.trim(),
       isPublished: true,
@@ -456,7 +600,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
 
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.88,
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
       padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
       decoration: const BoxDecoration(
@@ -486,8 +630,69 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            _buildField('Jina la Dawa *', _titleCtrl, 'Mf. Dawa Asili ya Vidonda vya Tumbo'),
-            _buildField('Mada / Subtitle', _subtitleCtrl, 'Mf. Mchanganyiko wa Mshubiri & Mizizi'),
+            _buildField('Jina la Dawa *', _titleCtrl, 'Mf. Dawa Asili ya Maumivu ya Jino & Meno'),
+            _buildField('Mada / Subtitle', _subtitleCtrl, 'Mf. Mafuta na Unga wa Karafuu & Mshubiri'),
+
+            // Target Category Dropdown
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Kategoria / Lengo la Ugonjwa *',
+                      style: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 11.5, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: AdminColors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AdminColors.cardBorder),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _categories.any((c) => c['id'] == _selectedCategory) ? _selectedCategory : 'general',
+                        isExpanded: true,
+                        dropdownColor: AdminColors.card,
+                        icon: const Icon(Icons.keyboard_arrow_down, color: AdminColors.emerald),
+                        style: GoogleFonts.plusJakartaSans(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        items: _categories.map((c) {
+                          return DropdownMenuItem<String>(
+                            value: c['id'],
+                            child: Text(c['name']!),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedCategory = val;
+                              final found = _categories.firstWhere((c) => c['id'] == val, orElse: () => _categories.last);
+                              _targetKeywordsCtrl.text = found['keywords']!;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Target Keywords Field
+            _buildField(
+              'Maneno Muhimu ya Makala (Trigger Keywords) *',
+              _targetKeywordsCtrl,
+              'Mf. jino, meno, fizi, kungoa jino, toothache',
+              maxLines: 2,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                '💡 Makala yoyote yenye maneno haya kwenye kichwa au maelezo yataonyesha dawa hii moja kwa moja mtumiaji anapoifungua.',
+                style: GoogleFonts.plusJakartaSans(color: AdminColors.emerald, fontSize: 11),
+              ),
+            ),
+
             Row(
               children: [
                 Expanded(

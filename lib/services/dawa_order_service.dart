@@ -70,6 +70,48 @@ class DawaOrderService extends ChangeNotifier {
   void _loadDefaultProducts() {
     _products = [
       const DawaProduct(
+        id: 'dawa_jino',
+        title: 'Dawa Asili ya Maumivu ya Jino & Meno',
+        subtitle: 'Mafuta & Unga wa Karafuu na Mshubiri',
+        description: 'Hutuliza maumivu makali ya jino ndani ya dakika 5, kuua bakteria wanaotoboa meno, kukinga fizi kutoka damu, na kuondoa harufu mbaya mdomoni.',
+        price: 20000,
+        originalPrice: 40000,
+        discountPercent: 50,
+        imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=600',
+        badgeText: 'PUNGUZO LA 50% 🔥',
+        stockQuantity: 50,
+        category: 'jino',
+        targetKeywords: 'jino, meno, fizi, kungoa jino, toothache, kutoboka jino, maumivu ya jino, maumivu ya meno, kinywa',
+        benefits: [
+          'Hutuliza maumivu ya jino ndani ya dakika 5',
+          'Huua wadudu na bakteria wanaotoboa jino',
+          'Huponya fizi zinazovuja damu na kuvimba',
+          'Huondoa harufu mbaya na kusafisha kinywa',
+        ],
+        howToUse: 'Weka matone 2-3 kwenye pamba kisha weka kwenye jino au fizi yenye maumivu kwa dakika 15, au sukutua na maji vuguvugu.',
+      ),
+      const DawaProduct(
+        id: 'dawa_typhoid',
+        title: 'Dawa Asili ya Typhoid & Homa ya Matumbo',
+        subtitle: 'Dondoo ya Mwarobaini, Mlonge & Mizizi ya Asili',
+        description: 'Tiba madhubuti ya kuangamiza bakteria wa Salmonella typhi mwilini, kuondoa homa kali za vipindi, kutuliza maumivu ya tumbo na kichefuchefu, na kurejesha hamu ya kula.',
+        price: 27000,
+        originalPrice: 54000,
+        discountPercent: 50,
+        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
+        badgeText: 'PUNGUZO LA 50% 🔥',
+        stockQuantity: 40,
+        category: 'typhoid',
+        targetKeywords: 'typhoid, homa ya matumbo, salmonella, taifodi, homa ya tumbo, kichefuchefu, kuumwa tumbo',
+        benefits: [
+          'Huuwa bakteria wa Salmonella typhi kwa ufanisi',
+          'Hushusha homa kali na kuondoa maumivu ya mwili',
+          'Huponya kichefuchefu na kurudisha nguvu',
+          'Hutibu tatizo la typhoid sugu isiyoisha',
+        ],
+        howToUse: 'Kikombe nusu cha chai asubuhi na jioni kwa siku 10 mfululizo.',
+      ),
+      const DawaProduct(
         id: 'dawa_tumbo',
         title: 'Dawa Asili ya Vidonda vya Tumbo & Gesi',
         subtitle: 'Mchanganyiko maalum wa Mshubiri & Mizizi ya Asili',
@@ -80,6 +122,8 @@ class DawaOrderService extends ChangeNotifier {
         imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600',
         badgeText: 'PUNGUZO LA 50% 🔥',
         stockQuantity: 45,
+        category: 'tumbo',
+        targetKeywords: 'tumbo, vidonda vya tumbo, gesi, ulcers, kiungulia, acid reflux, tumbo kuwaka moto',
         benefits: [
           'Huponya vidonda vya tumbo kuanzia siku 7 za mwanzo',
           'Huondoa kiungulia kikali na kutapika maji machungu',
@@ -99,6 +143,8 @@ class DawaOrderService extends ChangeNotifier {
         imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
         badgeText: 'PUNGUZO LA 50% 🔥',
         stockQuantity: 30,
+        category: 'kisukari',
+        targetKeywords: 'sukari, kisukari, diabetes, insulini, kupanda sukari',
         benefits: [
           'Hushusha sukari na kuweka kiwango thabiti',
           'Huondoa uchovu mwingi na kizunguzungu',
@@ -117,6 +163,8 @@ class DawaOrderService extends ChangeNotifier {
         imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=600',
         badgeText: 'PUNGUZO LA 50% 🔥',
         stockQuantity: 25,
+        category: 'presha',
+        targetKeywords: 'presha, shinikizo la damu, cholesterol, moyo, mishipa ya damu, kizunguzungu',
         benefits: [
           'Hushusha presha na kupunguza maumivu ya kisogo',
           'Huyeyusha cholesterol na kusafisha damu',
@@ -135,6 +183,8 @@ class DawaOrderService extends ChangeNotifier {
         imageUrl: 'https://images.unsplash.com/photo-1608248597359-598d1a100a73?auto=format&fit=crop&q=80&w=600',
         badgeText: 'PUNGUZO LA 50% 🔥',
         stockQuantity: 60,
+        category: 'ngozi',
+        targetKeywords: 'ngozi, chunusi, upele, fangasi, mabaka, muwasho wa ngozi, madoa',
         benefits: [
           'Hukausha chunusi ndani ya masaa 48',
           'Huondoa madoa na makovu ya zamani',
@@ -224,27 +274,91 @@ class DawaOrderService extends ChangeNotifier {
           ],
         );
 
-  /// Find matching product by keywords in text
-  DawaProduct getProductForText(String text) {
-    if (_products.isEmpty) return defaultProduct;
-    final lower = text.toLowerCase();
-    if (lower.contains('sukari') || lower.contains('kisukari')) {
-      return _products.firstWhere((p) => p.id == 'dawa_kisukari', orElse: () => defaultProduct);
-    }
-    if (lower.contains('presha') || lower.contains('damu') || lower.contains('moyo')) {
-      return _products.firstWhere((p) => p.id == 'dawa_presha', orElse: () => defaultProduct);
-    }
-    if (lower.contains('ngozi') || lower.contains('chunusi') || lower.contains('upele') || lower.contains('fangasi')) {
-      return _products.firstWhere((p) => p.id == 'dawa_ngozi', orElse: () => defaultProduct);
-    }
-    return _products.firstWhere((p) => p.id == 'dawa_tumbo', orElse: () => defaultProduct);
+  bool _isStopWord(String word) {
+    const stops = {
+      'dawa', 'asili', 'kwa', 'hadi', 'bora', 'safi', 'kuu', 'yake', 'hiki',
+      'huyu', 'hawa', 'zaidi', 'kama', 'nzuri', 'jinsi', 'kutibu', 'tiba',
+      'afya', 'katika', 'kwenye', 'yako', 'wako', 'wangu', 'yote'
+    };
+    return stops.contains(word);
   }
 
   /// Get the most relevant product for a specific makala / post, or the default hero product.
   DawaProduct getProductForPost(ContentPost? post) {
     if (post == null) return defaultProduct;
-    final combined = '${post.title} ${post.subtitle} ${post.category ?? ''} ${post.content}';
-    return getProductForText(combined);
+    if (_products.isEmpty) return defaultProduct;
+
+    final titleLower = post.title.toLowerCase();
+    final subtitleLower = post.subtitle.toLowerCase();
+    final categoryLower = (post.category ?? post.section).toLowerCase();
+    final contentLower = post.content.toLowerCase();
+
+    DawaProduct? bestProduct;
+    int highestScore = 0;
+
+    for (final product in _products) {
+      int score = 0;
+
+      // 1. Target Keywords matching (Highest priority)
+      if (product.targetKeywords.isNotEmpty) {
+        final keywords = product.targetKeywords
+            .toLowerCase()
+            .split(RegExp(r'[,;\s]+'))
+            .map((k) => k.trim())
+            .where((k) => k.length >= 3)
+            .toList();
+
+        for (final kw in keywords) {
+          if (titleLower.contains(kw)) score += 100;
+          if (subtitleLower.contains(kw)) score += 50;
+          if (categoryLower.contains(kw)) score += 40;
+          if (contentLower.contains(kw)) score += 20;
+        }
+      }
+
+      // 2. Category matching
+      final prodCategory = product.category.toLowerCase().trim();
+      if (prodCategory.isNotEmpty && prodCategory != 'general' && prodCategory != 'dawa_asili') {
+        if (titleLower.contains(prodCategory)) score += 80;
+        if (categoryLower.contains(prodCategory)) score += 60;
+        if (contentLower.contains(prodCategory)) score += 25;
+      }
+
+      // 3. Product Title keywords matching in post title/subtitle
+      final titleWords = product.title
+          .toLowerCase()
+          .split(RegExp(r'[,;\s]+'))
+          .map((w) => w.trim())
+          .where((w) => w.length >= 4 && !_isStopWord(w))
+          .toList();
+
+      for (final word in titleWords) {
+        if (titleLower.contains(word)) score += 70;
+        if (subtitleLower.contains(word)) score += 30;
+      }
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestProduct = product;
+      }
+    }
+
+    if (bestProduct != null && highestScore > 0) {
+      return bestProduct;
+    }
+
+    return defaultProduct;
+  }
+
+  /// Find matching product by keywords in text
+  DawaProduct getProductForText(String text) {
+    if (_products.isEmpty) return defaultProduct;
+    return getProductForPost(ContentPost(
+      id: 'text_search_virtual',
+      section: 'general',
+      title: text,
+      content: text,
+    ));
   }
 
   /// Get product matching a condition
@@ -254,7 +368,13 @@ class DawaOrderService extends ChangeNotifier {
       final name = condition.name as String? ?? '';
       final shortDesc = condition.shortDesc as String? ?? '';
       final longDesc = condition.longDesc as String? ?? '';
-      return getProductForText('$name $shortDesc $longDesc');
+      return getProductForPost(ContentPost(
+        id: 'condition_virtual',
+        section: 'condition',
+        title: name,
+        subtitle: shortDesc,
+        content: longDesc,
+      ));
     } catch (_) {
       return defaultProduct;
     }

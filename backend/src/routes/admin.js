@@ -221,6 +221,8 @@ router.get('/products', requireAdmin, async (_req, res) => {
       stockQuantity: r.stock_quantity,
       stock_quantity: r.stock_quantity,
       category: r.category,
+      targetKeywords: r.target_keywords || '',
+      target_keywords: r.target_keywords || '',
       benefits: Array.isArray(r.benefits) ? r.benefits : JSON.parse(r.benefits || '[]'),
       howToUse: r.how_to_use,
       how_to_use: r.how_to_use,
@@ -250,6 +252,8 @@ router.post('/products', requireAdmin, async (req, res) => {
       badgeText = 'PUNGUZO LA 50% 🔥',
       stockQuantity = 50,
       category = 'general',
+      targetKeywords = '',
+      target_keywords = '',
       benefits = [],
       howToUse = '',
       isPublished = true,
@@ -262,13 +266,14 @@ router.post('/products', requireAdmin, async (req, res) => {
     const db = getPool();
     const productId = id || `dawa_${Date.now()}`;
     const benefitsJson = JSON.stringify(Array.isArray(benefits) ? benefits : []);
+    const targetKw = targetKeywords || target_keywords || '';
 
     const { rows } = await db.query(
       `INSERT INTO products (
         id, title, subtitle, description, price, original_price, discount_percent,
-        image_url, badge_text, stock_quantity, category, benefits, how_to_use, is_published,
+        image_url, badge_text, stock_quantity, category, target_keywords, benefits, how_to_use, is_published,
         created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13, $14, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, NOW(), NOW())
       RETURNING *`,
       [
         productId,
@@ -282,6 +287,7 @@ router.post('/products', requireAdmin, async (req, res) => {
         badgeText,
         stockQuantity,
         category,
+        targetKw,
         benefitsJson,
         howToUse,
         isPublished,
@@ -302,6 +308,7 @@ router.post('/products', requireAdmin, async (req, res) => {
         badgeText: r.badge_text,
         stockQuantity: r.stock_quantity,
         category: r.category,
+        targetKeywords: r.target_keywords || '',
         benefits: Array.isArray(r.benefits) ? r.benefits : JSON.parse(r.benefits || '[]'),
         howToUse: r.how_to_use,
         isPublished: r.is_published,
@@ -328,6 +335,8 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       badgeText,
       stockQuantity,
       category,
+      targetKeywords,
+      target_keywords,
       benefits,
       howToUse,
       isPublished,
@@ -337,6 +346,7 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
     const benefitsJson = benefits !== undefined
       ? JSON.stringify(Array.isArray(benefits) ? benefits : [])
       : null;
+    const targetKw = targetKeywords !== undefined ? targetKeywords : target_keywords;
 
     const { rows } = await db.query(
       `UPDATE products SET
@@ -350,9 +360,10 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         badge_text = COALESCE($9, badge_text),
         stock_quantity = COALESCE($10, stock_quantity),
         category = COALESCE($11, category),
-        benefits = CASE WHEN $12::text IS NOT NULL THEN $12::jsonb ELSE benefits END,
-        how_to_use = COALESCE($13, how_to_use),
-        is_published = COALESCE($14, is_published),
+        target_keywords = COALESCE($12, target_keywords),
+        benefits = CASE WHEN $13::text IS NOT NULL THEN $13::jsonb ELSE benefits END,
+        how_to_use = COALESCE($14, how_to_use),
+        is_published = COALESCE($15, is_published),
         updated_at = NOW()
       WHERE id = $1
       RETURNING *`,
@@ -368,6 +379,7 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         badgeText,
         stockQuantity,
         category,
+        targetKw,
         benefitsJson,
         howToUse,
         isPublished,
@@ -392,6 +404,7 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         badgeText: r.badge_text,
         stockQuantity: r.stock_quantity,
         category: r.category,
+        targetKeywords: r.target_keywords || '',
         benefits: Array.isArray(r.benefits) ? r.benefits : JSON.parse(r.benefits || '[]'),
         howToUse: r.how_to_use,
         isPublished: r.is_published,
