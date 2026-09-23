@@ -300,29 +300,33 @@ class ExclusiveProductBanner extends StatelessWidget {
                               ],
                               const SizedBox(height: 8),
                               // Price Tag
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    TzsFormat.full(product.price),
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF6EE7B7), // Emerald neon light
-                                      letterSpacing: -0.2,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      TzsFormat.full(product.price),
+                                      style: const TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF6EE7B7), // Emerald neon light
+                                        letterSpacing: -0.2,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    TzsFormat.full(product.originalPrice),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white.withValues(alpha: 0.5),
-                                      decoration: TextDecoration.lineThrough,
-                                      decorationColor: const Color(0xFFEF4444),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      TzsFormat.full(product.originalPrice),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withValues(alpha: 0.5),
+                                        decoration: TextDecoration.lineThrough,
+                                        decorationColor: const Color(0xFFEF4444),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -476,10 +480,10 @@ class StickyMakalaBuyBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF062319).withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: const Color(0xFF34D399).withValues(alpha: 0.4),
           width: 1.2,
@@ -501,18 +505,18 @@ class StickyMakalaBuyBar extends StatelessWidget {
         children: [
           // Thumbnail
           Container(
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(9),
               border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(8),
               child: HerbImage(url: product.imageUrl, fit: BoxFit.cover),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,15 +538,15 @@ class StickyMakalaBuyBar extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEF4444),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(5),
                       ),
                       child: const Text(
                         '-50%',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 8.5,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                         ),
@@ -551,39 +555,46 @@ class StickyMakalaBuyBar extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text(
-                      TzsFormat.full(product.price),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF6EE7B7),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        TzsFormat.full(product.price),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF6EE7B7),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      TzsFormat.full(product.originalPrice),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.white.withValues(alpha: 0.5),
-                        decoration: TextDecoration.lineThrough,
-                      ),
-                    ),
-                  ],
+                      if (product.originalPrice > product.price) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          TzsFormat.full(product.originalPrice),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           if (onChatWithAdmin != null) ...[
             PressableScale(
               onTap: onChatWithAdmin,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8.5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7.5),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: const Color(0xFF34D399).withValues(alpha: 0.35),
                   ),
@@ -594,9 +605,9 @@ class StickyMakalaBuyBar extends StatelessWidget {
                     Icon(
                       Icons.forum_outlined,
                       color: Color(0xFF6EE7B7),
-                      size: 15,
+                      size: 14,
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(width: 3.5),
                     Text(
                       'Mwalimu',
                       style: TextStyle(
@@ -609,17 +620,17 @@ class StickyMakalaBuyBar extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
           ],
           PressableScale(
             onTap: onTap ?? () => OrderProductSheet.show(context, product),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7.5),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF10B981), Color(0xFF059669)],
                 ),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF10B981).withValues(alpha: 0.4),
@@ -637,13 +648,13 @@ class StickyMakalaBuyBar extends StatelessWidget {
                             ? Icons.shopping_bag_outlined
                             : Icons.keyboard_arrow_up_rounded),
                     color: Colors.white,
-                    size: 15,
+                    size: 14,
                   ),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: 4),
                   Text(
                     buttonLabel ?? (isExpanded ? 'Agiza Sasa' : 'Nunua Dawa'),
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                     ),

@@ -287,7 +287,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
