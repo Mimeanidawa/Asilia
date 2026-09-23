@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/content_sections.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../utils/tzs_format.dart';
 import '../widgets/admin_bottom_nav.dart';
 import '../widgets/admin_ui.dart';
 import '../widgets/url_image.dart';
@@ -122,33 +123,233 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
     );
   }
 
+  Widget _buildBadge(String text, Color color, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 3.5),
+          ],
+          Text(
+            text,
+            style: GoogleFonts.plusJakartaSans(
+              color: color,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+    String? label,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color.withValues(alpha: 0.22)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: color),
+                if (label != null) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool selected,
+    required ValueChanged<bool> onSelected,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            color: selected ? AdminColors.emerald : AdminColors.textSecondary,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+          ),
+        ),
+        selected: selected,
+        onSelected: onSelected,
+        backgroundColor: AdminColors.card,
+        selectedColor: AdminColors.emerald.withValues(alpha: 0.18),
+        checkmarkColor: AdminColors.emerald,
+        showCheckmark: selected,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: selected
+                ? AdminColors.emerald.withValues(alpha: 0.5)
+                : AdminColors.cardBorder,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+
   Widget _buildCarousels() {
     if (_loading) return const Center(child: CircularProgressIndicator(color: AdminColors.emerald));
-    final bottomPad = AdminBottomNav.contentBottomInset(context, extra: 72);
+    final bottomPad = AdminBottomNav.contentBottomInset(context, extra: 96);
+    if (_carousels.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.view_carousel_rounded, size: 48, color: AdminColors.textMuted),
+              const SizedBox(height: 12),
+              Text(
+                'Hakuna carousel iliyoongezwa bado.\nBonyeza + Carousel kuweka ya kwanza.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return ListView.builder(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomPad),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPad),
       itemCount: _carousels.length,
       itemBuilder: (_, i) {
         final c = _carousels[i];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: AdminSurface(
-            accentColor: AdminColors.emerald,
-            padding: EdgeInsets.zero,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              title: Text(c['title'] as String, style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
-              subtitle: Text(c['subtitle'] as String? ?? '', style: GoogleFonts.plusJakartaSans(color: AdminColors.textMuted, fontSize: 12)),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(icon: const Icon(Icons.edit_rounded, color: AdminColors.emerald, size: 18), onPressed: () => _showCarouselForm(existing: c)),
-                  IconButton(icon: const Icon(Icons.delete_outline_rounded, color: AdminColors.error, size: 18), onPressed: () => _deleteCarousel(c['id'] as String)),
-                ],
+        final imgUrl = c['imageUrl'] as String? ?? '';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: AdminColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AdminColors.cardBorder),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.18),
+                blurRadius: 8,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _showCarouselForm(existing: c),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        color: AdminColors.surface,
+                        child: imgUrl.isNotEmpty
+                            ? UrlImage(url: imgUrl, borderRadius: 12, showBorder: true)
+                            : Container(
+                                color: AdminColors.emerald.withValues(alpha: 0.12),
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.view_carousel_rounded, color: AdminColors.emerald, size: 24),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            c['title'] as String? ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if ((c['subtitle'] as String? ?? '').isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              c['subtitle'] as String,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textDim,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildActionButton(
+                      icon: Icons.edit_rounded,
+                      color: AdminColors.blue,
+                      label: 'Hariri',
+                      tooltip: 'Hariri',
+                      onTap: () => _showCarouselForm(existing: c),
+                    ),
+                    const SizedBox(width: 6),
+                    _buildActionButton(
+                      icon: Icons.delete_outline_rounded,
+                      color: AdminColors.rose,
+                      tooltip: 'Futa',
+                      onTap: () => _deleteCarousel(c['id'] as String),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ).animate().fadeIn(delay: (i * 50).ms);
+        ).animate().fadeIn(delay: (i * 40).ms);
       },
     );
   }
@@ -160,76 +361,252 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
 
   List<String> get _sectionCategories => AdminContentSections.categoriesFor(_section);
 
+  Widget _buildPostCard(Map<String, dynamic> p, int index) {
+    final cat = p['category'] as String? ?? '';
+    final catLabel = cat.isEmpty
+        ? '—'
+        : AdminContentSections.categoryLabel(cat, section: _section);
+    final isPublished = p['isPublished'] == true;
+    final isPremium = p['isPremium'] == true;
+    final priceVal = p['price'];
+    final price = priceVal is num ? priceVal : num.tryParse(priceVal?.toString() ?? '') ?? 0;
+    final title = p['title'] as String? ?? 'Makala';
+    final imageUrl = p['imageUrl'] as String? ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AdminColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AdminColors.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showPostForm(existing: p),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top section: Image + Expanded Title & Badges
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Thumbnail
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 58,
+                        height: 58,
+                        color: AdminColors.surface,
+                        child: imageUrl.isNotEmpty
+                            ? UrlImage(
+                                url: imageUrl,
+                                borderRadius: 12,
+                                showBorder: true,
+                              )
+                            : Container(
+                                color: AdminColors.emerald.withValues(alpha: 0.12),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.menu_book_rounded,
+                                  color: AdminColors.emerald,
+                                  size: 26,
+                                ),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+
+                    // Title & Badges
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 5,
+                            children: [
+                              _buildBadge(catLabel, AdminColors.emerald, icon: Icons.folder_open_rounded),
+                              if (isPremium)
+                                _buildBadge(
+                                  TzsFormat.full(price),
+                                  AdminColors.amber,
+                                  icon: Icons.workspace_premium_rounded,
+                                )
+                              else
+                                _buildBadge('BURE', AdminColors.blue, icon: Icons.check_circle_outline_rounded),
+                              _buildBadge(
+                                isPublished ? 'Imechapishwa' : 'Rasimu',
+                                isPublished ? AdminColors.success : AdminColors.textMuted,
+                                icon: isPublished ? Icons.public_rounded : Icons.edit_note_rounded,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+                const Divider(color: AdminColors.divider, height: 1),
+                const SizedBox(height: 8),
+
+                // Bottom row: Visibility status indicator + Action buttons
+                Row(
+                  children: [
+                    // Status dot & text
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isPublished ? AdminColors.emerald : AdminColors.textDim,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              isPublished ? 'Inaonekana kwa watumiaji' : 'Imefichwa (Rasimu)',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textDim,
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
+                    // Actions
+                    if (isPublished) ...[
+                      _buildActionButton(
+                        icon: Icons.send_rounded,
+                        color: AdminColors.emerald,
+                        label: 'Tuma',
+                        tooltip: 'Tuma taarifa kwa watumiaji',
+                        onTap: () => _sharePost(p),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    _buildActionButton(
+                      icon: isPublished ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                      color: isPublished ? AdminColors.textDim : AdminColors.emerald,
+                      label: isPublished ? 'Ficha' : 'Onyesha',
+                      tooltip: isPublished ? 'Ficha makala' : 'Chapisha makala',
+                      onTap: () => _togglePublish(p['id'] as String),
+                    ),
+                    const SizedBox(width: 6),
+                    _buildActionButton(
+                      icon: Icons.edit_rounded,
+                      color: AdminColors.blue,
+                      label: 'Hariri',
+                      tooltip: 'Hariri makala',
+                      onTap: () => _showPostForm(existing: p),
+                    ),
+                    const SizedBox(width: 6),
+                    _buildActionButton(
+                      icon: Icons.delete_outline_rounded,
+                      color: AdminColors.rose,
+                      tooltip: 'Futa makala',
+                      onTap: () => _deletePost(p['id'] as String),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(delay: (index * 30).ms);
+  }
+
   Widget _buildPosts() {
     final categories = _sectionCategories;
     final visible = _filteredPosts;
     return Column(
       children: [
+        // Section selector chips
         SizedBox(
           height: 44,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             children: AdminContentSections.sections.map((s) {
               final sel = _section == s.$1;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(s.$2),
-                  selected: sel,
-                  onSelected: (_) async {
-                    setState(() {
-                      _section = s.$1;
-                      _categoryFilter = null;
-                      _loading = true;
-                    });
-                    try {
-                      _posts = await context.read<AdminProvider>().contentService.fetchPosts(section: _section);
-                    } catch (e) {
-                      if (mounted) _showMessage('Imeshindwa kupakia makala: ${_errorText(e)}', isError: true);
-                    }
-                    if (mounted) setState(() => _loading = false);
-                  },
-                  selectedColor: AdminColors.emerald.withValues(alpha: 0.2),
-                  checkmarkColor: AdminColors.emerald,
-                ),
+              return _buildFilterChip(
+                label: s.$2,
+                selected: sel,
+                onSelected: (_) async {
+                  setState(() {
+                    _section = s.$1;
+                    _categoryFilter = null;
+                    _loading = true;
+                  });
+                  try {
+                    _posts = await context.read<AdminProvider>().contentService.fetchPosts(section: _section);
+                  } catch (e) {
+                    if (mounted) _showMessage('Imeshindwa kupakia makala: ${_errorText(e)}', isError: true);
+                  }
+                  if (mounted) setState(() => _loading = false);
+                },
               );
             }).toList(),
           ),
         ),
+        // Sub-category filter chips
         SizedBox(
           height: 40,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
             children: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text('Zote (${_posts.length})'),
-                  selected: _categoryFilter == null,
-                  onSelected: (_) => setState(() => _categoryFilter = null),
-                  selectedColor: AdminColors.emerald.withValues(alpha: 0.2),
-                  checkmarkColor: AdminColors.emerald,
-                ),
+              _buildFilterChip(
+                label: 'Zote (${_posts.length})',
+                selected: _categoryFilter == null,
+                onSelected: (_) => setState(() => _categoryFilter = null),
               ),
               ...categories.map((cat) {
                 final count = _posts.where((p) => p['category'] == cat).length;
                 final sel = _categoryFilter == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text('${AdminContentSections.categoryLabel(cat, section: _section)} ($count)'),
-                    selected: sel,
-                    onSelected: (_) => setState(() => _categoryFilter = sel ? null : cat),
-                    selectedColor: AdminColors.emerald.withValues(alpha: 0.2),
-                    checkmarkColor: AdminColors.emerald,
-                  ),
+                return _buildFilterChip(
+                  label: '${AdminContentSections.categoryLabel(cat, section: _section)} ($count)',
+                  selected: sel,
+                  onSelected: (_) => setState(() => _categoryFilter = sel ? null : cat),
                 );
               }),
             ],
           ),
         ),
+        const SizedBox(height: 6),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator(color: AdminColors.emerald))
@@ -242,75 +619,19 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                               ? 'Hakuna makala katika sehemu hii.\nBonyeza + Makala kuongeza.'
                               : 'Hakuna makala katika Aina hii bado.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
+                          style: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 13),
                         ),
                       ),
                     )
                   : ListView.builder(
                       padding: EdgeInsets.fromLTRB(
                         16,
+                        10,
                         16,
-                        16,
-                        AdminBottomNav.contentBottomInset(context, extra: 72),
+                        AdminBottomNav.contentBottomInset(context, extra: 96),
                       ),
                       itemCount: visible.length,
-                      itemBuilder: (_, i) {
-                        final p = visible[i];
-                        final cat = p['category'] as String? ?? '';
-                        final catLabel = cat.isEmpty
-                            ? '—'
-                            : AdminContentSections.categoryLabel(cat, section: _section);
-                        return Card(
-                          color: AdminColors.surface,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: ListTile(
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: SizedBox(
-                                  width: 52,
-                                  height: 52,
-                                  child: (p['imageUrl'] as String? ?? '').isNotEmpty
-                                      ? UrlImage(
-                                          url: p['imageUrl'] as String,
-                                          borderRadius: 10,
-                                          showBorder: true,
-                                        )
-                                      : Container(
-                                          color: AdminColors.emerald.withValues(alpha: 0.12),
-                                          alignment: Alignment.center,
-                                          child: const Icon(Icons.article_outlined,
-                                              color: AdminColors.emerald, size: 22),
-                                        ),
-                                ),
-                              ),
-                              title: Text(p['title'] as String, style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w600)),
-                              subtitle: Text(
-                                '$catLabel${p['isPremium'] == true ? ' • PREMIUM TZS ${p['price']}' : ''}${p['isPublished'] == true ? ' • Published' : ' • Draft'}',
-                                style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (p['isPublished'] == true)
-                                    IconButton(
-                                      tooltip: 'Tuma kwa watumiaji',
-                                      icon: const Icon(Icons.send_rounded, color: AdminColors.emerald, size: 18),
-                                      onPressed: () => _sharePost(p),
-                                    ),
-                                  IconButton(
-                                    icon: Icon(p['isPublished'] == true ? Icons.visibility : Icons.visibility_off, color: AdminColors.emerald, size: 18),
-                                    onPressed: () => _togglePublish(p['id'] as String),
-                                  ),
-                                  IconButton(icon: const Icon(Icons.edit, color: AdminColors.emerald, size: 18), onPressed: () => _showPostForm(existing: p)),
-                                  IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18), onPressed: () => _deletePost(p['id'] as String)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      itemBuilder: (_, i) => _buildPostCard(visible[i], i),
                     ),
         ),
       ],
