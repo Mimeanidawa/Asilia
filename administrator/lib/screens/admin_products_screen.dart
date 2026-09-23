@@ -6,8 +6,6 @@ import '../models/product_order_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
-import '../widgets/admin_ui.dart';
-import '../widgets/glass_card.dart';
 import '../widgets/url_image.dart';
 
 class AdminProductsScreen extends StatefulWidget {
@@ -90,29 +88,33 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Dawa & Bidhaa',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: AdminColors.textPrimary,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Dawa & Bidhaa',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Simamia dawa za asili zinazouzwa kwa punguzo',
-                            style: GoogleFonts.plusJakartaSans(
-                              color: AdminColors.textDim,
-                              fontSize: 12.5,
+                            const SizedBox(height: 4),
+                            Text(
+                              'Simamia dawa za asili zinazouzwa kwa punguzo',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textDim,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 10),
                       ElevatedButton.icon(
                         onPressed: () => _openProductForm(),
                         icon: const Icon(Icons.add_rounded, size: 18),
@@ -120,7 +122,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AdminColors.emerald,
                           foregroundColor: const Color(0xFF052E16),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                       ),
@@ -340,6 +342,7 @@ class _ProductCard extends StatelessWidget {
                 ),
                 if (product.targetKeywords.isNotEmpty)
                   Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 64),
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.08),
