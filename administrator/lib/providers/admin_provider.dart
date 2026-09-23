@@ -340,6 +340,8 @@ class AdminProvider extends ChangeNotifier {
       case AdminScreen.settings:
         refreshData();
       case AdminScreen.content:
+      case AdminScreen.products:
+      case AdminScreen.orders:
         break;
       case AdminScreen.mwalimu:
         refreshMwalimuUnread();

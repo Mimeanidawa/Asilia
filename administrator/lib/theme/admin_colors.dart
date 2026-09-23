@@ -6,6 +6,7 @@ class AdminColors {
   // ── Surfaces (zinc dark) ──────────────────────────────────────────────────
   static const bg = Color(0xFF09090B);
   static const surface = Color(0xFF111113);
+  static const surfaceElevated = Color(0xFF1C1C20);
   static const card = Color(0xFF18181B);
   static const cardHover = Color(0xFF1F1F23);
   static const cardBorder = Color(0xFF27272A);

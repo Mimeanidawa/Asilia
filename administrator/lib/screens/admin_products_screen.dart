@@ -455,7 +455,9 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
-      maxHeight: MediaQuery.of(context).size.height * 0.88,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
       padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
       decoration: const BoxDecoration(
         color: AdminColors.surface,
