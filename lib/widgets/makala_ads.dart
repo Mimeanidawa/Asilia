@@ -5,8 +5,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 
 import '../config/ads_config.dart';
-import '../models/models.dart';
-import '../providers/app_provider.dart';
 import '../services/ads_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
@@ -74,7 +72,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
   double get _slotHeight {
     final banner = _banner;
     if (banner != null) return banner.size.height.toDouble();
-    return 60.0;
+    return widget.inline ? 50.0 : 50.0;
   }
 
   @override
@@ -102,9 +100,6 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     }
 
     if (!AdsConfig.isSupportedPlatform) {
-      // On platforms where AdMob is not supported (Web, Desktop),
-      // we show the built-in botanical promotional banner so ads display reliably.
-      if (mounted) setState(() => _phase = _BannerPhase.loaded);
       return;
     }
 
@@ -126,7 +121,6 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     }
 
     if (!AdsConfig.isSupportedPlatform) {
-      if (mounted) setState(() => _phase = _BannerPhase.loaded);
       return;
     }
 
@@ -149,30 +143,33 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     previous?.dispose();
 
     bool success = false;
+    final adUnitId = AdsConfig.bannerAdUnitId;
+
     if (mounted) {
       try {
         final screenWidth = MediaQuery.sizeOf(context).width.truncate();
         if (screenWidth > 0) {
           final adWidth = widget.inline ? (screenWidth - 32).clamp(300, 728) : screenWidth;
-          final adaptiveSize = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(adWidth);
+          final adaptiveSize = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(adWidth);
           if (adaptiveSize != null && mounted && gen == _generation) {
             success = await _loadWithSize(
               adaptiveSize,
               gen,
-              adUnitId: AdsConfig.getBannerAdUnitId(adaptive: true),
+              adUnitId: adUnitId,
             );
           }
         }
       } catch (e) {
-        debugPrint('Adaptive banner size attempt: $e');
+        debugPrint('Adaptive banner size error: $e');
       }
     }
 
+    // If adaptive banner did not fill, fallback to standard AdSize.banner (320x50)
     if (!success && mounted && gen == _generation) {
       success = await _loadWithSize(
         AdSize.banner,
         gen,
-        adUnitId: AdsConfig.getBannerAdUnitId(adaptive: false),
+        adUnitId: adUnitId,
       );
     }
 
@@ -220,7 +217,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     try {
       unawaited(banner.load());
       return await completer.future.timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 10),
         onTimeout: () {
           banner.dispose();
           return false;
@@ -237,8 +234,7 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
   void _scheduleRetry(int gen) {
     _retryTimer?.cancel();
     _retry++;
-    // Moderate backoff: 8s, 16s, 30s
-    final seconds = (_retry * 8).clamp(8, 30);
+    final seconds = (_retry * 5).clamp(4, 20);
     _retryTimer = Timer(Duration(seconds: seconds), () {
       if (!mounted || gen != _generation) return;
       if (_phase == _BannerPhase.loaded && _banner != null) return;
@@ -278,21 +274,23 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
         _phase == _BannerPhase.loaded &&
         banner != null;
 
+    if (!showNativeAd) {
+      return const SizedBox.shrink();
+    }
+
     return _ModernAdContainer(
       inline: widget.inline,
       height: _slotHeight,
-      child: showNativeAd
-          ? Center(
-              child: SizedBox(
-                width: banner.size.width.toDouble(),
-                height: banner.size.height.toDouble(),
-                child: AdWidget(
-                  key: ObjectKey(banner),
-                  ad: banner,
-                ),
-              ),
-            )
-          : const _BotanicalSponsorBanner(),
+      child: Center(
+        child: SizedBox(
+          width: banner.size.width.toDouble(),
+          height: banner.size.height.toDouble(),
+          child: AdWidget(
+            key: ObjectKey(banner),
+            ad: banner,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -387,97 +385,6 @@ class _ModernAdContainer extends StatelessWidget {
           fontWeight: FontWeight.w800,
           color: AppColors.emerald800,
           letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
-}
-
-/// A clean, beautiful in-app fallback botanical sponsor ad for desktop/web or when
-/// waiting for network fill. Promotes Dawa Asili education & herbal health tips.
-class _BotanicalSponsorBanner extends StatelessWidget {
-  const _BotanicalSponsorBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        final app = context.read<AppProvider>();
-        app.navigate(AppScreen.askExpert);
-      },
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.emerald50,
-              AppColors.cream,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.forest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.spa_rounded,
-                color: Colors.white,
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Elimu ya Mimea & Dawa Asili',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.forest,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Boresha afya yako kiasili kila siku na wataalamu wetu.',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      color: AppColors.gray600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.emerald700,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                'Fungua',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

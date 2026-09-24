@@ -39,6 +39,14 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _mwalimuService ??= context.read<MwalimuService>();
+    final draft = context.read<AppProvider>().consumePendingMwalimuMessage();
+    if (draft != null && draft.trim().isNotEmpty) {
+      _controller.text = draft;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+      _scrollToBottom();
+    }
   }
 
   Future<void> _initChat() async {
@@ -52,6 +60,16 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
       await mwalimu.loadMessages(user.token);
     } else {
       await mwalimu.loadGuestMessages();
+    }
+    if (mounted) {
+      final draft = context.read<AppProvider>().consumePendingMwalimuMessage();
+      if (draft != null && draft.trim().isNotEmpty) {
+        _controller.text = draft;
+        _controller.selection = TextSelection.fromPosition(
+          TextPosition(offset: _controller.text.length),
+        );
+        _scrollToBottom();
+      }
     }
   }
 

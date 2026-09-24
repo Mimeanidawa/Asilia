@@ -60,7 +60,7 @@ class LessonService extends ChangeNotifier {
       _lastError = e.toString();
       debugPrint('Lesson sync failed: $e');
     } finally {
-      if (!silent) _isSyncing = false;
+      _isSyncing = false;
       notifyListeners();
     }
   }

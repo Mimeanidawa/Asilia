@@ -80,14 +80,18 @@ class _AsiliaAppState extends State<AsiliaApp> {
 
   /// Show UI as soon as local cache/prefs are ready; sync network in background.
   Future<void> _bootstrap() async {
-    await Future.wait([
-      _notificationCenter.load(),
-      _contentService.loadFromCache(),
-      _appProvider.initLocal(),
-      _remoteAppConfig.loadLocalMeta(),
-    ]);
-
-    if (mounted) setState(() => _ready = true);
+    try {
+      await Future.wait([
+        _notificationCenter.load(),
+        _contentService.loadFromCache(),
+        _appProvider.initLocal(),
+        _remoteAppConfig.loadLocalMeta(),
+      ]).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('Bootstrap cache load error: $e');
+    } finally {
+      if (mounted) setState(() => _ready = true);
+    }
 
     // Ads warm in the background; the first usable frame should never wait
     // on the ad SDK or network.
@@ -262,7 +266,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     final app = context.watch<AppProvider>();
     final remote = context.watch<RemoteAppConfigService>();
 
-    if (!app.isLoaded || !remote.isLoaded) {
+    if (!app.isLoaded) {
       return const PopScope(
         canPop: false,
         child: AppLoadingSkeleton(),

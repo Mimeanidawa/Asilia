@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,7 +68,15 @@ class RemoteAppConfigService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _dismissedMessageId = prefs.getString('da_dismissed_screen_message_id');
+      final cachedJson = prefs.getString('da_remote_app_config_cache');
+      if (cachedJson != null) {
+        _config = RemoteAppConfig.fromJson(
+          jsonDecode(cachedJson) as Map<String, dynamic>,
+        );
+      }
     } catch (_) {}
+    _loaded = true;
+    notifyListeners();
   }
 
   Future<void> syncFromServer({bool silent = true}) async {
@@ -74,12 +84,19 @@ class RemoteAppConfigService extends ChangeNotifier {
       if (_currentVersion.isEmpty) await loadLocalMeta();
       final data = await _api.get('/api/app/config');
       final raw = data['config'] as Map<String, dynamic>?;
-      _config = RemoteAppConfig.fromJson(raw);
-      _loaded = true;
-      notifyListeners();
+      if (raw != null) {
+        _config = RemoteAppConfig.fromJson(raw);
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('da_remote_app_config_cache', jsonEncode(raw));
+        } catch (_) {}
+      }
     } catch (e) {
       if (!silent) rethrow;
       debugPrint('RemoteAppConfig sync error: $e');
+    } finally {
+      _loaded = true;
+      notifyListeners();
     }
   }
 

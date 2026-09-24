@@ -19,7 +19,7 @@ import '../widgets/makala_ad_gate.dart';
 import '../widgets/makala_ads.dart';
 import '../widgets/modern_tab_rail.dart';
 import '../widgets/pressable_scale.dart';
-import '../widgets/remove_ads_promo.dart';
+import '../widgets/exclusive_product_banner.dart';
 import '../widgets/paid_makala_badge.dart';
 import '../widgets/premium_makala_gate.dart';
 import '../widgets/pull_to_refresh.dart';
@@ -561,7 +561,6 @@ class _ArticleReader extends StatefulWidget {
 class _ArticleReaderState extends State<_ArticleReader> {
   bool _premiumModalShown = false;
   bool _adUnlocked = false;
-  bool _showFloatingChip = true;
 
   @override
   void initState() {
@@ -609,10 +608,6 @@ class _ArticleReaderState extends State<_ArticleReader> {
         onUnlocked: () {
           if (!mounted) return;
           setState(() => _adUnlocked = true);
-          RemoveAdsPromo.recordMakalaRead();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) RemoveAdsPromo.maybeShowFloatingModal(context);
-          });
         },
         onCancel: widget.onClose,
       );
@@ -752,10 +747,7 @@ class _ArticleReaderState extends State<_ArticleReader> {
                                           RichContentView(
                                             content: post.content,
                                           ),
-                                          if (ads.shouldShowAds(widget.user)) ...[
-                                            const SizedBox(height: 20),
-                                            const RemoveAdsInlineStrip(),
-                                          ],
+
                                         ],
                                       )
                                     : PremiumMakalaGate(
@@ -776,18 +768,16 @@ class _ArticleReaderState extends State<_ArticleReader> {
                   ],
                 ),
               ),
-              if (canRead) const MakalaBannerAd(),
+              if (canRead) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+                  child: StickyMakalaBuyBar(post: post),
+                ),
+                const MakalaBannerAd(),
+              ],
             ],
           ),
-          if (ads.shouldShowAds(widget.user) && _adUnlocked && _showFloatingChip)
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 88,
-              child: RemoveAdsFloatingChip(
-                onDismiss: () => setState(() => _showFloatingChip = false),
-              ),
-            ),
+
         ],
       ),
     );

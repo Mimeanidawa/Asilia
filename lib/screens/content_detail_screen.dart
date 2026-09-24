@@ -6,7 +6,6 @@ import '../models/content_models.dart';
 import '../providers/app_provider.dart';
 import '../services/ads_service.dart';
 import '../services/content_service.dart';
-import '../services/dawa_order_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/app_refresh.dart';
@@ -37,7 +36,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
   bool _adUnlocked = false;
   String? _adUnlockedForId;
   final ScrollController _scrollController = ScrollController();
-  bool _showTopProductBanner = false;
 
   @override
   void initState() {
@@ -126,7 +124,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final app = context.watch<AppProvider>();
     final user = context.watch<UserService>();
     final ads = context.read<AdsService>();
-    final orderService = context.watch<DawaOrderService>();
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator(color: AppColors.forest));
@@ -148,7 +145,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final canRead = user.canReadContent(post);
     final paid = user.hasPurchasedContent(post.id);
     final needsAd = ads.shouldShowAds(user) && !_adUnlocked;
-    final product = orderService.getProductForPost(post);
 
     if (needsAd && canRead) {
       return MakalaAdGate(
@@ -159,9 +155,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             _adUnlockedForId = post.id;
           });
           RemoveAdsPromo.recordMakalaRead();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) RemoveAdsPromo.maybeShowFloatingModal(context);
-          });
+
         },
         onCancel: app.goBack,
       );
@@ -243,21 +237,6 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                             ],
                             const SizedBox(height: 16),
 
-                            // EXPANDABLE 3D "NUNUA DAWA HII" BOX:
-                            // Hidden completely by default, expands when user taps "Nunua Dawa" below
-                            AnimatedCrossFade(
-                              firstChild: const SizedBox.shrink(),
-                              secondChild: ExclusiveProductBanner(
-                                post: post,
-                                customProduct: product,
-                                onClose: () => setState(() => _showTopProductBanner = false),
-                                margin: const EdgeInsets.only(top: 8, bottom: 20),
-                              ),
-                              crossFadeState: _showTopProductBanner
-                                  ? CrossFadeState.showSecond
-                                  : CrossFadeState.showFirst,
-                              duration: const Duration(milliseconds: 350),
-                            ),
 
                             if (post.isPremium && !canRead)
                               PremiumMakalaGate(
@@ -270,10 +249,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                               RichContentView(content: post.content)
                                   .animate()
                                   .fadeIn(delay: 200.ms),
-                              if (ads.shouldShowAds(user)) ...[
-                                const SizedBox(height: 20),
-                                const RemoveAdsInlineStrip(),
-                              ],
+
                             ],
                           ],
                         ),
@@ -290,26 +266,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  StickyMakalaBuyBar(
-                    product: product,
-                    isExpanded: _showTopProductBanner,
-                    buttonLabel: _showTopProductBanner ? 'Funga Dawa' : 'Nunua Dawa',
-                    buttonIcon: _showTopProductBanner
-                        ? Icons.keyboard_arrow_down_rounded
-                        : Icons.keyboard_arrow_up_rounded,
-                    onTap: () {
-                      if (!_showTopProductBanner) {
-                        setState(() => _showTopProductBanner = true);
-                        _scrollController.animateTo(
-                          160,
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeInOutCubic,
-                        );
-                      } else {
-                        setState(() => _showTopProductBanner = false);
-                      }
-                    },
-                  ),
+                  if (canRead) StickyMakalaBuyBar(post: post),
                   if (canRead && !(post.isPremium && !canRead) && ads.shouldShowAds(user)) ...[
                     const SizedBox(height: 6),
                     const MakalaBannerAd(),

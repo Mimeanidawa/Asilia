@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
 import '../models/product_models.dart';
+import '../providers/app_provider.dart';
 import '../services/dawa_order_service.dart';
+import '../utils/dawa_purchase_helper.dart';
+import '../utils/disease_extractor.dart';
 import '../utils/tzs_format.dart';
 import 'herb_image.dart';
 import 'order_product_sheet.dart';
@@ -36,8 +39,13 @@ class ExclusiveProductBanner extends StatelessWidget {
     final orderService = context.watch<DawaOrderService>();
     final product = customProduct ??
         (condition != null
-            ? orderService.getProductForCondition(condition)
-            : orderService.getProductForPost(post));
+            ? orderService.findProductForCondition(condition)
+            : orderService.findProductForPost(post));
+
+    final topic = DiseaseExtractor.extractTopic(
+      post?.title ?? (titleOverride ?? ''),
+      post?.category,
+    );
 
     return Container(
       margin: margin ?? const EdgeInsets.symmetric(vertical: 20),
@@ -105,7 +113,7 @@ class ExclusiveProductBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Row: Exclusive Badge & 50% Off Tag
+                  // Top Row: Exclusive Badge & Badge/Pill Tag
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -171,20 +179,23 @@ class ExclusiveProductBanner extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+                              gradient: LinearGradient(
+                                colors: product != null
+                                    ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
+                                    : [const Color(0xFF10B981), const Color(0xFF059669)],
                               ),
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                                  color: (product != null ? const Color(0xFFEF4444) : const Color(0xFF10B981))
+                                      .withValues(alpha: 0.4),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
                             child: Text(
-                              product.badgeText,
+                              product != null ? product.badgeText : 'AGIZA KWA MWALIMU 💬',
                               style: const TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w900,
@@ -199,9 +210,10 @@ class ExclusiveProductBanner extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
 
-                  // Title: "Nunua Dawa Hii"
+                  // Title: Contextual Title
                   Text(
-                    titleOverride ?? 'Nunua Dawa Hii ya Asili',
+                    titleOverride ??
+                        (product != null ? 'Nunua Dawa Hii ya Asili' : 'Nunua Dawa ya $topic'),
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
@@ -213,7 +225,9 @@ class ExclusiveProductBanner extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitleOverride ??
-                        'Tiba iliyothibitishwa — Nunua sasa kwa punguzo la hadi 50%!',
+                        (product != null
+                            ? 'Tiba iliyothibitishwa — Nunua sasa kwa punguzo la hadi 50%!'
+                            : 'Tiba asili iliyothibitishwa — Agiza sasa moja kwa moja kwa Mwalimu.'),
                     style: TextStyle(
                       fontSize: 12.5,
                       color: Colors.white.withValues(alpha: 0.85),
@@ -259,15 +273,31 @@ class ExclusiveProductBanner extends StatelessWidget {
                               color: Colors.white.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
+                            color: const Color(0xFF062319),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(12),
-                            child: HerbImage(
-                              url: product.imageUrl,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
+                            child: product != null
+                                ? HerbImage(
+                                    url: product.imageUrl,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                  )
+                                : (post?.displayImageUrl.isNotEmpty == true
+                                    ? HerbImage(
+                                        url: post!.displayImageUrl,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                      )
+                                    : const Center(
+                                        child: Icon(
+                                          Icons.local_pharmacy_rounded,
+                                          color: Color(0xFF34D399),
+                                          size: 38,
+                                        ),
+                                      )),
                           ),
                         ),
                         const SizedBox(width: 14),
@@ -276,7 +306,7 @@ class ExclusiveProductBanner extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                product.title,
+                                product != null ? product.title : 'Dawa Asili ya $topic',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -286,48 +316,77 @@ class ExclusiveProductBanner extends StatelessWidget {
                                   height: 1.25,
                                 ),
                               ),
-                              if (product.subtitle.isNotEmpty) ...[
-                                const SizedBox(height: 3),
-                                Text(
-                                  product.subtitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: Colors.white.withValues(alpha: 0.75),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              // Price Tag
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      TzsFormat.full(product.price),
-                                      style: const TextStyle(
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF6EE7B7), // Emerald neon light
-                                        letterSpacing: -0.2,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      TzsFormat.full(product.originalPrice),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white.withValues(alpha: 0.5),
-                                        decoration: TextDecoration.lineThrough,
-                                        decorationColor: const Color(0xFFEF4444),
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(height: 3),
+                              Text(
+                                product != null && product.subtitle.isNotEmpty
+                                    ? product.subtitle
+                                    : 'Mchanganyiko maalum wa mitishamba na mizizi asilia',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: Colors.white.withValues(alpha: 0.75),
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              // Price Tag or Status Tag
+                              if (product != null)
+                                FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        TzsFormat.full(product.price),
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF6EE7B7), // Emerald neon light
+                                          letterSpacing: -0.2,
+                                        ),
+                                      ),
+                                      if (product.originalPrice > product.price) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          TzsFormat.full(product.originalPrice),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white.withValues(alpha: 0.5),
+                                            decoration: TextDecoration.lineThrough,
+                                            decorationColor: const Color(0xFFEF4444),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: const Color(0xFF34D399).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.verified_rounded, size: 12, color: Color(0xFF6EE7B7)),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Dawa Asili 100% • Agiza Hapa',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: Color(0xFF6EE7B7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                             ],
                           ),
                         ),
@@ -336,47 +395,34 @@ class ExclusiveProductBanner extends StatelessWidget {
                   ),
 
                   // Key Benefits List
-                  if (product.benefits.isNotEmpty) ...[
-                    const SizedBox(height: 14),
+                  const SizedBox(height: 14),
+                  if (product != null && product.benefits.isNotEmpty)
                     ...product.benefits.take(3).map(
-                          (benefit) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFF10B981),
-                                  ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    size: 11,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    benefit,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white.withValues(alpha: 0.9),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                          (benefit) => _buildBenefitRow(benefit),
+                        )
+                  else ...[
+                    _buildBenefitRow('Hutibu na kuondoa chanzo cha $topic kwa njia ya asili'),
+                    _buildBenefitRow('Dawa 100% ya asili isiyo na kemikali wala madhara mwilini'),
+                    _buildBenefitRow('Ushauri na maelekezo ya dozi sahihi kutoka kwa Mwalimu'),
                   ],
 
                   const SizedBox(height: 16),
 
                   // Big 3D "Nunua Dawa Hii Sasa" CTA Button
                   PressableScale(
-                    onTap: () => OrderProductSheet.show(context, product),
+                    onTap: () {
+                      if (product != null) {
+                        OrderProductSheet.show(context, product);
+                      } else {
+                        final found = orderService.findProductForPost(post);
+                        if (found != null) {
+                          OrderProductSheet.show(context, found);
+                        } else {
+                          final msg = DiseaseExtractor.formatMwalimuInquiry(topic);
+                          context.read<AppProvider>().openMwalimuWithDraft(msg);
+                        }
+                      }
+                    },
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 15),
@@ -400,14 +446,22 @@ class ExclusiveProductBanner extends StatelessWidget {
                           width: 1,
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.shopping_cart_checkout_rounded, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
+                          Icon(
+                            product != null
+                                ? Icons.shopping_cart_checkout_rounded
+                                : Icons.chat_bubble_outline_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            'Nunua Dawa Hii Sasa (Punguzo 50%)',
-                            style: TextStyle(
+                            product != null
+                                ? 'Nunua Dawa Hii Sasa (Punguzo 50%)'
+                                : 'Nunua Dawa Hii (Uliza Mwalimu)',
+                            style: const TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w900,
                               color: Colors.white,
@@ -427,7 +481,10 @@ class ExclusiveProductBanner extends StatelessWidget {
                     children: [
                       _buildTrustBadge(Icons.verified_rounded, '100% Asilia'),
                       _buildTrustBadge(Icons.local_shipping_rounded, 'Mikoani Tanzania'),
-                      _buildTrustBadge(Icons.receipt_long_rounded, 'Risiti ya Papo hapo'),
+                      _buildTrustBadge(
+                        product != null ? Icons.receipt_long_rounded : Icons.support_agent_rounded,
+                        product != null ? 'Risiti ya Papo hapo' : 'Ushauri wa Mwalimu',
+                      ),
                     ],
                   ),
                 ],
@@ -435,6 +492,39 @@ class ExclusiveProductBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBenefitRow(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFF10B981),
+            ),
+            child: const Icon(
+              Icons.check,
+              size: 11,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -458,177 +548,75 @@ class ExclusiveProductBanner extends StatelessWidget {
   }
 }
 
-/// Floating sticky bar pinned to bottom of Makala reader for instant checkout
+/// Floating sticky bar pinned to bottom of Makala reader for instant checkout or inquiry
 class StickyMakalaBuyBar extends StatelessWidget {
   const StickyMakalaBuyBar({
     super.key,
-    required this.product,
+    this.post,
+    this.product,
     this.onTap,
-    this.onChatWithAdmin,
+    this.onBuy,
     this.buttonLabel,
     this.buttonIcon,
     this.isExpanded = false,
   });
 
-  final DawaProduct product;
+  final ContentPost? post;
+  final DawaProduct? product;
   final VoidCallback? onTap;
-  final VoidCallback? onChatWithAdmin;
+  final VoidCallback? onBuy;
   final String? buttonLabel;
   final IconData? buttonIcon;
   final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFF062319).withValues(alpha: 0.96),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: const Color(0xFF34D399).withValues(alpha: 0.4),
-          width: 1.2,
+    return PressableScale(
+      onTap: () {
+        if (onBuy != null) {
+          onBuy!();
+        } else if (post != null) {
+          DawaPurchaseHelper.searchAndBuyDawa(context, post!);
+        } else if (product != null) {
+          OrderProductSheet.show(context, product!);
+        }
+      },
+      child: Container(
+        width: double.infinity,
+        height: 50,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF10B981), Color(0xFF059669)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF10B981).withValues(alpha: 0.38),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.25),
-            blurRadius: 12,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Thumbnail
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              buttonIcon ?? Icons.shopping_bag_outlined,
+              color: Colors.white,
+              size: 20,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(9),
-              child: HerbImage(url: product.imageUrl, fit: BoxFit.cover),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        product.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEF4444),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        '-50%',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        TzsFormat.full(product.price),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF6EE7B7),
-                        ),
-                      ),
-                      if (product.originalPrice > product.price) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          TzsFormat.full(product.originalPrice),
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: Colors.white.withValues(alpha: 0.5),
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          PressableScale(
-            onTap: onTap ?? () => OrderProductSheet.show(context, product),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF10B981), Color(0xFF059669)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    buttonIcon ??
-                        (isExpanded
-                            ? Icons.shopping_bag_outlined
-                            : Icons.keyboard_arrow_up_rounded),
-                    color: Colors.white,
-                    size: 15,
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    buttonLabel ?? (isExpanded ? 'Agiza Sasa' : 'Nunua Dawa'),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+            const SizedBox(width: 8),
+            Text(
+              buttonLabel ?? 'Nunua Dawa Hii',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 0.3,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

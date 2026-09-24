@@ -192,6 +192,90 @@ class DawaOrderService extends ChangeNotifier {
         ],
         howToUse: 'Paka mara 2 kwa siku baada ya kuosha uso au eneo lililoathirika.',
       ),
+      const DawaProduct(
+        id: 'dawa_kiume',
+        title: 'Dawa Asili ya Nguvu za Kiume & Uzazi',
+        subtitle: 'Mchanganyiko wa Mizizi ya Kungu, Mshubiri & Asali Safi',
+        description: 'Tiba madhubuti ya kuongeza nguvu za kiume, kuimarisha mishipa ya uume, kuongeza wingi na ubora wa mbegu, na kuzuia kuwahi kufika kileleni mapema.',
+        price: 30000,
+        originalPrice: 60000,
+        discountPercent: 50,
+        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
+        badgeText: 'PUNGUZO LA 50% 🔥',
+        stockQuantity: 35,
+        category: 'uzazi',
+        targetKeywords: 'nguvu za kiume, uzazi, mbegu, uume, tendo la ndoa, kuwahi kufika kileleni, kurudia tendo, stamina, uume kulegea, maumbile, kiume',
+        benefits: [
+          'Huongeza nguvu za kiume na stamina ya tendo',
+          'Hukaza na kuimarisha mishipa ya uume',
+          'Huboresha wingi na ubora wa mbegu za uzazi',
+          'Huponya tatizo la kuwahi kileleni mapema',
+        ],
+        howToUse: 'Kijiko 1 cha chakula kwenye maziwa vuguvugu au asali asubuhi na jioni kwa siku 14.',
+      ),
+      const DawaProduct(
+        id: 'dawa_hedhi',
+        title: 'Dawa Asili ya Maumivu ya Hedhi & Mzunguko',
+        subtitle: 'Dondoo ya Mlonge, Tangawizi & Majani ya Mpera',
+        description: 'Tiba asilia ya kutuliza maumivu makali ya hedhi (dysmenorrhea), kusafisha kizazi, kuondoa uchafu na harufu mbaya, na kurekebisha mzunguko wa hedhi.',
+        price: 25000,
+        originalPrice: 50000,
+        discountPercent: 50,
+        imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600',
+        badgeText: 'PUNGUZO LA 50% 🔥',
+        stockQuantity: 40,
+        category: 'uzazi',
+        targetKeywords: 'hedhi, maumivu ya hedhi, mzunguko wa hedhi, uzazi wa mwanamke, pid, uchafu, fangasi, kutokwa na damu nyingi, kizazi, hedhi kuuma',
+        benefits: [
+          'Hutuliza maumivu makali ya tumbo wakati wa hedhi',
+          'Hurekebisha mzunguko wa hedhi uliovurugika',
+          'Hupunguza damu nyingi isiyo ya kawaida na uchovu',
+          'Hulinda na kusafisha njia ya uzazi dhidi ya PID na fangasi',
+        ],
+        howToUse: 'Kikombe nusu cha chai ya vuguvugu asubuhi na jioni kuanzia siku 3 kabla ya hedhi hadi kuisha.',
+      ),
+      const DawaProduct(
+        id: 'dawa_pumu',
+        title: 'Dawa Asili ya Pumu, Kifua & Kikohozi Sugu',
+        subtitle: 'Mchanganyiko wa Kitunguu Saumu, Tangawizi & Asali Safi',
+        description: 'Hufungua njia za hewa, kuyeyusha makohozi kifuani, kutuliza pumu (asthma), mkoromo, na kutibu mafua na kikohozi sugu.',
+        price: 25000,
+        originalPrice: 50000,
+        discountPercent: 50,
+        imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=600',
+        badgeText: 'PUNGUZO LA 50% 🔥',
+        stockQuantity: 30,
+        category: 'pumu',
+        targetKeywords: 'pumu, kifua, kikohozi, mafua, asthma, kupumua kwa shida, mkoromo, kikohozi kikavu, kubanwa mbavu, kifua kuwaka',
+        benefits: [
+          'Hufungua mirija ya hewa na kurahisisha upumuaji',
+          'Huyeyusha na kutoa makohozi sugu kifuani',
+          'Hupunguza mashambulizi ya mara kwa mara ya pumu',
+          'Hutibu kikohozi kirefu na maumivu ya koo',
+        ],
+        howToUse: 'Kijiko 1 cha chakula mara tatu kwa siku baada ya chakula.',
+      ),
+      const DawaProduct(
+        id: 'dawa_mifupa',
+        title: 'Mafuta & Dawa ya Maumivu ya Viungo na Mgongo',
+        subtitle: 'Dondoo ya Mkaratusi, Tangawizi & Mafuta ya Mnyonyo',
+        description: 'Tiba ya kupenya kwa kasi inayotuliza maumivu ya mgongo, nyonga, magoti, ganzi miguuni na mikononi, na baridi yabisi (arthritis).',
+        price: 28000,
+        originalPrice: 56000,
+        discountPercent: 50,
+        imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=600',
+        badgeText: 'PUNGUZO LA 50% 🔥',
+        stockQuantity: 30,
+        category: 'mifupa',
+        targetKeywords: 'mifupa, viungo, mgongo, nyonga, magoti, ganzi, baridi yabisi, arthritis, maumivu ya kiuno, gout, miguu kufa ganzi',
+        benefits: [
+          'Hutuliza maumivu ya mgongo na viungo ndani ya muda mfupi',
+          'Huondoa uvimbe na ganzi kwenye miguu na mikono',
+          'Hurudisha ute kwenye viungo na magoti',
+          'Inafaa kwa wazee na wanaofanya kazi ngumu',
+        ],
+        howToUse: 'Chua eneo lenye maumivu kwa dakika 10 asubuhi na usiku kabla ya kulala.',
+      ),
     ];
   }
 
@@ -283,10 +367,10 @@ class DawaOrderService extends ChangeNotifier {
     return stops.contains(word);
   }
 
-  /// Get the most relevant product for a specific makala / post, or the default hero product.
-  DawaProduct getProductForPost(ContentPost? post) {
-    if (post == null) return defaultProduct;
-    if (_products.isEmpty) return defaultProduct;
+  /// Search for a matching product for a specific makala / post.
+  /// Returns null if no matching product exists in the catalog (so UI does not falsely show Vidonda vya Tumbo).
+  DawaProduct? findProductForPost(ContentPost? post) {
+    if (post == null || _products.isEmpty) return null;
 
     final titleLower = post.title.toLowerCase();
     final subtitleLower = post.subtitle.toLowerCase();
@@ -343,17 +427,22 @@ class DawaOrderService extends ChangeNotifier {
       }
     }
 
-    if (bestProduct != null && highestScore > 0) {
+    if (bestProduct != null && highestScore >= 30) {
       return bestProduct;
     }
 
-    return defaultProduct;
+    return null;
   }
 
-  /// Find matching product by keywords in text
-  DawaProduct getProductForText(String text) {
-    if (_products.isEmpty) return defaultProduct;
-    return getProductForPost(ContentPost(
+  /// Get the most relevant product for a specific makala / post, or the default hero product.
+  DawaProduct getProductForPost(ContentPost? post) {
+    return findProductForPost(post) ?? defaultProduct;
+  }
+
+  /// Find matching product by keywords in text (returns null if no confident match)
+  DawaProduct? findProductForText(String text) {
+    if (_products.isEmpty || text.trim().isEmpty) return null;
+    return findProductForPost(ContentPost(
       id: 'text_search_virtual',
       section: 'general',
       title: text,
@@ -361,14 +450,18 @@ class DawaOrderService extends ChangeNotifier {
     ));
   }
 
-  /// Get product matching a condition
-  DawaProduct getProductForCondition(dynamic condition) {
-    if (condition == null) return defaultProduct;
+  DawaProduct getProductForText(String text) {
+    return findProductForText(text) ?? defaultProduct;
+  }
+
+  /// Find matching product for a condition (returns null if no confident match)
+  DawaProduct? findProductForCondition(dynamic condition) {
+    if (condition == null) return null;
     try {
       final name = condition.name as String? ?? '';
       final shortDesc = condition.shortDesc as String? ?? '';
       final longDesc = condition.longDesc as String? ?? '';
-      return getProductForPost(ContentPost(
+      return findProductForPost(ContentPost(
         id: 'condition_virtual',
         section: 'condition',
         title: name,
@@ -376,8 +469,13 @@ class DawaOrderService extends ChangeNotifier {
         content: longDesc,
       ));
     } catch (_) {
-      return defaultProduct;
+      return null;
     }
+  }
+
+  /// Get product matching a condition or default
+  DawaProduct getProductForCondition(dynamic condition) {
+    return findProductForCondition(condition) ?? defaultProduct;
   }
 
   /// Get product matching a herb name or description

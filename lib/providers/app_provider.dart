@@ -80,6 +80,20 @@ class AppProvider extends ChangeNotifier {
   bool _loaded = false;
   bool get isLoaded => _loaded;
 
+  /// Holds draft message when redirecting user to Mwalimu chat to inquire about medicine
+  String? pendingMwalimuMessage;
+
+  void openMwalimuWithDraft(String message) {
+    pendingMwalimuMessage = message;
+    navigate(AppScreen.askExpert);
+  }
+
+  String? consumePendingMwalimuMessage() {
+    final msg = pendingMwalimuMessage;
+    pendingMwalimuMessage = null;
+    return msg;
+  }
+
   /// Hides bottom nav while reading content inside a main tab (e.g. Jifunze reader).
   bool bottomNavSuppressed = false;
 
