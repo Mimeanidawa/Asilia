@@ -28,7 +28,7 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoPlay());
-    Future<void>.delayed(const Duration(seconds: 4), () {
+    Future<void>.delayed(const Duration(seconds: 6), () {
       if (mounted && _playing) _unlock();
     });
   }
@@ -88,7 +88,7 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'Loading ad…',
+                  'Inapakia video ya tangazo…',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
