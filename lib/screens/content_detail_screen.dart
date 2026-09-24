@@ -69,20 +69,32 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
 
     unawaitedAdsPreload(ads);
 
-    var post = await content.fetchPost(id, userToken: user.token);
-    if (post == null) {
-      await Future<void>.delayed(const Duration(milliseconds: 900));
-      if (!mounted) return;
-      post = await content.fetchPost(id, userToken: user.token);
-    }
-    if (!mounted) return;
-
-    setState(() {
-      _post = post;
+    // 1. Immediately show cached post (0ms loading delay)
+    final cached = content.getPostById(id);
+    if (cached != null) {
+      _post = cached;
       _loading = false;
-    });
+      if (mounted) setState(() {});
+    }
 
-    _maybeShowPremiumModal(post, user);
+    // 2. Fetch full post details
+    try {
+      final post = await content.fetchPost(id, userToken: user.token);
+      if (!mounted) return;
+      if (post != null) {
+        setState(() {
+          _post = post;
+          _loading = false;
+        });
+        _maybeShowPremiumModal(post, user);
+      } else if (_post == null) {
+        setState(() => _loading = false);
+      }
+    } catch (_) {
+      if (mounted && _post == null) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   void unawaitedAdsPreload(AdsService ads) {
@@ -246,10 +258,41 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
                             else ...[
                               if (ads.shouldShowAds(user))
                                 const MakalaInlineBannerAd(),
-                              RichContentView(content: post.content)
-                                  .animate()
-                                  .fadeIn(delay: 200.ms),
-
+                              if (post.content.trim().isNotEmpty)
+                                RichContentView(content: post.content)
+                                    .animate()
+                                    .fadeIn(delay: 200.ms)
+                              else if (post.excerpt.trim().isNotEmpty) ...[
+                                Text(
+                                  post.excerpt,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.forest,
+                                    height: 1.6,
+                                  ),
+                                ).animate().fadeIn(delay: 200.ms),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.creamDark,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppColors.gray200),
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.wifi_off_rounded, color: AppColors.gray500, size: 20),
+                                      SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Muhtasari wa makala hii unaonyeshwa nje ya mtandao. Washa intaneti kusoma makala yote kamili.',
+                                          style: TextStyle(fontSize: 12, color: AppColors.gray600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ],
                         ),

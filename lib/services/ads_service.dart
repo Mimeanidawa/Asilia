@@ -22,6 +22,8 @@ class AdsService extends ChangeNotifier {
   bool _loadingRewarded = false;
   int _interstitialBackoff = 4;
   int _rewardedBackoff = 4;
+  int _interstitialFailures = 0;
+  int _rewardedFailures = 0;
 
   bool get isReady => _initialized && AdsConfig.isSupportedPlatform;
   bool get isInitializing => _initializing;
@@ -61,6 +63,8 @@ class AdsService extends ChangeNotifier {
   Future<void> preload() async {
     await initialize();
     if (!_initialized) return;
+    _interstitialFailures = 0;
+    _rewardedFailures = 0;
     _loadInterstitial();
     _loadRewarded();
   }
@@ -77,13 +81,14 @@ class AdsService extends ChangeNotifier {
           _interstitial = ad;
           _loadingInterstitial = false;
           _interstitialBackoff = 4;
+          _interstitialFailures = 0;
           ad.setImmersiveMode(true);
         },
         onAdFailedToLoad: (error) {
           debugPrint('Interstitial failed: $error');
           _interstitial = null;
           _loadingInterstitial = false;
-          _scheduleInterstitialRetry();
+          _scheduleInterstitialRetry(error);
         },
       ),
     );
@@ -101,28 +106,49 @@ class AdsService extends ChangeNotifier {
           _rewarded = ad;
           _loadingRewarded = false;
           _rewardedBackoff = 4;
+          _rewardedFailures = 0;
         },
         onAdFailedToLoad: (error) {
           debugPrint('Rewarded failed: $error');
           _rewarded = null;
           _loadingRewarded = false;
-          _scheduleRewardedRetry();
+          _scheduleRewardedRetry(error);
         },
       ),
     );
   }
 
-  void _scheduleInterstitialRetry() {
-    final delay = Duration(seconds: _interstitialBackoff);
-    _interstitialBackoff = (_interstitialBackoff + 2).clamp(4, 30);
+  void _scheduleInterstitialRetry([LoadAdError? error]) {
+    _interstitialFailures++;
+    final isNetwork = error != null &&
+        (error.code == 0 ||
+            error.message.toLowerCase().contains('unable to resolve host') ||
+            error.message.toLowerCase().contains('connect'));
+
+    if (isNetwork && _interstitialFailures > 2) return;
+    if (_interstitialFailures > 4) return;
+
+    final delay = isNetwork ? const Duration(seconds: 45) : Duration(seconds: _interstitialBackoff);
+    _interstitialBackoff = (_interstitialBackoff + 5).clamp(4, 60);
+
     Future<void>.delayed(delay, () {
       if (_interstitial == null && !_loadingInterstitial) _loadInterstitial();
     });
   }
 
-  void _scheduleRewardedRetry() {
-    final delay = Duration(seconds: _rewardedBackoff);
-    _rewardedBackoff = (_rewardedBackoff + 2).clamp(4, 30);
+  void _scheduleRewardedRetry([LoadAdError? error]) {
+    _rewardedFailures++;
+    final isNetwork = error != null &&
+        (error.code == 0 ||
+            error.message.toLowerCase().contains('unable to resolve host') ||
+            error.message.toLowerCase().contains('connect'));
+
+    if (isNetwork && _rewardedFailures > 2) return;
+    if (_rewardedFailures > 4) return;
+
+    final delay = isNetwork ? const Duration(seconds: 45) : Duration(seconds: _rewardedBackoff);
+    _rewardedBackoff = (_rewardedBackoff + 5).clamp(4, 60);
+
     Future<void>.delayed(delay, () {
       if (_rewarded == null && !_loadingRewarded) _loadRewarded();
     });
@@ -150,14 +176,19 @@ class AdsService extends ChangeNotifier {
   }
 
   Future<void> _waitForFullscreenAd({
-    Duration timeout = const Duration(seconds: 10),
+    Duration timeout = const Duration(milliseconds: 2500),
   }) async {
+    if (_interstitial != null || _rewarded != null) return;
+    _loadInterstitial();
+    _loadRewarded();
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
       if (_interstitial != null || _rewarded != null) return;
-      _loadInterstitial();
-      _loadRewarded();
-      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!_loadingInterstitial && !_loadingRewarded) {
+        // Both requests finished (and neither succeeded)
+        return;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,8 @@ class ContentService extends ChangeNotifier {
   ContentService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
   final ApiClient _api;
+
+  final Map<String, ContentPost> _postDetailCache = {};
 
   List<CarouselSlide> carousels = [];
   List<ContentPost> dodosoPosts = [];
@@ -191,12 +194,119 @@ class ContentService extends ChangeNotifier {
     }
   }
 
-  Future<ContentPost?> fetchPost(String id, {String? userToken}) async {
+  /// Finds any post by ID from detailed cache, loaded sections, or recommendations.
+  ContentPost? getPostById(String id) {
+    if (id.isEmpty) return null;
+
+    final detailed = _postDetailCache[id];
+    if (detailed != null) return detailed;
+
     try {
-      final data = await _api.get('/api/content/$id', token: userToken);
-      return ContentPost.fromJson(data['post'] as Map<String, dynamic>);
+      return allPosts.firstWhere((p) => p.id == id);
+    } catch (_) {}
+
+    try {
+      final rec = recommended.firstWhere((r) => r.id == id);
+      return ContentPost(
+        id: rec.id,
+        section: rec.section,
+        category: rec.category,
+        title: rec.title,
+        subtitle: '',
+        excerpt: rec.excerpt,
+        content: '',
+        imageUrl: rec.imageUrl,
+        readTimeMinutes: rec.readTimeMinutes,
+        isPremium: rec.isPremium,
+        price: rec.price,
+      );
+    } catch (_) {}
+
+    return null;
+  }
+
+  void _updatePostInMemory(ContentPost fetched) {
+    void replaceInList(List<ContentPost> list) {
+      final idx = list.indexWhere((p) => p.id == fetched.id);
+      if (idx != -1) {
+        list[idx] = fetched;
+      }
+    }
+
+    replaceInList(dodosoPosts);
+    replaceInList(chaguaMadaPosts);
+    replaceInList(vyakulaMatundaPosts);
+    replaceInList(jifunzePosts);
+  }
+
+  Future<ContentPost?> fetchPost(String id, {String? userToken}) async {
+    if (id.isEmpty) return null;
+
+    final cached = getPostById(id);
+
+    try {
+      final data = await _api.get(
+        '/api/content/$id',
+        token: userToken,
+        timeout: const Duration(seconds: 6),
+      );
+      final rawPost = data['post'];
+      if (rawPost is Map<String, dynamic>) {
+        final post = ContentPost.fromJson(rawPost);
+        _postDetailCache[id] = post;
+        _updatePostInMemory(post);
+        unawaited(_savePostToDisk(id, post));
+        return post;
+      }
     } catch (e) {
-      debugPrint('fetchPost error: $e');
+      debugPrint('fetchPost error ($id): $e');
+    }
+
+    // If memory cache has empty content, check persistent disk cache
+    if (cached == null || cached.content.isEmpty) {
+      final diskPost = await _loadPostFromDisk(id);
+      if (diskPost != null) {
+        _postDetailCache[id] = diskPost;
+        _updatePostInMemory(diskPost);
+        return diskPost;
+      }
+    }
+
+    // Always fallback to cached metadata rather than returning null
+    return cached;
+  }
+
+  Future<void> _savePostToDisk(String id, ContentPost post) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'da_post_detail_$id',
+        jsonEncode({
+          'id': post.id,
+          'section': post.section,
+          'category': post.category,
+          'title': post.title,
+          'subtitle': post.subtitle,
+          'excerpt': post.excerpt,
+          'content': post.content,
+          'imageUrl': post.imageUrl,
+          'isPremium': post.isPremium,
+          'price': post.price,
+          'readTimeMinutes': post.readTimeMinutes,
+          'hasAccess': post.hasAccess,
+        }),
+      );
+    } catch (_) {}
+  }
+
+  Future<ContentPost?> _loadPostFromDisk(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('da_post_detail_$id');
+      if (raw == null) return null;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return ContentPost.fromJson(map);
+    } catch (_) {
       return null;
     }
   }
@@ -349,6 +459,7 @@ class ContentService extends ChangeNotifier {
   Map<String, dynamic> _postToCache(ContentPost p) => {
         'id': p.id, 'section': p.section, 'category': p.category,
         'title': p.title, 'subtitle': p.subtitle, 'excerpt': p.excerpt,
+        'content': p.content,
         'imageUrl': p.imageUrl, 'isPremium': p.isPremium, 'price': p.price,
         'readTimeMinutes': p.readTimeMinutes,
       };

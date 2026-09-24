@@ -23,15 +23,13 @@ class MakalaAdGate extends StatefulWidget {
 class _MakalaAdGateState extends State<MakalaAdGate> {
   bool _playing = true;
   bool _canSkip = false;
-  int _attempts = 0;
-  static const _maxAttempts = 4;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoPlay());
-    Future<void>.delayed(const Duration(seconds: 6), () {
-      if (mounted && _playing) setState(() => _canSkip = true);
+    Future<void>.delayed(const Duration(seconds: 4), () {
+      if (mounted && _playing) _unlock();
     });
   }
 
@@ -39,23 +37,15 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
     if (!mounted) return;
     final ads = context.read<AdsService>();
     await ads.initialize();
-    await ads.preload();
 
-    while (mounted && _playing && _attempts < _maxAttempts) {
-      _attempts++;
-      final shown = await ads.showMakalaEntryAd(
-        onCompleted: _unlock,
-        onFailed: () {},
-        grantRewardOnDismiss: true,
-      );
-      if (shown || !mounted) return;
-
-      await Future<void>.delayed(Duration(milliseconds: 800 * _attempts));
-      await ads.preload();
+    final shown = await ads.showMakalaEntryAd(
+      onCompleted: _unlock,
+      onFailed: _unlock,
+      grantRewardOnDismiss: true,
+    );
+    if (!shown && mounted && _playing) {
+      _unlock();
     }
-
-    if (!mounted || !_playing) return;
-    _unlock();
   }
 
   void _unlock() {
