@@ -222,6 +222,7 @@ class AdsService extends ChangeNotifier {
   Future<bool> showMakalaEntryAd({
     required VoidCallback onCompleted,
     VoidCallback? onFailed,
+    VoidCallback? onAdStarted,
     bool grantRewardOnDismiss = true,
   }) async {
     await initialize();
@@ -239,11 +240,16 @@ class AdsService extends ChangeNotifier {
         onCompleted: onCompleted,
         onFailed: () {
           if (_interstitial != null) {
-            _showInterstitial(onCompleted: onCompleted, onFailed: onFailed);
+            _showInterstitial(
+              onCompleted: onCompleted,
+              onFailed: onFailed,
+              onAdStarted: onAdStarted,
+            );
           } else {
             onFailed?.call();
           }
         },
+        onAdStarted: onAdStarted,
         grantOnDismiss: grantRewardOnDismiss,
       );
     }
@@ -255,11 +261,16 @@ class AdsService extends ChangeNotifier {
         onCompleted: onCompleted,
         onFailed: () {
           if (_interstitial != null) {
-            _showInterstitial(onCompleted: onCompleted, onFailed: onFailed);
+            _showInterstitial(
+              onCompleted: onCompleted,
+              onFailed: onFailed,
+              onAdStarted: onAdStarted,
+            );
           } else {
             onFailed?.call();
           }
         },
+        onAdStarted: onAdStarted,
         grantOnDismiss: grantRewardOnDismiss,
       );
     }
@@ -267,7 +278,11 @@ class AdsService extends ChangeNotifier {
     // 3. Fallback to Interstitial ad only if rewarded ad is not available
     if (_interstitial != null) {
       debugPrint('AdsService: Fallback to Interstitial ad (rewarded was not ready)');
-      return _showInterstitial(onCompleted: onCompleted, onFailed: onFailed);
+      return _showInterstitial(
+        onCompleted: onCompleted,
+        onFailed: onFailed,
+        onAdStarted: onAdStarted,
+      );
     }
 
     onFailed?.call();
@@ -277,6 +292,7 @@ class AdsService extends ChangeNotifier {
   Future<bool> _showInterstitial({
     required VoidCallback onCompleted,
     VoidCallback? onFailed,
+    VoidCallback? onAdStarted,
   }) async {
     final ad = _interstitial;
     if (ad == null) {
@@ -288,6 +304,10 @@ class AdsService extends ChangeNotifier {
     final done = Completer<bool>();
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('Interstitial ad showed on screen');
+        onAdStarted?.call();
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _loadInterstitial();
@@ -319,6 +339,7 @@ class AdsService extends ChangeNotifier {
   Future<bool> _showRewarded({
     required VoidCallback onCompleted,
     VoidCallback? onFailed,
+    VoidCallback? onAdStarted,
     bool grantOnDismiss = true,
   }) async {
     final ad = _rewarded;
@@ -332,6 +353,10 @@ class AdsService extends ChangeNotifier {
     var earned = false;
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('Rewarded ad showed on screen');
+        onAdStarted?.call();
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _loadRewarded();
@@ -372,6 +397,7 @@ class AdsService extends ChangeNotifier {
   Future<bool> _showRewardedInterstitial({
     required VoidCallback onCompleted,
     VoidCallback? onFailed,
+    VoidCallback? onAdStarted,
     bool grantOnDismiss = true,
   }) async {
     final ad = _rewardedInterstitial;
@@ -385,6 +411,10 @@ class AdsService extends ChangeNotifier {
     var earned = false;
 
     ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (ad) {
+        debugPrint('RewardedInterstitial ad showed on screen');
+        onAdStarted?.call();
+      },
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
         _loadRewarded();

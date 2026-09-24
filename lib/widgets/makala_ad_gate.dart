@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,14 +25,25 @@ class MakalaAdGate extends StatefulWidget {
 class _MakalaAdGateState extends State<MakalaAdGate> {
   bool _playing = true;
   bool _canSkip = false;
+  Timer? _safetyTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoPlay());
-    Future<void>.delayed(const Duration(seconds: 6), () {
-      if (mounted && _playing) _unlock();
+    // Fallback: only if ad completely fails to load or open within 7 seconds, unlock so reader isn't blocked.
+    _safetyTimer = Timer(const Duration(seconds: 7), () {
+      if (mounted && _playing) {
+        debugPrint('MakalaAdGate: Safety timeout reached before ad started, unlocking.');
+        _unlock();
+      }
     });
+  }
+
+  @override
+  void dispose() {
+    _safetyTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _autoPlay() async {
@@ -39,6 +52,11 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
     await ads.initialize();
 
     final shown = await ads.showMakalaEntryAd(
+      onAdStarted: () {
+        debugPrint('MakalaAdGate: Ad started playback. Cancelling safety timer.');
+        _safetyTimer?.cancel();
+        _safetyTimer = null;
+      },
       onCompleted: _unlock,
       onFailed: _unlock,
       grantRewardOnDismiss: true,
@@ -49,6 +67,8 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
   }
 
   void _unlock() {
+    _safetyTimer?.cancel();
+    _safetyTimer = null;
     if (!mounted) return;
     setState(() {
       _playing = false;
