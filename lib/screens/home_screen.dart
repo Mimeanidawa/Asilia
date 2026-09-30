@@ -28,6 +28,10 @@ import '../widgets/stats_strip.dart';
 import '../utils/app_refresh.dart';
 import '../utils/premium_content_flow.dart';
 import '../utils/responsive.dart';
+import '../services/dawa_order_service.dart';
+import '../utils/tzs_format.dart';
+import '../widgets/herb_image.dart';
+import '../widgets/order_product_sheet.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
 
@@ -176,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _buildHeroCarousel(context),
                           const StatsStrip(),
+                          _buildDawaShelf(context, app),
                           const GroupedCategoryHub(),
                           _buildDarasaHuru(context, app),
                           const Padding(
@@ -960,6 +965,155 @@ class _HomeScreenState extends State<HomeScreen> {
           onOpen: (lesson) => app.navigate(
             AppScreen.darasaHuru,
             lessonId: lesson.id,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDawaShelf(BuildContext context, AppProvider app) {
+    final orderService = context.watch<DawaOrderService>();
+    final products = orderService.products;
+    if (products.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Duka la Dawa Asili',
+          subtitle: 'Tiba asili zilizothibitishwa • Punguzo la 50% leo',
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          actionLabel: 'Dukani >',
+          onAction: () => app.navigate(AppScreen.dawaShop),
+        ),
+        SizedBox(
+          height: 250,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: products.length,
+            itemBuilder: (context, i) {
+              final p = products[i];
+              return Container(
+                width: 200,
+                margin: const EdgeInsets.only(right: 12, bottom: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppColors.forest.withValues(alpha: 0.1)),
+                  boxShadow: AppColors.elevationSm,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                          child: HerbImage(
+                            url: p.imageUrl,
+                            width: 200,
+                            height: 130,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              p.badgeText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              p.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.forest,
+                                height: 1.2,
+                              ),
+                            ),
+                            const Spacer(),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      TzsFormat.full(p.price),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF047857),
+                                      ),
+                                    ),
+                                    if (p.originalPrice > p.price)
+                                      Text(
+                                        TzsFormat.full(p.originalPrice),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: AppColors.forest.withValues(alpha: 0.45),
+                                          decoration: TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                PressableScale(
+                                  onTap: () => OrderProductSheet.show(context, p),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF10B981), Color(0xFF059669)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Text(
+                                      'Nunua',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],

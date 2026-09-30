@@ -17,17 +17,17 @@ Set **Root Directory** to `backend` in Railway service settings.
 
 Required env vars: `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
 
-For live payments, also configure `PAYMENT_PROVIDER=aurax`,
-`AURAXPAY_API_KEY`, `AURAXPAY_WEBHOOK_SECRET`, and
-`AURAXPAY_BASE_URL=https://api.auraxpay.net/v1`.
+For live payments, also configure `SONICPESA_ACCESS_KEY` and
+`SONICPESA_SECRET_KEY`.
 
-Set the Aurax Pay webhook endpoint to:
+SonicPesa allows one webhook. If several apps share that API, keep:
 
 ```text
-https://asilia-production.up.railway.app/api/payments/aurax/webhook
+https://washatv-production.up.railway.app/api/v1/webhooks/sonicpesa
 ```
 
-The webhook must retain the `X-Aurax-Signature` header. Payment secrets belong
-only in Railway environment variables and must never be added to Flutter or Git.
+This service listens on the same path, so Asilia orders are marked paid only
+when that webhook (or the status poll) hits the database that stored the
+checkout. Payment secrets belong only in Railway environment variables.
 
 Default admin: `mimeanidawa@gmail.com`

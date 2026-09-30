@@ -126,6 +126,7 @@ class AdminOrder {
   final DateTime createdAt;
 
   int get itemsTotal => unitPrice * quantity;
+  bool get isPaid => paymentStatus.trim().toLowerCase() == 'paid';
 
   factory AdminOrder.fromJson(Map<String, dynamic> json) {
     return AdminOrder(
@@ -145,7 +146,7 @@ class AdminOrder {
       district: json['district'] as String? ?? '',
       ward: json['ward'] as String? ?? '',
       paymentMethod: json['paymentMethod'] ?? json['payment_method'] as String? ?? 'M-Pesa',
-      paymentStatus: json['paymentStatus'] ?? json['payment_status'] as String? ?? 'paid',
+      paymentStatus: json['paymentStatus'] ?? json['payment_status'] as String? ?? 'pending',
       deliveryStatus: json['deliveryStatus'] ?? json['delivery_status'] as String? ?? 'pending',
       trackingInfo: json['trackingInfo'] ?? json['tracking_info'] as String? ?? '',
       adminNotes: json['adminNotes'] ?? json['admin_notes'] as String? ?? '',

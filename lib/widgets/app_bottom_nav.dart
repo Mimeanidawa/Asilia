@@ -48,17 +48,17 @@ class AppBottomNav extends StatelessWidget {
                 onTap: () => app.navigate(AppScreen.home),
               ),
               _NavItem(
-                icon: Icons.menu_book_outlined,
-                selectedIcon: Icons.menu_book_rounded,
-                label: 'Jifunze',
-                selected: active == AppScreen.learn,
-                onTap: () => app.navigate(AppScreen.learn),
+                icon: Icons.medication_liquid_outlined,
+                selectedIcon: Icons.medication_liquid_rounded,
+                label: 'Dawa',
+                selected: active == AppScreen.dawaShop,
+                onTap: () => app.navigate(AppScreen.dawaShop),
               ),
               _NavItem(
-                icon: Icons.spa_outlined,
-                selectedIcon: Icons.spa_rounded,
+                icon: Icons.menu_book_outlined,
+                selectedIcon: Icons.menu_book_rounded,
                 label: 'Makala',
-                selected: isExploreActive,
+                selected: isExploreActive || active == AppScreen.learn,
                 onTap: () {
                   app.selectedContentCategory = null;
                   app.navigate(

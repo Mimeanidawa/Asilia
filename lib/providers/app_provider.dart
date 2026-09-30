@@ -104,6 +104,7 @@ class AppProvider extends ChangeNotifier {
       case AppScreen.contentList:
       case AppScreen.askExpert:
       case AppScreen.profile:
+      case AppScreen.dawaShop:
         return !bottomNavSuppressed;
       default:
         return false;

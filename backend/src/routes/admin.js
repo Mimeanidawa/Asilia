@@ -245,28 +245,59 @@ router.post('/products', requireAdmin, async (req, res) => {
       title,
       subtitle = '',
       description = '',
-      price = 25000,
-      originalPrice = 50000,
-      discountPercent = 50,
-      imageUrl = '',
-      badgeText = 'PUNGUZO LA 50% 🔥',
-      stockQuantity = 50,
+      price,
+      originalPrice,
+      original_price,
+      discountPercent,
+      discount_percent,
+      imageUrl,
+      image_url,
+      badgeText,
+      badge_text,
+      stockQuantity,
+      stock_quantity,
       category = 'general',
-      targetKeywords = '',
-      target_keywords = '',
+      targetKeywords,
+      target_keywords,
       benefits = [],
-      howToUse = '',
-      isPublished = true,
+      howToUse,
+      how_to_use,
+      isPublished,
+      is_published,
     } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: 'Title is required' });
     }
 
+    const numPrice = parseInt(price != null ? price : 25000, 10) || 25000;
+    const rawOrig = originalPrice != null ? originalPrice : original_price;
+    const numOrigPrice = parseInt(rawOrig != null ? rawOrig : 50000, 10) || 50000;
+    const rawDiscount = discountPercent != null ? discountPercent : discount_percent;
+    const numDiscount = parseInt(rawDiscount != null ? rawDiscount : 50, 10) || 0;
+    const rawStock = stockQuantity != null ? stockQuantity : stock_quantity;
+    const numStock = parseInt(rawStock != null ? rawStock : 50, 10) || 0;
+    const img = imageUrl || image_url || '';
+    const badge = badgeText || badge_text || 'PUNGUZO LA 50% 🔥';
+    const instructions = howToUse || how_to_use || '';
+    const targetKw = targetKeywords || target_keywords || '';
+    const pub = isPublished !== undefined ? Boolean(isPublished) : (is_published !== undefined ? Boolean(is_published) : true);
+
+    let parsedBenefits = [];
+    if (Array.isArray(benefits)) {
+      parsedBenefits = benefits;
+    } else if (typeof benefits === 'string') {
+      try {
+        const b = JSON.parse(benefits);
+        parsedBenefits = Array.isArray(b) ? b : [benefits];
+      } catch {
+        parsedBenefits = benefits ? [benefits] : [];
+      }
+    }
+    const benefitsJson = JSON.stringify(parsedBenefits);
+
     const db = getPool();
     const productId = id || `dawa_${Date.now()}`;
-    const benefitsJson = JSON.stringify(Array.isArray(benefits) ? benefits : []);
-    const targetKw = targetKeywords || target_keywords || '';
 
     const { rows } = await db.query(
       `INSERT INTO products (
@@ -274,23 +305,39 @@ router.post('/products', requireAdmin, async (req, res) => {
         image_url, badge_text, stock_quantity, category, target_keywords, benefits, how_to_use, is_published,
         created_at, updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14, $15, NOW(), NOW())
+      ON CONFLICT (id) DO UPDATE SET
+        title = EXCLUDED.title,
+        subtitle = EXCLUDED.subtitle,
+        description = EXCLUDED.description,
+        price = EXCLUDED.price,
+        original_price = EXCLUDED.original_price,
+        discount_percent = EXCLUDED.discount_percent,
+        image_url = EXCLUDED.image_url,
+        badge_text = EXCLUDED.badge_text,
+        stock_quantity = EXCLUDED.stock_quantity,
+        category = EXCLUDED.category,
+        target_keywords = EXCLUDED.target_keywords,
+        benefits = EXCLUDED.benefits,
+        how_to_use = EXCLUDED.how_to_use,
+        is_published = EXCLUDED.is_published,
+        updated_at = NOW()
       RETURNING *`,
       [
         productId,
         title,
         subtitle,
         description,
-        price,
-        originalPrice,
-        discountPercent,
-        imageUrl,
-        badgeText,
-        stockQuantity,
+        numPrice,
+        numOrigPrice,
+        numDiscount,
+        img,
+        badge,
+        numStock,
         category,
         targetKw,
         benefitsJson,
-        howToUse,
-        isPublished,
+        instructions,
+        pub,
       ]
     );
 
@@ -330,23 +377,54 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       description,
       price,
       originalPrice,
+      original_price,
       discountPercent,
+      discount_percent,
       imageUrl,
+      image_url,
       badgeText,
+      badge_text,
       stockQuantity,
+      stock_quantity,
       category,
       targetKeywords,
       target_keywords,
       benefits,
       howToUse,
+      how_to_use,
       isPublished,
+      is_published,
     } = req.body;
 
     const db = getPool();
-    const benefitsJson = benefits !== undefined
-      ? JSON.stringify(Array.isArray(benefits) ? benefits : [])
-      : null;
-    const targetKw = targetKeywords !== undefined ? targetKeywords : target_keywords;
+    const numPrice = price !== undefined ? (parseInt(price, 10) || 0) : null;
+    const rawOrig = originalPrice !== undefined ? originalPrice : original_price;
+    const numOrigPrice = rawOrig !== undefined ? (parseInt(rawOrig, 10) || 0) : null;
+    const rawDiscount = discountPercent !== undefined ? discountPercent : discount_percent;
+    const numDiscount = rawDiscount !== undefined ? (parseInt(rawDiscount, 10) || 0) : null;
+    const rawStock = stockQuantity !== undefined ? stockQuantity : stock_quantity;
+    const numStock = rawStock !== undefined ? (parseInt(rawStock, 10) || 0) : null;
+    const img = imageUrl !== undefined ? imageUrl : (image_url !== undefined ? image_url : null);
+    const badge = badgeText !== undefined ? badgeText : (badge_text !== undefined ? badge_text : null);
+    const instructions = howToUse !== undefined ? howToUse : (how_to_use !== undefined ? how_to_use : null);
+    const targetKw = targetKeywords !== undefined ? targetKeywords : (target_keywords !== undefined ? target_keywords : null);
+    const pub = isPublished !== undefined ? Boolean(isPublished) : (is_published !== undefined ? Boolean(is_published) : null);
+
+    let benefitsJson = null;
+    if (benefits !== undefined) {
+      let parsedBenefits = [];
+      if (Array.isArray(benefits)) {
+        parsedBenefits = benefits;
+      } else if (typeof benefits === 'string') {
+        try {
+          const b = JSON.parse(benefits);
+          parsedBenefits = Array.isArray(b) ? b : [benefits];
+        } catch {
+          parsedBenefits = benefits ? [benefits] : [];
+        }
+      }
+      benefitsJson = JSON.stringify(parsedBenefits);
+    }
 
     const { rows } = await db.query(
       `UPDATE products SET
@@ -369,20 +447,20 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       RETURNING *`,
       [
         id,
-        title,
-        subtitle,
-        description,
-        price,
-        originalPrice,
-        discountPercent,
-        imageUrl,
-        badgeText,
-        stockQuantity,
-        category,
+        title ?? null,
+        subtitle ?? null,
+        description ?? null,
+        numPrice,
+        numOrigPrice,
+        numDiscount,
+        img,
+        badge,
+        numStock,
+        category ?? null,
         targetKw,
         benefitsJson,
-        howToUse,
-        isPublished,
+        instructions,
+        pub,
       ]
     );
 

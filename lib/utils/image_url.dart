@@ -187,7 +187,8 @@ class ImageUrl {
     final url = normalize(raw);
     if (url.isEmpty) return '';
     if (isApiMediaUrl(url)) return forceHttps(url);
-    return proxied(url);
+    if (requiresProxy(url)) return proxied(url);
+    return url;
   }
 
   /// True when [raw] is already a stable API media or proxied URL.

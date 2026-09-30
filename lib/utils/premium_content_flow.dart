@@ -67,7 +67,7 @@ Future<void> showPremiumUnlockForPost(
   );
 }
 
-/// Runs Aurax Pay for a single premium makala (unlocks that item only).
+/// Runs SonicPesa payment for a single premium makala (unlocks that item only).
 Future<bool> purchasePremiumContent(
   BuildContext context, {
   required ContentPost post,

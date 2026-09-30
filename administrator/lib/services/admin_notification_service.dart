@@ -163,11 +163,13 @@ Future<void> adminFirebaseMessagingBackgroundHandler(RemoteMessage message) asyn
 Future<void> _subscribeAdminTopic(FirebaseMessaging messaging) async {
   if (_topicSubscribed) return;
   try {
-    await messaging.subscribeToTopic(AdminConfig.fcmTopicAdmin);
+    await messaging
+        .subscribeToTopic(AdminConfig.fcmTopicAdmin)
+        .timeout(const Duration(seconds: 4));
     _topicSubscribed = true;
     debugPrint('Subscribed to admin FCM topic: ${AdminConfig.fcmTopicAdmin}');
   } catch (e) {
-    debugPrint('Admin topic subscribe failed: $e');
+    debugPrint('Admin topic subscribe failed or timed out: $e');
   }
 }
 
@@ -297,7 +299,9 @@ class AdminNotificationService {
     try {
       await bootstrapAdminNotifications();
       _messaging ??= FirebaseMessaging.instance;
-      final token = await _messaging!.getToken();
+      final token = await _messaging!
+          .getToken()
+          .timeout(const Duration(seconds: 4));
       if (token != null) {
         await registerDevice(token, force: force);
       }

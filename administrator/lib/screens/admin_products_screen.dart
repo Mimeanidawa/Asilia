@@ -135,6 +135,38 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
                 const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator(color: AdminColors.emerald)),
                 )
+              else if (provider.productsError != null && products.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.cloud_off_rounded, size: 48, color: AdminColors.amber),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Imeshindikana kupakia dawa',
+                            style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            provider.productsError!,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 12),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: provider.fetchAdminProducts,
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Jaribu tena'),
+                            style: ElevatedButton.styleFrom(backgroundColor: AdminColors.emerald, foregroundColor: const Color(0xFF052E16)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
               else if (products.isEmpty)
                 SliverFillRemaining(
                   child: Center(
@@ -426,6 +458,7 @@ class _ProductFormSheet extends StatefulWidget {
 }
 
 class _ProductFormSheetState extends State<_ProductFormSheet> {
+  final String _newProductId = 'dawa_${DateTime.now().millisecondsSinceEpoch}';
   late final TextEditingController _titleCtrl;
   late final TextEditingController _subtitleCtrl;
   late final TextEditingController _targetKeywordsCtrl;
@@ -544,11 +577,31 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
       return;
     }
 
+    final origPrice = int.tryParse(_origPriceCtrl.text.trim());
+    final price = int.tryParse(_priceCtrl.text.trim());
+    final stockQuantity = int.tryParse(_stockCtrl.text.trim());
+    if (origPrice == null || origPrice <= 0 || price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Weka bei halali iliyo kubwa kuliko sifuri')),
+      );
+      return;
+    }
+    if (price > origPrice) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bei ya punguzo haiwezi kuzidi bei ya awali')),
+      );
+      return;
+    }
+    if (stockQuantity == null || stockQuantity < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Weka idadi halali ya bidhaa (sifuri au zaidi)')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     final provider = context.read<AdminProvider>();
-    final origPrice = int.tryParse(_origPriceCtrl.text.trim()) ?? 50000;
-    final price = int.tryParse(_priceCtrl.text.trim()) ?? 25000;
-    final discountPercent = origPrice > 0 ? (((origPrice - price) / origPrice) * 100).round() : 50;
+    final discountPercent = (((origPrice - price) / origPrice) * 100).round();
 
     final benefits = _benefitsCtrl.text
         .split('\n')
@@ -557,7 +610,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
         .toList();
 
     final product = AdminProduct(
-      id: widget.existing?.id ?? 'dawa_${DateTime.now().millisecondsSinceEpoch}',
+      id: widget.existing?.id ?? _newProductId,
       title: title,
       subtitle: _subtitleCtrl.text.trim(),
       description: _descCtrl.text.trim(),
@@ -566,7 +619,7 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
       discountPercent: discountPercent,
       imageUrl: _imageCtrl.text.trim(),
       badgeText: 'PUNGUZO LA $discountPercent% 🔥',
-      stockQuantity: int.tryParse(_stockCtrl.text.trim()) ?? 50,
+      stockQuantity: stockQuantity,
       category: _selectedCategory,
       targetKeywords: _targetKeywordsCtrl.text.trim(),
       benefits: benefits,
@@ -589,8 +642,15 @@ class _ProductFormSheetState extends State<_ProductFormSheet> {
           ),
         );
       } else {
+        final reason = widget.existing == null
+            ? provider.productSaveError
+            : null;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Imeshindwa kuokoa dawa'), backgroundColor: AdminColors.rose),
+          SnackBar(
+            content: Text(reason == null ? 'Imeshindwa kuokoa dawa. Tafadhali jaribu tena.' : 'Imeshindwa kuokoa dawa: $reason'),
+            backgroundColor: AdminColors.rose,
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
     }

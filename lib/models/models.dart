@@ -4,7 +4,7 @@ enum ArticleCategory { healthTips, herbs101, nutrition }
 
 enum ConditionIconType { cough, stomach, heart, diabetes, skin }
 
-enum AppScreen { home, herbDetails, askExpert, learn, conditions, profile, darasaHuru, contentList, contentDetail, auth, notifications }
+enum AppScreen { home, herbDetails, askExpert, learn, conditions, profile, darasaHuru, contentList, contentDetail, auth, notifications, dawaShop }
 
 enum TopicLinkType { learn, conditions, askExpert, herb, condition }
 

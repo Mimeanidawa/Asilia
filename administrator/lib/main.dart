@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,12 +19,6 @@ Future<void> main() async {
     ]);
   }
 
-  try {
-    await bootstrapAdminNotifications();
-  } catch (e) {
-    debugPrint('Admin FCM bootstrap failed: $e');
-  }
-
   if (defaultTargetPlatform == TargetPlatform.linux) {
     final previousHandler = FlutterError.onError;
     FlutterError.onError = (details) {
@@ -32,5 +28,17 @@ Future<void> main() async {
     };
   }
 
+  // Launch UI immediately so the app never freezes on startup
   runApp(const AdminApp());
+
+  // Bootstrap push notifications in background with safety timeout
+  if (isMobile) {
+    unawaited(
+      bootstrapAdminNotifications()
+          .timeout(const Duration(seconds: 4))
+          .catchError((e) {
+        debugPrint('Admin FCM bootstrap skipped/failed: $e');
+      }),
+    );
+  }
 }

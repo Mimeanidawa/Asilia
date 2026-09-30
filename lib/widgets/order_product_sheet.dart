@@ -190,7 +190,7 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
             .toString()
             .replaceAll('Exception: ', '')
             .replaceAll('ApiException: ', '');
-        _statusMessage = 'Muda wa kusubiri umekwisha au kuna hitilafu.';
+        _statusMessage = 'PIN haikuwekwa au ombi lilisitishwa. Risiti imehifadhiwa kama INASUBIRI MALIPO.';
       });
     }
   }
@@ -205,7 +205,7 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
     final orderService = context.read<DawaOrderService>();
     try {
       final order = await orderService.checkPaymentStatus(_currentOrder!.id);
-      if (order != null && order.paymentStatus == 'paid') {
+      if (order != null && order.isPaid) {
         setState(() {
           _step = _OrderSheetStep.success;
           _currentOrder = order;
@@ -1030,6 +1030,27 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
             ),
           ],
         ),
+        if (_currentOrder != null) ...[
+          const SizedBox(height: 6),
+          Center(
+            child: TextButton.icon(
+              onPressed: () {
+                final pending = _currentOrder!;
+                Navigator.of(context).pop();
+                ReceiptModal.show(context, pending);
+              },
+              icon: const Icon(Icons.receipt_long_rounded, size: 16, color: AppColors.emerald800),
+              label: const Text(
+                'Tazama Risiti (Inasubiri Malipo)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.emerald800,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

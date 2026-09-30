@@ -11,7 +11,7 @@ import contentRouter from './routes/content.js';
 import usersRouter from './routes/users.js';
 import chatRouter from './routes/chat.js';
 import adminRouter from './routes/admin.js';
-import paymentsRouter from './routes/payments.js';
+import paymentsRouter, { handleSonicPesaWebhook } from './routes/payments.js';
 import notificationsRouter from './routes/notifications.js';
 import imagesRouter from './routes/images.js';
 import mediaRouter from './routes/media.js';
@@ -74,6 +74,8 @@ app.use('/api/users', usersRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/payments', paymentsRouter);
+app.post('/api/v1/webhooks/sonicpesa', handleSonicPesaWebhook);
+
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/images', imagesRouter);
 app.use('/api/media', mediaRouter);

@@ -7,9 +7,10 @@ import '../services/user_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/tzs_format.dart';
 
+// Keep enum name for backwards compatibility across all callers
 enum AuraxPaymentResult { success, cancelled, failed }
 
-/// Opens an Aurax Pay payment sheet.
+/// Opens a SonicPesa payment sheet for premium content or subscription.
 Future<AuraxPaymentResult?> showAuraxPayment(
   BuildContext context, {
   required PaymentType type,
@@ -23,7 +24,7 @@ Future<AuraxPaymentResult?> showAuraxPayment(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     isDismissible: false,
-    builder: (ctx) => _AuraxPaymentSheet(
+    builder: (ctx) => _SonicPaymentSheet(
       type: type,
       title: title,
       subtitle: subtitle,
@@ -33,8 +34,8 @@ Future<AuraxPaymentResult?> showAuraxPayment(
   );
 }
 
-class _AuraxPaymentSheet extends StatefulWidget {
-  const _AuraxPaymentSheet({
+class _SonicPaymentSheet extends StatefulWidget {
+  const _SonicPaymentSheet({
     required this.type,
     required this.title,
     required this.subtitle,
@@ -49,10 +50,10 @@ class _AuraxPaymentSheet extends StatefulWidget {
   final String? contentId;
 
   @override
-  State<_AuraxPaymentSheet> createState() => _AuraxPaymentSheetState();
+  State<_SonicPaymentSheet> createState() => _SonicPaymentSheetState();
 }
 
-class _AuraxPaymentSheetState extends State<_AuraxPaymentSheet> {
+class _SonicPaymentSheetState extends State<_SonicPaymentSheet> {
   final _phoneCtrl = TextEditingController();
   final _paymentService = PaymentService();
 

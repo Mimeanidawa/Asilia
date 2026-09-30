@@ -2,16 +2,15 @@ import { Router } from 'express';
 import { getPool } from '../db.js';
 import { optionalUser } from '../middleware/userAuth.js';
 import {
-  AURAX_MIN_AMOUNT,
-  auraxPaymentId,
-  auraxTransactionId,
-  createAuraxPayment,
-  getAuraxPayment,
-  normalizeAuraxPhone,
-  normalizeAuraxStatus,
-  resolveAuraxChannel,
+  SONIC_MIN_AMOUNT,
+  createSonicOrder,
+  getSonicOrderStatus,
+  normalizeSonicStatus,
+  sonicPaymentId,
+  sonicTransactionId,
   toLocalPhone,
-} from '../services/auraxpay.js';
+  normalizePhone,
+} from '../services/sonicpesa.js';
 
 const router = Router();
 
@@ -87,13 +86,19 @@ router.post('/create', optionalUser, async (req, res) => {
     }
 
     const db = getPool();
+    const userId = req.user?.id || req.body.userId || null;
     const now = new Date();
     const orderId = id || `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const recNum = receiptNumber || `ASILIA-RC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
     const parsedTransferFee = transferFee != null ? parseInt(transferFee, 10) : 12000;
     const finalTransferFee = isNaN(parsedTransferFee) ? 12000 : parsedTransferFee;
     const calcTotal = totalAmount || ((unitPrice * quantity) + finalTransferFee);
-    const userId = req.user?.id || req.body.userId || null;
+    const initialPaymentStatus = (req.body.paymentStatus === 'paid' || req.body.payment_status === 'paid')
+      ? 'paid'
+      : 'pending';
+    const initialTracking = initialPaymentStatus === 'paid'
+      ? 'Agizo lako limethibitishwa na malipo yamepokelewa kikamilifu.'
+      : 'Inasubiri uthibitisho wa malipo.';
 
     const query = `
       INSERT INTO product_orders (
@@ -102,7 +107,7 @@ router.post('/create', optionalUser, async (req, res) => {
         region, district, ward, payment_method, payment_status, delivery_status,
         tracking_info, admin_notes, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'paid', 'pending', '', '', NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'pending', $18, '', NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         customer_phone = EXCLUDED.customer_phone,
@@ -130,6 +135,8 @@ router.post('/create', optionalUser, async (req, res) => {
       district || '',
       ward || '',
       paymentMethod,
+      initialPaymentStatus,
+      initialTracking,
     ]);
 
     const order = mapOrderRow(rows[0]);
@@ -151,13 +158,13 @@ router.get('/my-orders', optionalUser, async (req, res) => {
     if (userId) {
       const result = await db.query(
         `SELECT * FROM product_orders WHERE user_id = $1 ORDER BY created_at DESC`,
-        [userId]
+        [userId],
       );
       rows = result.rows;
     } else if (phone) {
       const result = await db.query(
         `SELECT * FROM product_orders WHERE customer_phone = $1 ORDER BY created_at DESC`,
-        [phone]
+        [phone],
       );
       rows = result.rows;
     } else {
@@ -177,7 +184,7 @@ router.get('/receipt/:receiptNumber', async (req, res) => {
     const db = getPool();
     const { rows } = await db.query(
       `SELECT * FROM product_orders WHERE receipt_number = $1`,
-      [req.params.receiptNumber]
+      [req.params.receiptNumber],
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Receipt not found' });
@@ -189,7 +196,7 @@ router.get('/receipt/:receiptNumber', async (req, res) => {
   }
 });
 
-// POST /api/orders/initiate-payment - send real mobile money STK push to the user's phone number
+// POST /api/orders/initiate-payment - send real mobile money STK push
 router.post('/initiate-payment', optionalUser, async (req, res) => {
   try {
     const {
@@ -215,17 +222,9 @@ router.post('/initiate-payment', optionalUser, async (req, res) => {
     }
 
     const localPhone = toLocalPhone(customerPhone);
-    const auraxPhone = normalizeAuraxPhone(customerPhone);
-    if (!localPhone || !auraxPhone) {
+    if (!localPhone || !normalizePhone(customerPhone)) {
       return res.status(400).json({
         error: 'Namba ya simu si sahihi. Tafadhali tumia namba ya Tanzania kama 07XXXXXXXX au 06XXXXXXXX',
-      });
-    }
-
-    const resolvedChannel = resolveAuraxChannel(customerPhone, paymentMethod);
-    if (!resolvedChannel) {
-      return res.status(400).json({
-        error: 'Chagua mtandao sahihi wa malipo: M-Pesa, Airtel Money, Mixx by Yas au HaloPesa',
       });
     }
 
@@ -238,6 +237,9 @@ router.post('/initiate-payment', optionalUser, async (req, res) => {
     const calcTotal = totalAmount || ((unitPrice * quantity) + finalTransferFee);
     const userId = req.user?.id || req.body.userId || null;
 
+    // Ensure amount meets minimum
+    const chargeAmount = Math.max(calcTotal, SONIC_MIN_AMOUNT);
+
     const query = `
       INSERT INTO product_orders (
         id, receipt_number, user_id, product_id, product_title, product_image_url,
@@ -246,7 +248,7 @@ router.post('/initiate-payment', optionalUser, async (req, res) => {
         tracking_info, admin_notes, provider, created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'pending', 'pending',
-        'Inasubiri uthibitisho wa malipo kwenye simu ya mteja.', '', 'aurax', NOW(), NOW()
+        'Inasubiri uthibitisho wa malipo kwenye simu ya mteja.', '', 'sonicpesa', NOW(), NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
         customer_phone = EXCLUDED.customer_phone,
@@ -265,10 +267,10 @@ router.post('/initiate-payment', optionalUser, async (req, res) => {
       productId,
       productTitle || 'Dawa ya Asili',
       productImageUrl || '',
-      unitPrice || (calcTotal - finalTransferFee),
+      unitPrice || (chargeAmount - finalTransferFee),
       quantity,
       finalTransferFee,
-      calcTotal,
+      chargeAmount,
       customerName || 'Mteja',
       localPhone,
       region,
@@ -280,42 +282,37 @@ router.post('/initiate-payment', optionalUser, async (req, res) => {
     let providerOrderId = null;
     let paymentMessage = `Ombi la malipo limetumwa kwenye namba yako ${localPhone}. Tafadhali angalia simu yako na uweke PIN.`;
 
-    if (process.env.AURAXPAY_API_KEY) {
+    if (process.env.SONICPESA_ACCESS_KEY) {
       try {
-        const aurax = await createAuraxPayment({
-          amount: calcTotal,
-          channel: resolvedChannel,
+        const sonic = await createSonicOrder({
+          amount: chargeAmount,
           buyerPhone: localPhone,
           buyerName: customerName || 'Mteja',
-          description: `Dawa Asili - ${productTitle || 'Dawa ya Asili'} (${quantity}x)`,
-          metadata: {
-            orderId,
-            receiptNumber: recNum,
-            type: 'dawa_order',
-          },
+          buyerEmail: `${localPhone}@asilia.app`,
+          currency: 'TZS',
         });
 
-        providerOrderId = auraxPaymentId(aurax);
-        if (aurax.message) paymentMessage = aurax.message;
+        providerOrderId = sonicPaymentId(sonic) || sonic?.order_id || sonic?.data?.order_id;
+        if (sonic.message) paymentMessage = sonic.message;
 
         if (providerOrderId) {
           await db.query(
             `UPDATE product_orders SET provider_order_id = $2, updated_at = NOW() WHERE id = $1`,
-            [orderId, providerOrderId]
+            [orderId, providerOrderId],
           );
         }
       } catch (err) {
-        console.error('AuraxPay error:', err);
+        console.error('SonicPesa error:', err);
         return res.status(400).json({
           error: err.message || 'Imeshindwa kutuma ombi la malipo kwenye simu yako. Tafadhali hakikisha namba yako ina salio kisha jaribu tena.',
         });
       }
     } else {
-      console.warn('AURAXPAY_API_KEY not set in environment. Running in dev mock mode.');
+      console.warn('SONICPESA_ACCESS_KEY not set in environment. Running in dev mock mode.');
       providerOrderId = `mock-${orderId}`;
       await db.query(
         `UPDATE product_orders SET provider_order_id = $2, updated_at = NOW() WHERE id = $1`,
-        [orderId, providerOrderId]
+        [orderId, providerOrderId],
       );
     }
 
@@ -342,7 +339,7 @@ router.get('/:id/payment-status', async (req, res) => {
 
     const { rows } = await db.query(
       `SELECT * FROM product_orders WHERE id = $1 OR receipt_number = $1`,
-      [id]
+      [id],
     );
 
     if (rows.length === 0) {
@@ -359,13 +356,17 @@ router.get('/:id/payment-status', async (req, res) => {
       });
     }
 
-    if (order.provider_order_id && !order.provider_order_id.startsWith('mock-') && process.env.AURAXPAY_API_KEY) {
+    if (
+      order.provider_order_id
+      && !order.provider_order_id.startsWith('mock-')
+      && process.env.SONICPESA_ACCESS_KEY
+    ) {
       try {
-        const auraxData = await getAuraxPayment(order.provider_order_id);
-        const normStatus = normalizeAuraxStatus(auraxData);
+        const sonicData = await getSonicOrderStatus(order.provider_order_id);
+        const normStatus = normalizeSonicStatus(sonicData);
 
         if (normStatus === 'success') {
-          const transId = auraxTransactionId(auraxData) || order.provider_order_id;
+          const transId = sonicTransactionId(sonicData) || order.provider_order_id;
           const { rows: updated } = await db.query(
             `UPDATE product_orders
              SET payment_status = 'paid',
@@ -373,7 +374,7 @@ router.get('/:id/payment-status', async (req, res) => {
                  tracking_info = 'Agizo lako limethibitishwa na malipo yamepokelewa kikamilifu.',
                  updated_at = NOW()
              WHERE id = $1 RETURNING *`,
-            [order.id, transId]
+            [order.id, transId],
           );
           return res.json({
             success: true,
@@ -382,40 +383,30 @@ router.get('/:id/payment-status', async (req, res) => {
           });
         } else if (normStatus === 'failed') {
           await db.query(
-            `UPDATE product_orders SET payment_status = 'failed', updated_at = NOW() WHERE id = $1`,
-            [order.id]
+            `UPDATE product_orders
+             SET payment_status = 'pending',
+                 tracking_info = 'Ombi la malipo lilisitishwa au PIN haikuwekwa. Risiti inasubiri malipo.',
+                 updated_at = NOW()
+             WHERE id = $1`,
+            [order.id],
           );
           return res.json({
             success: false,
-            status: 'failed',
-            message: 'Malipo yameshindikana au yamekataliwa kwenye simu yako.',
+            status: 'pending',
+            message: 'Malipo hayakukamilika (yalisitishwa au PIN haikuwekwa). Risiti inasubiri malipo.',
+            order: mapOrderRow({
+              ...order,
+              payment_status: 'pending',
+              tracking_info: 'Ombi la malipo lilisitishwa au PIN haikuwekwa. Risiti inasubiri malipo.',
+            }),
           });
         }
       } catch (checkErr) {
-        console.warn('Could not query AuraxPay status directly:', checkErr.message);
+        console.warn('Could not query SonicPesa status directly:', checkErr.message);
       }
     }
 
-    if (order.provider_order_id?.startsWith('mock-')) {
-      const elapsed = (Date.now() - new Date(order.created_at).getTime()) / 1000;
-      if (elapsed > 4) {
-        const { rows: updated } = await db.query(
-          `UPDATE product_orders
-           SET payment_status = 'paid',
-               payment_reference = $2,
-               tracking_info = 'Agizo lako limethibitishwa na malipo yamepokelewa kikamilifu.',
-               updated_at = NOW()
-           WHERE id = $1 RETURNING *`,
-          [order.id, `MOCK-TX-${Date.now()}`]
-        );
-        return res.json({
-          success: true,
-          status: 'paid',
-          order: mapOrderRow(updated[0]),
-        });
-      }
-    }
-
+    // Unpaid orders remain pending until user completes payment.
     res.json({
       success: true,
       status: order.payment_status || 'pending',
@@ -443,7 +434,7 @@ router.post('/:id/confirm-payment', async (req, res) => {
            updated_at = NOW()
        WHERE id = $1 OR receipt_number = $1
        RETURNING *`,
-      [id, paymentReference || null]
+      [id, paymentReference || null],
     );
 
     if (rows.length === 0) {

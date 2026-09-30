@@ -194,7 +194,7 @@ router.get('/me', requireUser, async (req, res) => {
 
 router.post('/purchase', requireUser, async (req, res) => {
   res.status(410).json({
-    error: 'Tumia malipo ya Aurax Pay. Fungua makala na bonyeza Lipia.',
+    error: 'Tumia malipo ya SonicPesa. Fungua makala na bonyeza Lipia.',
     code: 'use_payments_api',
   });
 });

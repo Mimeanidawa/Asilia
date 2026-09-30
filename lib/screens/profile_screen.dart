@@ -483,23 +483,35 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildOrderItem(BuildContext context, DawaOrder order) {
+    final isPaid = order.isPaid;
     Color statusBg;
     Color statusTextColor;
     IconData statusIcon;
+    String statusLabel;
 
-    switch (order.deliveryStatus) {
-      case DawaDeliveryStatus.pending:
-        statusBg = const Color(0xFFFEFBE8);
-        statusTextColor = const Color(0xFFB54708);
-        statusIcon = Icons.hourglass_top_rounded;
-      case DawaDeliveryStatus.onTransit:
-        statusBg = const Color(0xFFEFF8FF);
-        statusTextColor = const Color(0xFF175CD3);
-        statusIcon = Icons.local_shipping_rounded;
-      case DawaDeliveryStatus.delivered:
-        statusBg = AppColors.emerald50;
-        statusTextColor = AppColors.emerald800;
-        statusIcon = Icons.check_circle_rounded;
+    if (!isPaid) {
+      statusBg = const Color(0xFFFEFBE8);
+      statusTextColor = const Color(0xFFB54708);
+      statusIcon = Icons.hourglass_top_rounded;
+      statusLabel = 'INASUBIRI MALIPO';
+    } else {
+      switch (order.deliveryStatus) {
+        case DawaDeliveryStatus.pending:
+          statusBg = const Color(0xFFEFF8FF);
+          statusTextColor = const Color(0xFF175CD3);
+          statusIcon = Icons.inventory_2_outlined;
+          statusLabel = 'Inasubiri Maandalizi';
+        case DawaDeliveryStatus.onTransit:
+          statusBg = const Color(0xFFEFF8FF);
+          statusTextColor = const Color(0xFF175CD3);
+          statusIcon = Icons.local_shipping_rounded;
+          statusLabel = 'Iko Safarini';
+        case DawaDeliveryStatus.delivered:
+          statusBg = AppColors.emerald50;
+          statusTextColor = AppColors.emerald800;
+          statusIcon = Icons.check_circle_rounded;
+          statusLabel = 'Imepokelewa';
+      }
     }
 
     return Padding(
@@ -511,7 +523,11 @@ class ProfileScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+            border: Border.all(
+              color: !isPaid
+                  ? const Color(0xFFFECDCA).withValues(alpha: 0.8)
+                  : AppColors.forest.withValues(alpha: 0.08),
+            ),
             boxShadow: AppColors.elevationSm,
           ),
           child: Column(
@@ -520,13 +536,23 @@ class ProfileScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    order.receiptNumber,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.emerald800,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        size: 14,
+                        color: !isPaid ? const Color(0xFFB54708) : AppColors.emerald800,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        order.receiptNumber,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: !isPaid ? const Color(0xFFB54708) : AppColors.emerald800,
+                        ),
+                      ),
+                    ],
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -540,7 +566,7 @@ class ProfileScreen extends StatelessWidget {
                         Icon(statusIcon, size: 12, color: statusTextColor),
                         const SizedBox(width: 4),
                         Text(
-                          order.deliveryStatusLabel,
+                          statusLabel,
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w800,
@@ -598,12 +624,12 @@ class ProfileScreen extends StatelessWidget {
                           color: AppColors.forest,
                         ),
                       ),
-                      const Text(
-                        'Tazama Risiti >',
+                      Text(
+                        !isPaid ? 'Lipa Sasa >' : 'Tazama Risiti >',
                         style: TextStyle(
                           fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.emerald800,
+                          fontWeight: FontWeight.w800,
+                          color: !isPaid ? const Color(0xFFB54708) : AppColors.emerald800,
                         ),
                       ),
                     ],

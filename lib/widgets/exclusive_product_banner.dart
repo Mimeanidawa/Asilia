@@ -39,8 +39,8 @@ class ExclusiveProductBanner extends StatelessWidget {
     final orderService = context.watch<DawaOrderService>();
     final product = customProduct ??
         (condition != null
-            ? orderService.findProductForCondition(condition)
-            : orderService.findProductForPost(post));
+            ? orderService.getProductForCondition(condition)
+            : (post != null ? orderService.getProductForPost(post) : null));
 
     final topic = DiseaseExtractor.extractTopic(
       post?.title ?? (titleOverride ?? ''),
@@ -411,16 +411,15 @@ class ExclusiveProductBanner extends StatelessWidget {
                   // Big 3D "Nunua Dawa Hii Sasa" CTA Button
                   PressableScale(
                     onTap: () {
-                      if (product != null) {
-                        OrderProductSheet.show(context, product);
+                      final p = product ??
+                          (condition != null
+                              ? orderService.getProductForCondition(condition)
+                              : (post != null ? orderService.getProductForPost(post) : null));
+                      if (p != null) {
+                        OrderProductSheet.show(context, p);
                       } else {
-                        final found = orderService.findProductForPost(post);
-                        if (found != null) {
-                          OrderProductSheet.show(context, found);
-                        } else {
-                          final msg = DiseaseExtractor.formatMwalimuInquiry(topic);
-                          context.read<AppProvider>().openMwalimuWithDraft(msg);
-                        }
+                        final msg = DiseaseExtractor.formatMwalimuInquiry(topic);
+                        context.read<AppProvider>().openMwalimuWithDraft(msg);
                       }
                     },
                     child: Container(

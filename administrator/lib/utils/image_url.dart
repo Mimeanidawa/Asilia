@@ -102,6 +102,7 @@ class ImageUrl {
   static String display(String raw) {
     final url = tidy(raw);
     if (isApiMediaUrl(url)) return forceHttps(url);
+    if (looksLikeDirectImage(url)) return url;
     return proxied(raw);
   }
 

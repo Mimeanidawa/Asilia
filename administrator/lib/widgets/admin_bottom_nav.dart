@@ -42,6 +42,8 @@ class AdminBottomNav extends StatelessWidget {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => _MoreMenuSheet(
         current: current,
         onSelect: (screen) {
@@ -184,7 +186,7 @@ class _MaswaliSlot extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: active
                           ? AdminColors.primaryGradient
-                          : LinearGradient(
+                          : const LinearGradient(
                               colors: [
                                 AdminColors.card,
                                 AdminColors.cardHover,
@@ -264,90 +266,102 @@ class _MoreMenuSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      decoration: BoxDecoration(
-        color: AdminColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AdminColors.cardBorder),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: AdminColors.divider,
-              borderRadius: BorderRadius.circular(2),
-            ),
+    final bottomPad = MediaQuery.paddingOf(context).bottom;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.85;
+
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          decoration: BoxDecoration(
+            color: AdminColors.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AdminColors.cardBorder),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'More',
-                style: GoogleFonts.plusJakartaSans(
-                  color: AdminColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.3,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AdminColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'More',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                ),
+                _MoreTile(
+                  icon: Icons.medication_rounded,
+                  label: 'Dawa & Bidhaa',
+                  subtitle: 'Post & manage dawa (50% off)',
+                  color: AdminColors.emerald,
+                  active: current == AdminScreen.products,
+                  onTap: () => onSelect(AdminScreen.products),
+                ),
+                _MoreTile(
+                  icon: Icons.local_shipping_rounded,
+                  label: 'Oda & Risiti',
+                  subtitle: 'Customer orders & transit',
+                  color: AdminColors.rose,
+                  active: current == AdminScreen.orders,
+                  onTap: () => onSelect(AdminScreen.orders),
+                ),
+                _MoreTile(
+                  icon: Icons.insights_rounded,
+                  label: 'Analytics',
+                  subtitle: 'Charts & performance',
+                  color: AdminColors.blue,
+                  active: current == AdminScreen.analytics,
+                  onTap: () => onSelect(AdminScreen.analytics),
+                ),
+                _MoreTile(
+                  icon: Icons.campaign_rounded,
+                  label: 'Notifications',
+                  subtitle: 'Broadcast history',
+                  color: AdminColors.amber,
+                  active: current == AdminScreen.notifications,
+                  onTap: () => onSelect(AdminScreen.notifications),
+                ),
+                _MoreTile(
+                  icon: Icons.school_rounded,
+                  label: 'Darasa Huru',
+                  subtitle: 'Daily lessons',
+                  color: AdminColors.purple,
+                  active: current == AdminScreen.darasaHuru,
+                  onTap: () => onSelect(AdminScreen.darasaHuru),
+                ),
+                _MoreTile(
+                  icon: Icons.tune_rounded,
+                  label: 'Settings',
+                  subtitle: 'App configuration',
+                  color: AdminColors.textMuted,
+                  active: current == AdminScreen.settings,
+                  onTap: () => onSelect(AdminScreen.settings),
+                ),
+                SizedBox(height: bottomPad + 12),
+              ],
             ),
           ),
-          _MoreTile(
-            icon: Icons.medication_rounded,
-            label: 'Dawa & Bidhaa',
-            subtitle: 'Post & manage dawa (50% off)',
-            color: AdminColors.emerald,
-            active: current == AdminScreen.products,
-            onTap: () => onSelect(AdminScreen.products),
-          ),
-          _MoreTile(
-            icon: Icons.local_shipping_rounded,
-            label: 'Oda & Risiti',
-            subtitle: 'Customer orders & transit',
-            color: AdminColors.rose,
-            active: current == AdminScreen.orders,
-            onTap: () => onSelect(AdminScreen.orders),
-          ),
-          _MoreTile(
-            icon: Icons.insights_rounded,
-            label: 'Analytics',
-            subtitle: 'Charts & performance',
-            color: AdminColors.blue,
-            active: current == AdminScreen.analytics,
-            onTap: () => onSelect(AdminScreen.analytics),
-          ),
-          _MoreTile(
-            icon: Icons.campaign_rounded,
-            label: 'Notifications',
-            subtitle: 'Broadcast history',
-            color: AdminColors.amber,
-            active: current == AdminScreen.notifications,
-            onTap: () => onSelect(AdminScreen.notifications),
-          ),
-          _MoreTile(
-            icon: Icons.school_rounded,
-            label: 'Darasa Huru',
-            subtitle: 'Daily lessons',
-            color: AdminColors.purple,
-            active: current == AdminScreen.darasaHuru,
-            onTap: () => onSelect(AdminScreen.darasaHuru),
-          ),
-          _MoreTile(
-            icon: Icons.tune_rounded,
-            label: 'Settings',
-            subtitle: 'App configuration',
-            color: AdminColors.textMuted,
-            active: current == AdminScreen.settings,
-            onTap: () => onSelect(AdminScreen.settings),
-          ),
-          SizedBox(height: MediaQuery.paddingOf(context).bottom + 12),
-        ],
+        ),
       ),
     );
   }
@@ -419,13 +433,13 @@ class _MoreTile extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AdminColors.emerald,
                     shape: BoxShape.circle,
                   ),
                 )
               else
-                Icon(Icons.chevron_right_rounded, color: AdminColors.textDim, size: 20),
+                const Icon(Icons.chevron_right_rounded, color: AdminColors.textDim, size: 20),
             ],
           ),
         ),

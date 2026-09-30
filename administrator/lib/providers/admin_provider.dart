@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/mock_data.dart';
@@ -152,24 +153,42 @@ class AdminProvider extends ChangeNotifier {
   Future<void> _loadDashboardData() async {
     if (_authToken == null) return;
 
-    final dashboard = await _analyticsService.fetchDashboard();
-    _stats = AdminDataMapper.statsFromJson(dashboard['stats'] as Map<String, dynamic>);
-    _userGrowth = AdminDataMapper.metricsFromJson(dashboard['userGrowth'] as List);
-    _revenueData = AdminDataMapper.metricsFromJson(dashboard['revenueData'] as List);
-    _premiumGrowth = AdminDataMapper.metricsFromJson(dashboard['premiumGrowth'] as List);
-    _recentActivities = AdminDataMapper.activitiesFromJson(dashboard['recentActivities'] as List);
-
-    final rawUsers = await _contentService.fetchUsers();
-    _users = rawUsers.map(AdminDataMapper.userFromJson).toList();
+    try {
+      final dashboard = await _analyticsService
+          .fetchDashboard()
+          .timeout(const Duration(seconds: 8));
+      _stats = AdminDataMapper.statsFromJson(dashboard['stats'] as Map<String, dynamic>);
+      _userGrowth = AdminDataMapper.metricsFromJson(dashboard['userGrowth'] as List);
+      _revenueData = AdminDataMapper.metricsFromJson(dashboard['revenueData'] as List);
+      _premiumGrowth = AdminDataMapper.metricsFromJson(dashboard['premiumGrowth'] as List);
+      _recentActivities = AdminDataMapper.activitiesFromJson(dashboard['recentActivities'] as List);
+    } catch (e) {
+      debugPrint('Failed to load dashboard analytics: $e');
+    }
 
     try {
-      final rawNotifs = await _contentService.fetchNotificationHistory();
+      final rawUsers = await _contentService
+          .fetchUsers()
+          .timeout(const Duration(seconds: 8));
+      _users = rawUsers.map(AdminDataMapper.userFromJson).toList();
+    } catch (e) {
+      debugPrint('Failed to load users: $e');
+    }
+
+    try {
+      final rawNotifs = await _contentService
+          .fetchNotificationHistory()
+          .timeout(const Duration(seconds: 8));
       _notifications = rawNotifs.map(AdminNotification.fromJson).toList();
     } catch (_) {
       // Keep existing notification list if history endpoint is unavailable.
     }
 
-    await refreshMwalimuUnread(silent: true);
+    try {
+      await refreshMwalimuUnread(silent: true).timeout(const Duration(seconds: 8));
+    } catch (_) {}
+
+    notifyListeners();
   }
 
   Future<void> refreshMwalimuUnread({bool silent = false}) async {
@@ -234,33 +253,69 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadBackgroundInitialData() async {
+    try {
+      await Future.wait([
+        _lessonService.load().timeout(const Duration(seconds: 8)).catchError((e) {
+          debugPrint('Lesson load timeout/error: $e');
+        }),
+        _loadDashboardData().timeout(const Duration(seconds: 8)).catchError((e) {
+          debugPrint('Dashboard data load timeout/error: $e');
+        }),
+        fetchAdminProducts().timeout(const Duration(seconds: 8)).catchError((e) {
+          debugPrint('Product load timeout/error: $e');
+        }),
+      ]);
+    } catch (_) {}
+    _startMwalimuPolling();
+    unawaited(_initPush());
+  }
+
   Future<void> _restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('admin_auth_token');
+    _adminName = prefs.getString('admin_user_name');
+    _adminEmail = prefs.getString('admin_user_email');
+
     if (token != null) {
       _setAuthTokens(token);
-      try {
-        final data = await _api.get('/api/auth/me', token: token);
-        final admin = data['admin'] as Map<String, dynamic>;
-        _adminName = admin['name'] as String?;
-        _adminEmail = admin['email'] as String?;
-        _isLoggedIn = true;
-        await Future.wait([_lessonService.load(), _loadDashboardData()]);
-        _startMwalimuPolling();
-        await _initPush();
-      } catch (_) {
-        await prefs.remove('admin_auth_token');
-        _setAuthTokens(null);
-        _isLoggedIn = false;
-      }
+      _isLoggedIn = true;
+      // Notify immediately so screen unblocks and shows dashboard
       notifyListeners();
+
+      try {
+        final data = await _api
+            .get('/api/auth/me', token: token)
+            .timeout(const Duration(seconds: 5));
+        final admin = data['admin'] as Map<String, dynamic>?;
+        if (admin != null) {
+          _adminName = admin['name'] as String? ?? _adminName;
+          _adminEmail = admin['email'] as String? ?? _adminEmail;
+          if (_adminName != null) prefs.setString('admin_user_name', _adminName!);
+          if (_adminEmail != null) prefs.setString('admin_user_email', _adminEmail!);
+        }
+      } on ApiException catch (e) {
+        if (e.statusCode == 401) {
+          await prefs.remove('admin_auth_token');
+          await prefs.remove('admin_user_name');
+          await prefs.remove('admin_user_email');
+          _setAuthTokens(null);
+          _isLoggedIn = false;
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        debugPrint('Admin session token validation skipped (offline/slow): $e');
+      }
+
+      unawaited(_loadBackgroundInitialData());
     }
   }
 
   Future<void> _initPush() async {
     try {
       _push.onTap = () => setScreen(AdminScreen.mwalimu);
-      await _push.init(authToken: _authToken);
+      await _push.init(authToken: _authToken).timeout(const Duration(seconds: 5));
       _push.syncBaselineUnread(_mwalimuUnreadCount);
     } catch (e) {
       debugPrint('Admin push init skipped: $e');
@@ -289,16 +344,15 @@ class AdminProvider extends ChangeNotifier {
       _adminName = admin['name'] as String?;
       _adminEmail = admin['email'] as String?;
       _isLoggedIn = true;
+      _isLoading = false;
+      notifyListeners();
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('admin_auth_token', _authToken!);
+      if (_adminName != null) await prefs.setString('admin_user_name', _adminName!);
+      if (_adminEmail != null) await prefs.setString('admin_user_email', _adminEmail!);
 
-      await Future.wait([_lessonService.load(), _loadDashboardData()]);
-      _startMwalimuPolling();
-      await _initPush();
-
-      _isLoading = false;
-      notifyListeners();
+      unawaited(_loadBackgroundInitialData());
       return true;
     } catch (e) {
       _loginError = e.toString().replaceAll('ApiException: ', '');
@@ -497,25 +551,34 @@ class AdminProvider extends ChangeNotifier {
   List<AdminProduct> _adminProducts = [];
   List<AdminOrder> _adminOrders = [];
   bool _productsLoading = false;
+  String? _productsError;
+  String? _productSaveError;
   bool _ordersLoading = false;
 
   List<AdminProduct> get adminProducts => _adminProducts;
   List<AdminOrder> get adminOrders => _adminOrders;
   bool get productsLoading => _productsLoading;
+  String? get productsError => _productsError;
+  String? get productSaveError => _productSaveError;
   bool get ordersLoading => _ordersLoading;
 
   Future<void> fetchAdminProducts() async {
+    if (_authToken == null || !_isLoggedIn) return;
     _productsLoading = true;
+    _productsError = null;
     notifyListeners();
     try {
-      final res = await _api.get('/api/admin/products');
+      final res = await _api.get('/api/admin/products', token: _authToken);
       if (res['products'] is List) {
         _adminProducts = (res['products'] as List)
             .map((e) => AdminProduct.fromJson(e as Map<String, dynamic>))
             .toList();
+      } else {
+        _productsError = 'Seva imerudisha majibu yasiyotambulika.';
       }
     } catch (e) {
       debugPrint('Error fetching admin products: $e');
+      _productsError = e.toString().replaceFirst('ApiException: ', '');
     } finally {
       _productsLoading = false;
       notifyListeners();
@@ -523,22 +586,48 @@ class AdminProvider extends ChangeNotifier {
   }
 
   Future<bool> createAdminProduct(AdminProduct product) async {
-    try {
-      final res = await _api.post('/api/admin/products', body: product.toJson());
-      if (res['product'] != null) {
-        _adminProducts.insert(0, AdminProduct.fromJson(res['product'] as Map<String, dynamic>));
-        notifyListeners();
-        return true;
+    _productSaveError = null;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final res = await _api.post(
+          '/api/admin/products',
+          body: product.toJson(),
+          token: _authToken,
+        );
+        if (res['product'] is Map<String, dynamic>) {
+          final saved = AdminProduct.fromJson(res['product'] as Map<String, dynamic>);
+          _adminProducts.removeWhere((item) => item.id == saved.id);
+          _adminProducts.insert(0, saved);
+          _productsError = null;
+          notifyListeners();
+          return true;
+        }
+
+        await fetchAdminProducts();
+        final saved = _adminProducts.any((item) => item.id == product.id);
+        if (!saved) {
+          _productSaveError = 'Seva haikuthibitisha kuwa dawa imehifadhiwa. Jaribu tena.';
+        }
+        return saved;
+      } catch (e) {
+        debugPrint('Error creating admin product (attempt ${attempt + 1}): $e');
+        final canRetry = e is TimeoutException ||
+            e is http.ClientException ||
+            (e is ApiException &&
+                (e.statusCode == null || e.statusCode! >= 500));
+        if (!canRetry || attempt == 1) {
+          _productSaveError = e.toString().replaceFirst('ApiException: ', '');
+          return false;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 700));
       }
-    } catch (e) {
-      debugPrint('Error creating admin product: $e');
     }
     return false;
   }
 
   Future<bool> updateAdminProduct(AdminProduct product) async {
     try {
-      final res = await _api.put('/api/admin/products/${product.id}', body: product.toJson());
+      final res = await _api.put('/api/admin/products/${product.id}', body: product.toJson(), token: _authToken);
       if (res['product'] != null) {
         final idx = _adminProducts.indexWhere((p) => p.id == product.id);
         if (idx != -1) {
@@ -555,7 +644,7 @@ class AdminProvider extends ChangeNotifier {
 
   Future<bool> deleteAdminProduct(String id) async {
     try {
-      await _api.delete('/api/admin/products/$id');
+      await _api.delete('/api/admin/products/$id', token: _authToken);
       _adminProducts.removeWhere((p) => p.id == id);
       notifyListeners();
       return true;
@@ -570,7 +659,7 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final path = status != null ? '/api/admin/orders?status=$status' : '/api/admin/orders';
-      final res = await _api.get(path);
+      final res = await _api.get(path, token: _authToken);
       if (res['orders'] is List) {
         _adminOrders = (res['orders'] as List)
             .map((e) => AdminOrder.fromJson(e as Map<String, dynamic>))
@@ -590,7 +679,7 @@ class AdminProvider extends ChangeNotifier {
         'deliveryStatus': deliveryStatus,
         'trackingInfo': trackingInfo,
         'adminNotes': adminNotes,
-      });
+      }, token: _authToken);
       if (res['success'] == true) {
         final idx = _adminOrders.indexWhere((o) => o.id == orderId);
         if (idx != -1) {

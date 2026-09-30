@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -6,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/content_models.dart';
 import '../models/product_models.dart';
+import '../utils/disease_extractor.dart';
 import 'api_client.dart';
 
 class DawaOrderService extends ChangeNotifier {
@@ -23,6 +25,7 @@ class DawaOrderService extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   static const _storageKey = 'da_user_dawa_orders_v1';
+  static const _productsCacheKey = 'da_cached_products_v1';
   static const int defaultTransferFee = 12000;
 
   /// Standard Tanzania Regions for the order form
@@ -62,9 +65,46 @@ class DawaOrderService extends ChangeNotifier {
 
   Future<void> _init() async {
     _loadDefaultProducts();
+    await _loadCachedProducts();
     await _loadSavedOrders();
-    _fetchProductsFromApi();
-    _fetchOrdersFromApi();
+    unawaited(refreshProducts());
+    unawaited(_fetchOrdersFromApi());
+  }
+
+  Future<void> _loadCachedProducts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString(_productsCacheKey);
+      if (cached != null && cached.isNotEmpty) {
+        final list = (jsonDecode(cached) as List)
+            .map((e) => DawaProduct.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (list.isNotEmpty) {
+          _mergeProducts(list);
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading cached products: $e');
+    }
+  }
+
+  void _mergeProducts(List<DawaProduct> incoming) {
+    final Map<String, DawaProduct> productMap = {};
+    for (final p in _products) {
+      productMap[p.id] = p;
+    }
+    for (final p in incoming) {
+      productMap[p.id] = p;
+    }
+    _products = productMap.values.toList();
+    _products.sort((a, b) {
+      final aIsCustom = a.id.startsWith('dawa_') && int.tryParse(a.id.replaceFirst('dawa_', '')) != null;
+      final bIsCustom = b.id.startsWith('dawa_') && int.tryParse(b.id.replaceFirst('dawa_', '')) != null;
+      if (aIsCustom && !bIsCustom) return -1;
+      if (!aIsCustom && bIsCustom) return 1;
+      return 0;
+    });
   }
 
   void _loadDefaultProducts() {
@@ -279,19 +319,30 @@ class DawaOrderService extends ChangeNotifier {
     ];
   }
 
-  Future<void> _fetchProductsFromApi() async {
+  Future<void> refreshProducts() async {
     try {
-      final res = await _api.get('/api/products');
+      final res = await _api
+          .get('/api/products')
+          .timeout(const Duration(seconds: 15));
       if (res['products'] is List) {
         final list = (res['products'] as List)
             .map((e) => DawaProduct.fromJson(e as Map<String, dynamic>))
             .toList();
-        if (list.isNotEmpty) {
-          _products = list;
-          notifyListeners();
-        }
+        // The server is the source of truth. Replacing the list also removes
+        // products deleted by an admin and clears stale cached/default entries
+        // when the server legitimately returns an empty catalog.
+        _products = list;
+        notifyListeners();
+
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final jsonStr = jsonEncode(_products.map((p) => p.toJson()).toList());
+          await prefs.setString(_productsCacheKey, jsonStr);
+        } catch (_) {}
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error fetching products: $e');
+    }
   }
 
   Future<void> _fetchOrdersFromApi() async {
@@ -368,14 +419,15 @@ class DawaOrderService extends ChangeNotifier {
   }
 
   /// Search for a matching product for a specific makala / post.
-  /// Returns null if no matching product exists in the catalog (so UI does not falsely show Vidonda vya Tumbo).
+  /// Matches against topic, title, keywords, and category with high confidence.
+  /// Does NOT match random body text to prevent false cross-disease matches (e.g. UTI matching ulcer medicine).
   DawaProduct? findProductForPost(ContentPost? post) {
     if (post == null || _products.isEmpty) return null;
 
+    final topic = DiseaseExtractor.extractTopic(post.title, post.category).toLowerCase().trim();
     final titleLower = post.title.toLowerCase();
     final subtitleLower = post.subtitle.toLowerCase();
     final categoryLower = (post.category ?? post.section).toLowerCase();
-    final contentLower = post.content.toLowerCase();
 
     DawaProduct? bestProduct;
     int highestScore = 0;
@@ -383,32 +435,52 @@ class DawaOrderService extends ChangeNotifier {
     for (final product in _products) {
       int score = 0;
 
-      // 1. Target Keywords matching (Highest priority)
+      // 1. Exact or strong match with extracted topic (e.g. "UTI", "Kisukari")
+      if (topic.isNotEmpty && topic != 'tatizo hili') {
+        if (product.title.toLowerCase().contains(topic)) {
+          score += 150;
+        }
+        if (product.category.toLowerCase().trim() == topic) {
+          score += 120;
+        }
+      }
+
+      // 2. Target Keywords matching against Title/Subtitle/Category (NOT generic body text!)
       if (product.targetKeywords.isNotEmpty) {
         final keywords = product.targetKeywords
             .toLowerCase()
             .split(RegExp(r'[,;\s]+'))
             .map((k) => k.trim())
-            .where((k) => k.length >= 3)
+            .where((k) => k.length >= 3 && !_isStopWord(k))
             .toList();
 
         for (final kw in keywords) {
-          if (titleLower.contains(kw)) score += 100;
-          if (subtitleLower.contains(kw)) score += 50;
-          if (categoryLower.contains(kw)) score += 40;
-          if (contentLower.contains(kw)) score += 20;
+          if (topic.contains(kw) || kw.contains(topic)) {
+            score += 100;
+          }
+          if (titleLower.contains(kw)) {
+            score += 80;
+          }
+          if (subtitleLower.contains(kw)) {
+            score += 40;
+          }
+          if (categoryLower.contains(kw)) {
+            score += 50;
+          }
         }
       }
 
-      // 2. Category matching
+      // 3. Category matching (if specific)
       final prodCategory = product.category.toLowerCase().trim();
-      if (prodCategory.isNotEmpty && prodCategory != 'general' && prodCategory != 'dawa_asili') {
-        if (titleLower.contains(prodCategory)) score += 80;
-        if (categoryLower.contains(prodCategory)) score += 60;
-        if (contentLower.contains(prodCategory)) score += 25;
+      if (prodCategory.isNotEmpty &&
+          prodCategory != 'general' &&
+          prodCategory != 'dawa_asili' &&
+          prodCategory != 'dawa') {
+        if (titleLower.contains(prodCategory)) score += 60;
+        if (categoryLower == prodCategory) score += 70;
       }
 
-      // 3. Product Title keywords matching in post title/subtitle
+      // 4. Product Title main disease words matching in post title
       final titleWords = product.title
           .toLowerCase()
           .split(RegExp(r'[,;\s]+'))
@@ -417,8 +489,8 @@ class DawaOrderService extends ChangeNotifier {
           .toList();
 
       for (final word in titleWords) {
-        if (titleLower.contains(word)) score += 70;
-        if (subtitleLower.contains(word)) score += 30;
+        if (titleLower.contains(word)) score += 50;
+        if (subtitleLower.contains(word)) score += 20;
       }
 
       if (score > highestScore) {
@@ -427,16 +499,65 @@ class DawaOrderService extends ChangeNotifier {
       }
     }
 
-    if (bestProduct != null && highestScore >= 30) {
+    if (bestProduct != null && highestScore >= 70) {
       return bestProduct;
     }
 
     return null;
   }
 
-  /// Get the most relevant product for a specific makala / post, or the default hero product.
+  /// Create an exact DawaProduct matching the article's disease/topic
+  DawaProduct createProductForPost(ContentPost post) {
+    final topic = DiseaseExtractor.extractTopic(post.title, post.category);
+    final cleanTopic = topic.trim().isNotEmpty && topic != 'Tatizo Hili'
+        ? topic.trim()
+        : post.title.trim();
+    final cleanTitle = cleanTopic.toLowerCase().startsWith('dawa')
+        ? cleanTopic
+        : 'Dawa Asili ya $cleanTopic';
+
+    final subtitle = post.subtitle.trim().isNotEmpty
+        ? post.subtitle.trim()
+        : 'Mchanganyiko Maalum wa Asili wa $cleanTopic';
+
+    final description = post.excerpt.trim().isNotEmpty
+        ? post.excerpt.trim()
+        : 'Tiba madhubuti ya mitishamba na mizizi asilia kwa ajili ya kutibu na kuondoa kabisa tatizo la $cleanTopic kwa njia salama na asili.';
+
+    final imageUrl = post.displayImageUrl.isNotEmpty
+        ? post.displayImageUrl
+        : (post.imageUrl.isNotEmpty
+            ? post.imageUrl
+            : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600');
+
+    return DawaProduct(
+      id: 'dawa_post_${post.id}',
+      title: cleanTitle,
+      subtitle: subtitle,
+      description: description,
+      price: 25000,
+      originalPrice: 50000,
+      discountPercent: 50,
+      imageUrl: imageUrl,
+      badgeText: 'PUNGUZO LA 50% 🔥',
+      stockQuantity: 50,
+      category: post.category ?? 'dawa_asili',
+      targetKeywords: cleanTopic.toLowerCase(),
+      benefits: [
+        'Hutibu na kuondoa chanzo cha $cleanTopic kwa njia ya asili',
+        'Dawa 100% ya asili isiyo na kemikali wala madhara mwilini',
+        'Maelekezo na ushauri wa dozi sahihi kutoka kwa Mwalimu',
+        'Inafaa kwa rika zote na imethibitishwa',
+      ],
+      howToUse: 'Tumia dozi asubuhi na jioni kwa siku 7-14 kulingana na maelekezo ya Mwalimu.',
+    );
+  }
+
+  /// Get the most relevant product for a specific makala / post,
+  /// or dynamically construct the exact medicine matching that makala.
   DawaProduct getProductForPost(ContentPost? post) {
-    return findProductForPost(post) ?? defaultProduct;
+    if (post == null) return defaultProduct;
+    return findProductForPost(post) ?? createProductForPost(post);
   }
 
   /// Find matching product by keywords in text (returns null if no confident match)
@@ -473,9 +594,30 @@ class DawaOrderService extends ChangeNotifier {
     }
   }
 
-  /// Get product matching a condition or default
+  /// Get product matching a condition or dynamically generated medicine
   DawaProduct getProductForCondition(dynamic condition) {
-    return findProductForCondition(condition) ?? defaultProduct;
+    final found = findProductForCondition(condition);
+    if (found != null) return found;
+    final name = (condition?.name as String?) ?? 'Afya';
+    final shortDesc = (condition?.shortDesc as String?) ?? '';
+    return DawaProduct(
+      id: 'dawa_cond_${condition?.id ?? DateTime.now().millisecondsSinceEpoch}',
+      title: 'Dawa Asili ya $name',
+      subtitle: shortDesc.isNotEmpty ? shortDesc : 'Tiba Maalum ya Asili ya $name',
+      description: 'Mchanganyiko maalum wa mitishamba na mizizi asilia wa kutibu na kuondoa tatizo la $name.',
+      price: 25000,
+      originalPrice: 50000,
+      discountPercent: 50,
+      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
+      badgeText: 'PUNGUZO LA 50% 🔥',
+      stockQuantity: 40,
+      benefits: [
+        'Hutibu na kuondoa chanzo cha $name kwa njia ya asili',
+        'Dawa 100% ya asili isiyo na kemikali wala madhara mwilini',
+        'Maelekezo na ushauri wa dozi sahihi kutoka kwa Mwalimu',
+      ],
+      howToUse: 'Tumia dozi asubuhi na jioni kwa siku 7-14 kulingana na maelekezo ya Mwalimu.',
+    );
   }
 
   /// Get product matching a herb name or description
@@ -524,10 +666,10 @@ class DawaOrderService extends ChangeNotifier {
         district: district.trim(),
         ward: ward.trim(),
         paymentMethod: paymentMethod,
-        paymentStatus: 'paid',
-        paymentReference: 'PAY-${now.millisecondsSinceEpoch}',
+        paymentStatus: 'pending',
+        paymentReference: '',
         deliveryStatus: DawaDeliveryStatus.pending,
-        trackingInfo: 'Agizo lako limethibitishwa. Linaandaliwa kwa ajili ya usafirishaji kwenda $region, $district.',
+        trackingInfo: 'Inasubiri uthibitisho wa malipo kwenye simu ya mteja.',
         createdAt: now,
       );
 
@@ -666,22 +808,59 @@ class DawaOrderService extends ChangeNotifier {
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
       final order = await checkPaymentStatus(orderId);
-      if (order != null && order.paymentStatus == 'paid') {
+      if (order != null && order.isPaid) {
         return order;
-      }
-      if (order != null && order.paymentStatus == 'failed') {
-        throw ApiException('Malipo yameshindikana au yamekataliwa kwenye simu yako.');
       }
       await Future.delayed(interval);
     }
-    throw ApiException('Muda wa malipo umeisha. Tafadhali angalia simu yako kisha jaribu tena.');
+    throw ApiException('Muda wa kuweka PIN umekwisha au muamala ulikataliwa. Risiti yako imehifadhiwa kama INASUBIRI MALIPO.');
+  }
+
+  /// Re-initiate payment push for an existing pending order
+  Future<({DawaOrder order, String message, String? providerOrderId})> retryPaymentForOrder({
+    required DawaOrder order,
+    String? userToken,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final res = await _api.post(
+        '/api/orders/initiate-payment',
+        token: userToken,
+        body: order.toJson(),
+      );
+
+      DawaOrder updatedOrder = order;
+      if (res['order'] is Map<String, dynamic>) {
+        updatedOrder = DawaOrder.fromJson(res['order'] as Map<String, dynamic>);
+        final idx = _orders.indexWhere((o) => o.id == order.id || o.receiptNumber == order.receiptNumber);
+        if (idx != -1) {
+          _orders[idx] = updatedOrder;
+          await _saveOrdersLocally();
+          notifyListeners();
+        }
+      }
+
+      return (
+        order: updatedOrder,
+        message: res['message'] as String? ?? 'Ombi la malipo limetumwa kwenye namba yako ${order.customerPhone}.',
+        providerOrderId: res['providerOrderId'] as String?,
+      );
+    } catch (err) {
+      debugPrint('Error retrying order payment: $err');
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   /// Confirm payment manually if needed
   Future<DawaOrder?> confirmPayment(String orderId, {String? reference}) async {
     try {
       final res = await _api.post('/api/orders/$orderId/confirm-payment', body: {
-        if (reference != null) 'paymentReference': reference,
+        'paymentReference': ?reference,
       });
       if (res['order'] is Map<String, dynamic>) {
         final updatedOrder = DawaOrder.fromJson(res['order'] as Map<String, dynamic>);

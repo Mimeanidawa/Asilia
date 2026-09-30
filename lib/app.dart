@@ -12,6 +12,7 @@ import 'screens/auth_screen.dart';
 import 'screens/conditions_screen.dart';
 import 'screens/content_detail_screen.dart';
 import 'screens/content_list_screen.dart';
+import 'screens/dawa_shop_screen.dart';
 import 'screens/herb_details_screen.dart';
 import 'screens/darasa_huru_screen.dart';
 import 'screens/home_screen.dart';
@@ -305,6 +306,8 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
         screen = const AuthScreen();
       case AppScreen.notifications:
         screen = const NotificationsScreen();
+      case AppScreen.dawaShop:
+        screen = const DawaShopScreen();
     }
 
     return PopScope(

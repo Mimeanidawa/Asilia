@@ -152,8 +152,91 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                  const AdminSectionTitle(
+                    title: 'Usimamizi wa Haraka',
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AdminSurface(
+                          onTap: () => provider.setScreen(AdminScreen.products),
+                          accentColor: AdminColors.emerald,
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AdminColors.emerald.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.medication_liquid_rounded, color: AdminColors.emerald, size: 22),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Dawa & Bidhaa',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Unda & dhibiti dawa',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AdminSurface(
+                          onTap: () => provider.setScreen(AdminScreen.orders),
+                          accentColor: AdminColors.amber,
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AdminColors.amber.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(Icons.receipt_long_rounded, color: AdminColors.amber, size: 22),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Maagizo ya Dawa',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Stakabadhi & usafirishaji',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 28),
-                  AdminSectionTitle(
+                  const AdminSectionTitle(
                     title: 'Recent Activity',
                     trailing: AdminStatusBadge(label: 'Live', pulse: true),
                   ),

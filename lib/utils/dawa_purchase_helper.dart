@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
-import '../providers/app_provider.dart';
 import '../services/dawa_order_service.dart';
 import '../widgets/order_product_sheet.dart';
-import 'disease_extractor.dart';
 
 /// Helper to handle the "Nunua Dawa Hii" flow:
 /// 1. Searches available products matching the article topic.
@@ -16,7 +14,6 @@ class DawaPurchaseHelper {
 
   static Future<void> searchAndBuyDawa(BuildContext context, ContentPost post) async {
     final orderService = context.read<DawaOrderService>();
-    final app = context.read<AppProvider>();
 
     // Show a sleek search indicator dialog
     showDialog<void>(
@@ -86,39 +83,12 @@ class DawaPurchaseHelper {
     // Realistic brief search delay for perceived responsiveness
     await Future.delayed(const Duration(milliseconds: 700));
 
-    final found = orderService.findProductForPost(post);
+    final product = orderService.getProductForPost(post);
 
     if (!context.mounted) return;
     // Dismiss search modal
     Navigator.of(context, rootNavigator: true).pop();
 
-    if (found != null) {
-      // Medicine is available! Show product details with price and payment options
-      OrderProductSheet.show(context, found);
-    } else {
-      // Medicine not in catalogue, redirect to Mwalimu inquiry
-      final topic = DiseaseExtractor.extractTopic(post.title, post.category);
-      final msg = DiseaseExtractor.formatMwalimuInquiry(topic);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text('Dawa ya $topic haijapakiwa moja kwa moja. Unauliza kwa Mwalimu...'),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF0F4C3A),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-
-      app.openMwalimuWithDraft(msg);
-    }
+    OrderProductSheet.show(context, product);
   }
 }

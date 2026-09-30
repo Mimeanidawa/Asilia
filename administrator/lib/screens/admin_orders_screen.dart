@@ -179,7 +179,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.local_shipping_outlined, size: 56, color: AdminColors.textMuted),
+                        const Icon(Icons.local_shipping_outlined, size: 56, color: AdminColors.textMuted),
                         const SizedBox(height: 12),
                         Text('Hakuna maagizo katika kundi hili', style: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 14)),
                       ],
@@ -250,7 +250,7 @@ class _OrderAdminCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPending = order.deliveryStatus == 'pending';
+    final isPaid = order.isPaid;
     final isOnTransit = order.deliveryStatus == 'on_transit';
     final isDelivered = order.deliveryStatus == 'delivered';
 
@@ -258,7 +258,11 @@ class _OrderAdminCard extends StatelessWidget {
     String statusLabel;
     IconData statusIcon;
 
-    if (isDelivered) {
+    if (!isPaid) {
+      statusColor = AdminColors.amber;
+      statusLabel = 'INASUBIRI MALIPO';
+      statusIcon = Icons.hourglass_top_rounded;
+    } else if (isDelivered) {
       statusColor = AdminColors.emerald;
       statusLabel = 'IMEPOKELEWA';
       statusIcon = Icons.check_circle_rounded;
@@ -267,9 +271,9 @@ class _OrderAdminCard extends StatelessWidget {
       statusLabel = 'IKO SAFARINI';
       statusIcon = Icons.local_shipping_rounded;
     } else {
-      statusColor = AdminColors.amber;
-      statusLabel = 'INASUBIRI';
-      statusIcon = Icons.hourglass_top_rounded;
+      statusColor = AdminColors.emerald;
+      statusLabel = 'IMELIPWA';
+      statusIcon = Icons.check_circle_outline_rounded;
     }
 
     return Container(

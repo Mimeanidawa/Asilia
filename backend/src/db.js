@@ -215,7 +215,7 @@ export async function initDb() {
       ON user_purchases (user_id, content_id)
   `);
 
-  // Aurax Pay minimum collection amount is TZS 500
+  // Minimum payment collection amount is TZS 500
   await db.query(`
     UPDATE content_posts SET price = 500 WHERE is_premium = TRUE AND price < 500
   `);
@@ -382,7 +382,7 @@ export async function initDb() {
       district TEXT NOT NULL,
       ward TEXT NOT NULL,
       payment_method TEXT NOT NULL DEFAULT 'M-Pesa',
-      payment_status TEXT NOT NULL DEFAULT 'paid',
+      payment_status TEXT NOT NULL DEFAULT 'pending',
       delivery_status TEXT NOT NULL DEFAULT 'pending',
       tracking_info TEXT NOT NULL DEFAULT '',
       admin_notes TEXT NOT NULL DEFAULT '',
@@ -393,9 +393,10 @@ export async function initDb() {
     ALTER TABLE products ADD COLUMN IF NOT EXISTS target_keywords TEXT NOT NULL DEFAULT '';
 
     ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS transfer_fee INTEGER NOT NULL DEFAULT 12000;
-    ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'aurax';
+    ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'sonicpesa';
     ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS provider_order_id TEXT;
     ALTER TABLE product_orders ADD COLUMN IF NOT EXISTS payment_reference TEXT DEFAULT '';
+    ALTER TABLE product_orders ALTER COLUMN payment_status SET DEFAULT 'pending';
 
     CREATE INDEX IF NOT EXISTS idx_product_orders_provider_order ON product_orders (provider, provider_order_id);
 
