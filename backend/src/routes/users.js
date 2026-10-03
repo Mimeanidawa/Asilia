@@ -32,6 +32,8 @@ function rowToAdminUser(row) {
     purchaseCount: Number(row.purchase_count || 0),
     totalSpent: Number(row.total_spent || 0),
     purchasedContentIds: ids.filter((id) => id != null).map(String),
+    isProspect: !!row.is_prospect,
+    prospectAt: row.prospect_at instanceof Date ? row.prospect_at.toISOString() : row.prospect_at,
   };
 }
 
@@ -237,6 +239,47 @@ router.patch('/admin/:id/premium', requireAdmin, async (req, res) => {
     res.json({ user: rowToAdminUser(rows[0]) });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kusasisha' });
+  }
+});
+
+const adminUserSelect = `
+  SELECT u.*,
+    (SELECT COUNT(*)::int FROM user_purchases WHERE user_id = u.id) AS purchase_count,
+    (SELECT COALESCE(SUM(amount), 0)::int FROM user_purchases WHERE user_id = u.id) AS total_spent,
+    (SELECT COALESCE(array_agg(content_id), '{}') FROM user_purchases WHERE user_id = u.id) AS purchased_content_ids
+  FROM users u WHERE u.id = $1
+`;
+
+async function ensureProspectColumns(db) {
+  await db.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS is_prospect BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+  await db.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS prospect_at TIMESTAMPTZ
+  `);
+}
+
+router.patch('/admin/:id/prospect', requireAdmin, async (req, res) => {
+  try {
+    const isProspect = !!req.body?.isProspect;
+    const db = getPool();
+    await ensureProspectColumns(db);
+    const { rows: updated } = await db.query(
+      `UPDATE users SET
+         is_prospect = $2,
+         prospect_at = CASE WHEN $2 THEN COALESCE(prospect_at, NOW()) ELSE NULL END,
+         updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [req.params.id, isProspect],
+    );
+    if (!updated.length) return res.status(404).json({ error: 'Mtumiaji haipatikani' });
+    const { rows } = await db.query(adminUserSelect, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Mtumiaji haipatikani' });
+    res.json({ user: rowToAdminUser(rows[0]) });
+  } catch (err) {
+    console.error('PATCH /users/admin/:id/prospect:', err);
+    res.status(500).json({ error: 'Imeshindwa kusasisha prospect' });
   }
 });
 
