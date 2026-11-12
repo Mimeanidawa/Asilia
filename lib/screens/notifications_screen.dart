@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/models.dart';
 import '../providers/app_provider.dart';
+import '../services/ads_service.dart';
 import '../services/content_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
@@ -65,6 +66,10 @@ class NotificationsScreen extends StatelessWidget {
     center.markRead(n.id);
 
     if (!_hasTarget(n)) return;
+
+    if (n.contentId != null && n.contentId!.isNotEmpty) {
+      context.read<AdsService>().preload();
+    }
 
     app.openFromNotification(
       lessonId: n.lessonId,

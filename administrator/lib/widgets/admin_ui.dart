@@ -1,6 +1,9 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/admin_colors.dart';
+import 'admin_blur.dart';
 
 /// Shared typography helper.
 TextStyle adminText(
@@ -95,6 +98,7 @@ class AdminPageHeader extends StatelessWidget {
       pinned: pinned,
       elevation: 0,
       scrolledUnderElevation: 0,
+      flexibleSpace: const AdminBarBlur(),
       toolbarHeight: subtitle != null ? 76 : 64,
       titleSpacing: 0,
       bottom: bottom,
@@ -160,14 +164,18 @@ class AdminSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      child: InkWell(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(borderRadius),
         splashColor: AdminColors.emerald.withValues(alpha: 0.08),
         highlightColor: Colors.transparent,
         child: Ink(
           decoration: BoxDecoration(
-            color: AdminColors.card,
+            color: AdminColors.card.withValues(alpha: 0.78),
             borderRadius: BorderRadius.circular(borderRadius),
             border: Border.all(color: AdminColors.cardBorder),
           ),
@@ -194,6 +202,8 @@ class AdminSurface extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
           ),
         ),
       ),

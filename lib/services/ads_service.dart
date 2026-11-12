@@ -186,35 +186,37 @@ class AdsService extends ChangeNotifier {
       _loadingInterstitial || _loadingRewarded || _loadingRewardedInterstitial || _initializing;
 
   Future<void> _waitForFullscreenAd({
-    Duration timeout = const Duration(milliseconds: 3500),
+    Duration timeout = const Duration(seconds: 16),
   }) async {
-    // If a rewarded ad is already ready, proceed immediately
     if (_rewarded != null || _rewardedInterstitial != null) return;
 
-    // Trigger loads if not already in flight
     _loadRewarded();
     if (_interstitial == null) _loadInterstitial();
 
+    var nextKick = DateTime.now().add(const Duration(seconds: 2));
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
-      // Prioritize rewarded ad: if it arrives, return immediately
       if (_rewarded != null || _rewardedInterstitial != null) return;
-
-      // If rewarded ad loading completed (failed), but interstitial is ready, fallback
-      if (!_loadingRewarded && !_loadingRewardedInterstitial && _interstitial != null) {
-        return;
-      }
-
-      // If all ad loads finished and none succeeded, exit early without waiting
       if (!_loadingRewarded &&
           !_loadingRewardedInterstitial &&
-          !_loadingInterstitial &&
-          _rewarded == null &&
-          _rewardedInterstitial == null &&
-          _interstitial == null) {
+          _interstitial != null) {
         return;
       }
-      await Future<void>.delayed(const Duration(milliseconds: 150));
+
+      // Keep requesting after a failed first load. Notification opens often
+      // arrive before the first ad response, and giving up there skipped the video.
+      if (DateTime.now().isAfter(nextKick)) {
+        nextKick = DateTime.now().add(const Duration(seconds: 2));
+        if (!_loadingRewarded && _rewarded == null) _loadRewarded();
+        if (!_loadingInterstitial && _interstitial == null) _loadInterstitial();
+        if (!_loadingRewarded &&
+            !_loadingRewardedInterstitial &&
+            _rewarded == null &&
+            _rewardedInterstitial == null) {
+          _loadRewardedInterstitial();
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
     }
   }
 

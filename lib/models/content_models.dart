@@ -44,6 +44,8 @@ class ContentPost {
     this.price = 2000,
     this.readTimeMinutes = 5,
     this.hasAccess = true,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
@@ -58,6 +60,8 @@ class ContentPost {
   final int price;
   final int readTimeMinutes;
   final bool hasAccess;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   String get readTimeLabel => '$readTimeMinutes dk';
 
@@ -94,6 +98,8 @@ class ContentPost {
         price: price,
         readTimeMinutes: readTimeMinutes,
         hasAccess: hasAccess ?? this.hasAccess,
+        createdAt: createdAt,
+        updatedAt: updatedAt,
       );
 
   factory ContentPost.fromJson(Map<String, dynamic> json) {
@@ -116,8 +122,16 @@ class ContentPost {
           (json['read_time_minutes'] as num?)?.toInt() ??
           5,
       hasAccess: json['hasAccess'] as bool? ?? json['has_access'] as bool? ?? true,
+      createdAt: _parsePostDate(json['createdAt'] ?? json['created_at']),
+      updatedAt: _parsePostDate(json['updatedAt'] ?? json['updated_at']),
     );
   }
+}
+
+DateTime? _parsePostDate(dynamic value) {
+  if (value is DateTime) return value;
+  if (value is String && value.trim().isNotEmpty) return DateTime.tryParse(value);
+  return null;
 }
 
 String _sanitizeText(String input) {
@@ -317,15 +331,31 @@ class MwalimuMessage {
     required this.senderType,
     required this.content,
     required this.createdAt,
+    this.pending = false,
+    this.failed = false,
   });
 
   final String id;
   final String senderType;
   final String content;
   final String createdAt;
+  final bool pending;
+  final bool failed;
 
   bool get isUser => senderType == 'user';
   bool get isAdmin => senderType == 'admin';
+  bool get isSending => pending;
+
+  MwalimuMessage copyWith({bool? pending, bool? failed, String? id}) {
+    return MwalimuMessage(
+      id: id ?? this.id,
+      senderType: senderType,
+      content: content,
+      createdAt: createdAt,
+      pending: pending ?? this.pending,
+      failed: failed ?? this.failed,
+    );
+  }
 
   factory MwalimuMessage.fromJson(Map<String, dynamic> json) => MwalimuMessage(
         id: json['id'] as String,
@@ -348,6 +378,18 @@ class ContentSections {
   static const chaguaMadaCategories = ['mimea', 'wanawake', 'watoto', 'wanaume'];
   static const vyakulaMatundaCategories = ['matunda', 'mizizi', 'miti', 'mimea', 'vyakula'];
   static const jifunzeCategories = ['matunda', 'mizizi', 'miti', 'mimea', 'vyakula'];
+
+  /// Category chips on the Makala "Zote" feed, left to right.
+  static const makalaFeedCategories = [
+    'mizizi',
+    'miti',
+    'matunda',
+    'mimea',
+    'vyakula',
+    'wanawake',
+    'watoto',
+    'wanaume',
+  ];
 
   static String categoryLabel(String cat) {
     switch (cat) {

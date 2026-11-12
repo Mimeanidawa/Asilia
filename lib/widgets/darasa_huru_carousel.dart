@@ -46,7 +46,7 @@ class _DarasaHuruCarouselState extends State<DarasaHuruCarousel> {
   @override
   void initState() {
     super.initState();
-    _controller = PageController(viewportFraction: 0.92);
+    _controller = PageController(viewportFraction: 0.94);
     _controller.addListener(() {
       final page = _controller.page;
       if (page != null && mounted) setState(() => _page = page);
@@ -124,7 +124,7 @@ class _DarasaHuruCarouselState extends State<DarasaHuruCarousel> {
                 child: Opacity(
                   opacity: opacity,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
                     child: _DarasaSlide(
                       lesson: _order[i],
                       onTap: () => widget.onOpen(_order[i]),
@@ -137,7 +137,7 @@ class _DarasaHuruCarouselState extends State<DarasaHuruCarousel> {
         ),
         if (_order.length > 1)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
             child: Row(
               children: [
                 for (var i = 0; i < _order.length; i++) ...[
@@ -150,7 +150,7 @@ class _DarasaHuruCarouselState extends State<DarasaHuruCarousel> {
                       height: 3.5,
                       decoration: BoxDecoration(
                         color: i == _page.round()
-                            ? AppColors.forest
+                            ? AppColors.brand
                             : AppColors.forest.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(4),
                       ),

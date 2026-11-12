@@ -6,6 +6,7 @@ import '../models/product_order_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/url_image.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
@@ -35,7 +36,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     final trackingCtrl = TextEditingController(text: order.trackingInfo.isNotEmpty ? order.trackingInfo : 'Basi la...');
     final notesCtrl = TextEditingController(text: order.adminNotes);
 
-    showDialog<void>(
+    showAdminDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AdminColors.surface,

@@ -47,6 +47,8 @@ class AdminDataMapper {
       purchasedContentIds: (json['purchasedContentIds'] as List? ?? [])
           .map((e) => e.toString())
           .toList(),
+      isProspect: json['isProspect'] == true,
+      prospectAt: json['prospectAt'] != null ? _parseDate(json['prospectAt']) : null,
     );
   }
 

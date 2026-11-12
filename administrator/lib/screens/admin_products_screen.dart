@@ -6,6 +6,7 @@ import '../models/product_order_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/url_image.dart';
 
 class AdminProductsScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   }
 
   void _openProductForm([AdminProduct? existing]) {
-    showModalBottomSheet<void>(
+    showAdminSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -34,7 +35,7 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
   }
 
   Future<void> _confirmDelete(AdminProduct product) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdminDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AdminColors.surface,

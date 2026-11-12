@@ -25,7 +25,7 @@ class DawaOrderService extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   static const _storageKey = 'da_user_dawa_orders_v1';
-  static const _productsCacheKey = 'da_cached_products_v1';
+  static const _productsCacheKey = 'da_cached_products_v2';
   static const int defaultTransferFee = 12000;
 
   /// Standard Tanzania Regions for the order form
@@ -64,7 +64,6 @@ class DawaOrderService extends ChangeNotifier {
   ];
 
   Future<void> _init() async {
-    _loadDefaultProducts();
     await _loadCachedProducts();
     await _loadSavedOrders();
     unawaited(refreshProducts());
@@ -105,218 +104,6 @@ class DawaOrderService extends ChangeNotifier {
       if (!aIsCustom && bIsCustom) return 1;
       return 0;
     });
-  }
-
-  void _loadDefaultProducts() {
-    _products = [
-      const DawaProduct(
-        id: 'dawa_jino',
-        title: 'Dawa Asili ya Maumivu ya Jino & Meno',
-        subtitle: 'Mafuta & Unga wa Karafuu na Mshubiri',
-        description: 'Hutuliza maumivu makali ya jino ndani ya dakika 5, kuua bakteria wanaotoboa meno, kukinga fizi kutoka damu, na kuondoa harufu mbaya mdomoni.',
-        price: 20000,
-        originalPrice: 40000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 50,
-        category: 'jino',
-        targetKeywords: 'jino, meno, fizi, kungoa jino, toothache, kutoboka jino, maumivu ya jino, maumivu ya meno, kinywa',
-        benefits: [
-          'Hutuliza maumivu ya jino ndani ya dakika 5',
-          'Huua wadudu na bakteria wanaotoboa jino',
-          'Huponya fizi zinazovuja damu na kuvimba',
-          'Huondoa harufu mbaya na kusafisha kinywa',
-        ],
-        howToUse: 'Weka matone 2-3 kwenye pamba kisha weka kwenye jino au fizi yenye maumivu kwa dakika 15, au sukutua na maji vuguvugu.',
-      ),
-      const DawaProduct(
-        id: 'dawa_typhoid',
-        title: 'Dawa Asili ya Typhoid & Homa ya Matumbo',
-        subtitle: 'Dondoo ya Mwarobaini, Mlonge & Mizizi ya Asili',
-        description: 'Tiba madhubuti ya kuangamiza bakteria wa Salmonella typhi mwilini, kuondoa homa kali za vipindi, kutuliza maumivu ya tumbo na kichefuchefu, na kurejesha hamu ya kula.',
-        price: 27000,
-        originalPrice: 54000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 40,
-        category: 'typhoid',
-        targetKeywords: 'typhoid, homa ya matumbo, salmonella, taifodi, homa ya tumbo, kichefuchefu, kuumwa tumbo',
-        benefits: [
-          'Huuwa bakteria wa Salmonella typhi kwa ufanisi',
-          'Hushusha homa kali na kuondoa maumivu ya mwili',
-          'Huponya kichefuchefu na kurudisha nguvu',
-          'Hutibu tatizo la typhoid sugu isiyoisha',
-        ],
-        howToUse: 'Kikombe nusu cha chai asubuhi na jioni kwa siku 10 mfululizo.',
-      ),
-      const DawaProduct(
-        id: 'dawa_tumbo',
-        title: 'Dawa Asili ya Vidonda vya Tumbo & Gesi',
-        subtitle: 'Mchanganyiko maalum wa Mshubiri & Mizizi ya Asili',
-        description: 'Tiba madhubuti ya vidonda vya tumbo sugu (peptic ulcers), kiungulia, gesi kujaa tumboni, na kurekebisha tindikali (acid reflux).',
-        price: 25000,
-        originalPrice: 50000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 45,
-        category: 'tumbo',
-        targetKeywords: 'tumbo, vidonda vya tumbo, gesi, ulcers, kiungulia, acid reflux, tumbo kuwaka moto',
-        benefits: [
-          'Huponya vidonda vya tumbo kuanzia siku 7 za mwanzo',
-          'Huondoa kiungulia kikali na kutapika maji machungu',
-          'Hulainisha kuta za tumbo na kusawazisha tindikali',
-          'Inafaa kwa watoto na watu wazima (100% asilia)',
-        ],
-        howToUse: 'Kijiko 1 cha chakula kwenye maji vuguvugu asubuhi kabla ya kula na usiku kabla ya kulala.',
-      ),
-      const DawaProduct(
-        id: 'dawa_kisukari',
-        title: 'Mchanganyiko wa Asili wa Kudhibiti Kisukari',
-        subtitle: 'Magome na Majani ya Mwarobaini & Mlonge',
-        description: 'Tiba asilia ya kusaidia kongosho kuzalisha homoni ya insulini, kusafisha damu, na kudhibiti viwango vya juu vya sukari.',
-        price: 30000,
-        originalPrice: 60000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 30,
-        category: 'kisukari',
-        targetKeywords: 'sukari, kisukari, diabetes, insulini, kupanda sukari',
-        benefits: [
-          'Hushusha sukari na kuweka kiwango thabiti',
-          'Huondoa uchovu mwingi na kizunguzungu',
-          'Hulinda macho na mafigo dhidi ya madhara ya sukari',
-        ],
-        howToUse: 'Kikombe nusu asubuhi na jioni kwa siku 14 mfululizo.',
-      ),
-      const DawaProduct(
-        id: 'dawa_presha',
-        title: 'Dawa ya Kusafisha Mishipa & Presha ya Juu',
-        subtitle: 'Mvuke na Dondoo ya Kitunguu Saumu & Tangawizi',
-        description: 'Huongeza upenyaji wa damu, kuyeyusha mafuta mabaya (cholesterol), na kushusha shinikizo la damu kwenye mishipa ya moyo.',
-        price: 28000,
-        originalPrice: 56000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 25,
-        category: 'presha',
-        targetKeywords: 'presha, shinikizo la damu, cholesterol, moyo, mishipa ya damu, kizunguzungu',
-        benefits: [
-          'Hushusha presha na kupunguza maumivu ya kisogo',
-          'Huyeyusha cholesterol na kusafisha damu',
-          'Huleta utulivu mzito wa mapigo ya moyo',
-        ],
-        howToUse: 'Kijiko 1 asubuhi kwenye chai au maji ya vuguvugu.',
-      ),
-      const DawaProduct(
-        id: 'dawa_ngozi',
-        title: 'Mafuta & Sabuni ya Asili ya Ngozi na Chunusi',
-        subtitle: 'Mshubiri, Mwarobaini & Manjano Safi',
-        description: 'Huondoa chunusi sugu, vipele, muwasho wa ngozi, fangasi, mabaka meusi, na kurejesha ngozi kuwa nyororo na yenye mng’ao.',
-        price: 20000,
-        originalPrice: 40000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1608248597359-598d1a100a73?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 60,
-        category: 'ngozi',
-        targetKeywords: 'ngozi, chunusi, upele, fangasi, mabaka, muwasho wa ngozi, madoa',
-        benefits: [
-          'Hukausha chunusi ndani ya masaa 48',
-          'Huondoa madoa na makovu ya zamani',
-          'Hutibu fangasi sugu na kuwasha kwa ngozi',
-        ],
-        howToUse: 'Paka mara 2 kwa siku baada ya kuosha uso au eneo lililoathirika.',
-      ),
-      const DawaProduct(
-        id: 'dawa_kiume',
-        title: 'Dawa Asili ya Nguvu za Kiume & Uzazi',
-        subtitle: 'Mchanganyiko wa Mizizi ya Kungu, Mshubiri & Asali Safi',
-        description: 'Tiba madhubuti ya kuongeza nguvu za kiume, kuimarisha mishipa ya uume, kuongeza wingi na ubora wa mbegu, na kuzuia kuwahi kufika kileleni mapema.',
-        price: 30000,
-        originalPrice: 60000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 35,
-        category: 'uzazi',
-        targetKeywords: 'nguvu za kiume, uzazi, mbegu, uume, tendo la ndoa, kuwahi kufika kileleni, kurudia tendo, stamina, uume kulegea, maumbile, kiume',
-        benefits: [
-          'Huongeza nguvu za kiume na stamina ya tendo',
-          'Hukaza na kuimarisha mishipa ya uume',
-          'Huboresha wingi na ubora wa mbegu za uzazi',
-          'Huponya tatizo la kuwahi kileleni mapema',
-        ],
-        howToUse: 'Kijiko 1 cha chakula kwenye maziwa vuguvugu au asali asubuhi na jioni kwa siku 14.',
-      ),
-      const DawaProduct(
-        id: 'dawa_hedhi',
-        title: 'Dawa Asili ya Maumivu ya Hedhi & Mzunguko',
-        subtitle: 'Dondoo ya Mlonge, Tangawizi & Majani ya Mpera',
-        description: 'Tiba asilia ya kutuliza maumivu makali ya hedhi (dysmenorrhea), kusafisha kizazi, kuondoa uchafu na harufu mbaya, na kurekebisha mzunguko wa hedhi.',
-        price: 25000,
-        originalPrice: 50000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 40,
-        category: 'uzazi',
-        targetKeywords: 'hedhi, maumivu ya hedhi, mzunguko wa hedhi, uzazi wa mwanamke, pid, uchafu, fangasi, kutokwa na damu nyingi, kizazi, hedhi kuuma',
-        benefits: [
-          'Hutuliza maumivu makali ya tumbo wakati wa hedhi',
-          'Hurekebisha mzunguko wa hedhi uliovurugika',
-          'Hupunguza damu nyingi isiyo ya kawaida na uchovu',
-          'Hulinda na kusafisha njia ya uzazi dhidi ya PID na fangasi',
-        ],
-        howToUse: 'Kikombe nusu cha chai ya vuguvugu asubuhi na jioni kuanzia siku 3 kabla ya hedhi hadi kuisha.',
-      ),
-      const DawaProduct(
-        id: 'dawa_pumu',
-        title: 'Dawa Asili ya Pumu, Kifua & Kikohozi Sugu',
-        subtitle: 'Mchanganyiko wa Kitunguu Saumu, Tangawizi & Asali Safi',
-        description: 'Hufungua njia za hewa, kuyeyusha makohozi kifuani, kutuliza pumu (asthma), mkoromo, na kutibu mafua na kikohozi sugu.',
-        price: 25000,
-        originalPrice: 50000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 30,
-        category: 'pumu',
-        targetKeywords: 'pumu, kifua, kikohozi, mafua, asthma, kupumua kwa shida, mkoromo, kikohozi kikavu, kubanwa mbavu, kifua kuwaka',
-        benefits: [
-          'Hufungua mirija ya hewa na kurahisisha upumuaji',
-          'Huyeyusha na kutoa makohozi sugu kifuani',
-          'Hupunguza mashambulizi ya mara kwa mara ya pumu',
-          'Hutibu kikohozi kirefu na maumivu ya koo',
-        ],
-        howToUse: 'Kijiko 1 cha chakula mara tatu kwa siku baada ya chakula.',
-      ),
-      const DawaProduct(
-        id: 'dawa_mifupa',
-        title: 'Mafuta & Dawa ya Maumivu ya Viungo na Mgongo',
-        subtitle: 'Dondoo ya Mkaratusi, Tangawizi & Mafuta ya Mnyonyo',
-        description: 'Tiba ya kupenya kwa kasi inayotuliza maumivu ya mgongo, nyonga, magoti, ganzi miguuni na mikononi, na baridi yabisi (arthritis).',
-        price: 28000,
-        originalPrice: 56000,
-        discountPercent: 50,
-        imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&q=80&w=600',
-        badgeText: 'PUNGUZO LA 50% 🔥',
-        stockQuantity: 30,
-        category: 'mifupa',
-        targetKeywords: 'mifupa, viungo, mgongo, nyonga, magoti, ganzi, baridi yabisi, arthritis, maumivu ya kiuno, gout, miguu kufa ganzi',
-        benefits: [
-          'Hutuliza maumivu ya mgongo na viungo ndani ya muda mfupi',
-          'Huondoa uvimbe na ganzi kwenye miguu na mikono',
-          'Hurudisha ute kwenye viungo na magoti',
-          'Inafaa kwa wazee na wanaofanya kazi ngumu',
-        ],
-        howToUse: 'Chua eneo lenye maumivu kwa dakika 10 asubuhi na usiku kabla ya kulala.',
-      ),
-    ];
   }
 
   Future<void> refreshProducts() async {
@@ -386,28 +173,6 @@ class DawaOrderService extends ChangeNotifier {
       debugPrint('Error saving orders: $e');
     }
   }
-
-  /// Safely get default product
-  DawaProduct get defaultProduct => _products.isNotEmpty
-      ? _products.first
-      : const DawaProduct(
-          id: 'dawa_tumbo',
-          title: 'Dawa Asili ya Vidonda vya Tumbo & Gesi',
-          subtitle: 'Mchanganyiko maalum wa Mshubiri & Mizizi ya Asili',
-          description: 'Tiba madhubuti ya vidonda vya tumbo sugu (peptic ulcers), kiungulia, gesi kujaa tumboni, na kurekebisha tindikali.',
-          price: 25000,
-          originalPrice: 50000,
-          discountPercent: 50,
-          imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600',
-          badgeText: 'PUNGUZO LA 50% 🔥',
-          stockQuantity: 45,
-          benefits: [
-            'Huponya vidonda vya tumbo kuanzia siku 7 za mwanzo',
-            'Huondoa kiungulia kikali na kutapika maji machungu',
-            'Hulainisha kuta za tumbo na kusawazisha tindikali',
-            'Inafaa kwa watoto na watu wazima (100% asilia)',
-          ],
-        );
 
   bool _isStopWord(String word) {
     const stops = {
@@ -506,59 +271,8 @@ class DawaOrderService extends ChangeNotifier {
     return null;
   }
 
-  /// Create an exact DawaProduct matching the article's disease/topic
-  DawaProduct createProductForPost(ContentPost post) {
-    final topic = DiseaseExtractor.extractTopic(post.title, post.category);
-    final cleanTopic = topic.trim().isNotEmpty && topic != 'Tatizo Hili'
-        ? topic.trim()
-        : post.title.trim();
-    final cleanTitle = cleanTopic.toLowerCase().startsWith('dawa')
-        ? cleanTopic
-        : 'Dawa Asili ya $cleanTopic';
-
-    final subtitle = post.subtitle.trim().isNotEmpty
-        ? post.subtitle.trim()
-        : 'Mchanganyiko Maalum wa Asili wa $cleanTopic';
-
-    final description = post.excerpt.trim().isNotEmpty
-        ? post.excerpt.trim()
-        : 'Tiba madhubuti ya mitishamba na mizizi asilia kwa ajili ya kutibu na kuondoa kabisa tatizo la $cleanTopic kwa njia salama na asili.';
-
-    final imageUrl = post.displayImageUrl.isNotEmpty
-        ? post.displayImageUrl
-        : (post.imageUrl.isNotEmpty
-            ? post.imageUrl
-            : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600');
-
-    return DawaProduct(
-      id: 'dawa_post_${post.id}',
-      title: cleanTitle,
-      subtitle: subtitle,
-      description: description,
-      price: 25000,
-      originalPrice: 50000,
-      discountPercent: 50,
-      imageUrl: imageUrl,
-      badgeText: 'PUNGUZO LA 50% 🔥',
-      stockQuantity: 50,
-      category: post.category ?? 'dawa_asili',
-      targetKeywords: cleanTopic.toLowerCase(),
-      benefits: [
-        'Hutibu na kuondoa chanzo cha $cleanTopic kwa njia ya asili',
-        'Dawa 100% ya asili isiyo na kemikali wala madhara mwilini',
-        'Maelekezo na ushauri wa dozi sahihi kutoka kwa Mwalimu',
-        'Inafaa kwa rika zote na imethibitishwa',
-      ],
-      howToUse: 'Tumia dozi asubuhi na jioni kwa siku 7-14 kulingana na maelekezo ya Mwalimu.',
-    );
-  }
-
-  /// Get the most relevant product for a specific makala / post,
-  /// or dynamically construct the exact medicine matching that makala.
-  DawaProduct getProductForPost(ContentPost? post) {
-    if (post == null) return defaultProduct;
-    return findProductForPost(post) ?? createProductForPost(post);
-  }
+  /// Real catalog product matching a makala / post, or null.
+  DawaProduct? getProductForPost(ContentPost? post) => findProductForPost(post);
 
   /// Find matching product by keywords in text (returns null if no confident match)
   DawaProduct? findProductForText(String text) {
@@ -571,9 +285,7 @@ class DawaOrderService extends ChangeNotifier {
     ));
   }
 
-  DawaProduct getProductForText(String text) {
-    return findProductForText(text) ?? defaultProduct;
-  }
+  DawaProduct? getProductForText(String text) => findProductForText(text);
 
   /// Find matching product for a condition (returns null if no confident match)
   DawaProduct? findProductForCondition(dynamic condition) {
@@ -594,36 +306,13 @@ class DawaOrderService extends ChangeNotifier {
     }
   }
 
-  /// Get product matching a condition or dynamically generated medicine
-  DawaProduct getProductForCondition(dynamic condition) {
-    final found = findProductForCondition(condition);
-    if (found != null) return found;
-    final name = (condition?.name as String?) ?? 'Afya';
-    final shortDesc = (condition?.shortDesc as String?) ?? '';
-    return DawaProduct(
-      id: 'dawa_cond_${condition?.id ?? DateTime.now().millisecondsSinceEpoch}',
-      title: 'Dawa Asili ya $name',
-      subtitle: shortDesc.isNotEmpty ? shortDesc : 'Tiba Maalum ya Asili ya $name',
-      description: 'Mchanganyiko maalum wa mitishamba na mizizi asilia wa kutibu na kuondoa tatizo la $name.',
-      price: 25000,
-      originalPrice: 50000,
-      discountPercent: 50,
-      imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=600',
-      badgeText: 'PUNGUZO LA 50% 🔥',
-      stockQuantity: 40,
-      benefits: [
-        'Hutibu na kuondoa chanzo cha $name kwa njia ya asili',
-        'Dawa 100% ya asili isiyo na kemikali wala madhara mwilini',
-        'Maelekezo na ushauri wa dozi sahihi kutoka kwa Mwalimu',
-      ],
-      howToUse: 'Tumia dozi asubuhi na jioni kwa siku 7-14 kulingana na maelekezo ya Mwalimu.',
-    );
-  }
+  /// Real catalog product matching a condition, or null.
+  DawaProduct? getProductForCondition(dynamic condition) =>
+      findProductForCondition(condition);
 
-  /// Get product matching a herb name or description
-  DawaProduct getProductForHerb(String herbName) {
-    return getProductForText(herbName);
-  }
+  /// Real catalog product matching a herb name or description, or null.
+  DawaProduct? getProductForHerb(String herbName) =>
+      findProductForText(herbName);
 
   /// Create a new order with payment and permanent receipt
   Future<DawaOrder> createOrder({

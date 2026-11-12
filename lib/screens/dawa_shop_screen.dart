@@ -98,8 +98,21 @@ class _DawaShopScreenState extends State<DawaShopScreen> {
     final filtered = _filteredProducts(products);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: RefreshIndicator(
+      backgroundColor: const Color(0xFFE8D9C4),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFD7E8DE),
+              Color(0xFFF4E7D4),
+              Color(0xFFE7D3B8),
+            ],
+            stops: [0.0, 0.46, 1.0],
+          ),
+        ),
+        child: RefreshIndicator(
         color: AppColors.forest,
         backgroundColor: Colors.white,
         onRefresh: () async {
@@ -204,6 +217,7 @@ class _DawaShopScreenState extends State<DawaShopScreen> {
               ),
           ],
         ),
+        ),
       ),
     );
   }
@@ -214,9 +228,9 @@ class _DawaShopScreenState extends State<DawaShopScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
       decoration: BoxDecoration(
-        gradient: AppColors.headerSheen,
+        color: const Color(0xFFF7F0E4).withValues(alpha: 0.94),
         border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.06)),
+          bottom: BorderSide(color: const Color(0xFF8A6240).withValues(alpha: 0.14)),
         ),
       ),
       child: Row(
@@ -629,12 +643,13 @@ class _ProductFeedCard extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF8A6240).withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -706,20 +721,33 @@ class _ProductFeedCard extends StatelessWidget {
             ),
           ),
 
-          // Medicine Image
-          if (product.imageUrl.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
+          // Medicine Image — tall product photo
+          Builder(
+            builder: (context) {
+              final imageHeight = (MediaQuery.sizeOf(context).width * 0.86).clamp(320.0, 460.0);
+              return SizedBox(
+                height: imageHeight,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (product.imageUrl.isNotEmpty)
                       HerbImage(
                         url: product.imageUrl,
+                        height: imageHeight,
                         fit: BoxFit.cover,
+                        borderRadius: 0,
+                      )
+                    else
+                      const ColoredBox(
+                        color: Color(0xFFE7F3EC),
+                        child: Center(
+                          child: Icon(
+                            Icons.medication_liquid_rounded,
+                            size: 64,
+                            color: AppColors.forest,
+                          ),
+                        ),
                       ),
                       // Ambient bottom dark fade
                       Positioned(
@@ -773,9 +801,9 @@ class _ProductFeedCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
+                );
+            },
+          ),
 
           // Content: Title, Subtitle, Description
           Padding(

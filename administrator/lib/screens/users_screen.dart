@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../utils/phone_call.dart';
 import '../utils/tzs_format.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/admin_ui.dart';
 import '../widgets/user_list_tile.dart';
 
@@ -82,7 +84,7 @@ class UsersScreen extends StatelessWidget {
   }
 
   void _showFilterSheet(BuildContext context, AdminProvider provider) {
-    showModalBottomSheet(
+    showAdminSheet(
       context: context,
       backgroundColor: AdminColors.surface,
       shape: const RoundedRectangleBorder(
@@ -203,12 +205,16 @@ class UserDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<AdminProvider>();
+    final provider = context.watch<AdminProvider>();
+    final live = provider.users.where((u) => u.id == user.id).firstOrNull ?? user;
     final fmt = DateFormat('MMM d, y');
-    return Scaffold(
-      backgroundColor: AdminColors.bg,
+    return AdminBackground(
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AdminColors.bg,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        flexibleSpace: const AdminBarBlur(),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_rounded, color: AdminColors.textPrimary, size: 20),
@@ -255,7 +261,7 @@ class UserDetailScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          (user.name.isNotEmpty ? user.name[0] : '?').toUpperCase(),
+                          (live.name.isNotEmpty ? live.name[0] : '?').toUpperCase(),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 28,
@@ -266,7 +272,7 @@ class UserDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      user.name,
+                      live.name,
                       style: GoogleFonts.inter(
                         color: AdminColors.textPrimary,
                         fontSize: 20,
@@ -274,17 +280,21 @@ class UserDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    if (user.email?.isNotEmpty == true)
-                      Text(user.email!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
-                    if (user.phone?.isNotEmpty == true)
-                      Text(user.phone!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
+                    if (live.email?.isNotEmpty == true)
+                      Text(live.email!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
+                    if (live.phone?.isNotEmpty == true)
+                      Text(live.phone!, style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13)),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _StatusBadge(status: user.status),
+                        _StatusBadge(status: live.status),
                         const SizedBox(width: 8),
-                        _PlanBadge(plan: user.plan),
+                        _PlanBadge(plan: live.plan),
+                        if (live.isProspect) ...[
+                          const SizedBox(width: 8),
+                          const _ProspectBadge(),
+                        ],
                       ],
                     ),
                   ],
@@ -304,18 +314,18 @@ class UserDetailScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 childAspectRatio: 1.8,
                 children: [
-                  _InfoCard(label: 'Messages', value: user.messageCount.toString(), icon: Icons.chat_rounded, color: AdminColors.emerald),
-                  _InfoCard(label: 'Purchases', value: user.purchaseCount.toString(), icon: Icons.shopping_bag_rounded, color: AdminColors.blue),
-                  _InfoCard(label: 'Total Spent', value: TzsFormat.compact(user.totalSpent.toDouble()), icon: Icons.payments_rounded, color: AdminColors.amber),
-                  _InfoCard(label: 'Auth', value: user.authProvider, icon: Icons.login_rounded, color: AdminColors.purple),
-                  _InfoCard(label: 'Joined', value: fmt.format(user.joinedAt), icon: Icons.calendar_today_rounded, color: AdminColors.amber),
-                  _InfoCard(label: 'Last Active', value: fmt.format(user.lastActiveAt), icon: Icons.access_time_rounded, color: AdminColors.purple),
-                  if (user.premiumUntil != null)
-                    _InfoCard(label: 'Premium Until', value: fmt.format(user.premiumUntil!), icon: Icons.star_rounded, color: AdminColors.amber),
+                  _InfoCard(label: 'Messages', value: live.messageCount.toString(), icon: Icons.chat_rounded, color: AdminColors.emerald),
+                  _InfoCard(label: 'Purchases', value: live.purchaseCount.toString(), icon: Icons.shopping_bag_rounded, color: AdminColors.blue),
+                  _InfoCard(label: 'Total Spent', value: TzsFormat.compact(live.totalSpent.toDouble()), icon: Icons.payments_rounded, color: AdminColors.amber),
+                  _InfoCard(label: 'Auth', value: live.authProvider, icon: Icons.login_rounded, color: AdminColors.purple),
+                  _InfoCard(label: 'Joined', value: fmt.format(live.joinedAt), icon: Icons.calendar_today_rounded, color: AdminColors.amber),
+                  _InfoCard(label: 'Last Active', value: fmt.format(live.lastActiveAt), icon: Icons.access_time_rounded, color: AdminColors.purple),
+                  if (live.premiumUntil != null)
+                    _InfoCard(label: 'Premium Until', value: fmt.format(live.premiumUntil!), icon: Icons.star_rounded, color: AdminColors.amber),
                 ],
               ),
             ),
-            if (user.purchasedContentIds.isNotEmpty) ...[
+            if (live.purchasedContentIds.isNotEmpty) ...[
               const SizedBox(height: 16),
               Animate(
                 delay: const Duration(milliseconds: 150),
@@ -324,7 +334,7 @@ class UserDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Purchased Content (${user.purchasedContentIds.length})',
+                      'Purchased Content (${live.purchasedContentIds.length})',
                       style: GoogleFonts.inter(
                         color: AdminColors.textPrimary,
                         fontSize: 16,
@@ -332,7 +342,7 @@ class UserDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    ...user.purchasedContentIds.map(
+                    ...live.purchasedContentIds.map(
                       (id) => Container(
                         width: double.infinity,
                         margin: const EdgeInsets.only(bottom: 6),
@@ -369,7 +379,7 @@ class UserDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (user.plan == UserPlan.free)
+                  if (live.plan == UserPlan.free)
                     _ActionButton(
                       label: 'Upgrade to Premium',
                       icon: Icons.star_rounded,
@@ -377,8 +387,8 @@ class UserDetailScreen extends StatelessWidget {
                       onTap: () => _runUserAction(
                         context,
                         provider,
-                        () => provider.updateUserPlan(user.id, UserPlan.premium),
-                        successMessage: '${user.name} upgraded to Premium',
+                        () => provider.updateUserPlan(live.id, UserPlan.premium),
+                        successMessage: '${live.name} upgraded to Premium',
                       ),
                     )
                   else
@@ -389,12 +399,27 @@ class UserDetailScreen extends StatelessWidget {
                       onTap: () => _runUserAction(
                         context,
                         provider,
-                        () => provider.updateUserPlan(user.id, UserPlan.free),
-                        successMessage: '${user.name} downgraded to Free',
+                        () => provider.updateUserPlan(live.id, UserPlan.free),
+                        successMessage: '${live.name} downgraded to Free',
                       ),
                     ),
                   const SizedBox(height: 8),
-                  if (user.status == UserStatus.active)
+                  if (live.phone?.trim().isNotEmpty == true)
+                    _ActionButton(
+                      label: 'Call',
+                      icon: Icons.call_rounded,
+                      color: AdminColors.emerald,
+                      onTap: () => _callUser(context, live),
+                    ),
+                  if (live.phone?.trim().isNotEmpty == true) const SizedBox(height: 8),
+                  _ActionButton(
+                    label: live.isProspect ? 'Remove from Prospects' : 'Save as Prospect',
+                    icon: live.isProspect ? Icons.bookmark_remove_rounded : Icons.bookmark_add_rounded,
+                    color: AdminColors.purple,
+                    onTap: () => _toggleProspect(context, provider, live),
+                  ),
+                  const SizedBox(height: 8),
+                  if (live.status == UserStatus.active)
                     _ActionButton(
                       label: 'Suspend Account',
                       icon: Icons.pause_circle_outline_rounded,
@@ -402,11 +427,11 @@ class UserDetailScreen extends StatelessWidget {
                       onTap: () => _runUserAction(
                         context,
                         provider,
-                        () => provider.updateUserStatus(user.id, UserStatus.suspended),
-                        successMessage: '${user.name} suspended',
+                        () => provider.updateUserStatus(live.id, UserStatus.suspended),
+                        successMessage: '${live.name} suspended',
                       ),
                     )
-                  else if (user.status == UserStatus.suspended)
+                  else if (live.status == UserStatus.suspended)
                     _ActionButton(
                       label: 'Reactivate Account',
                       icon: Icons.play_circle_outline_rounded,
@@ -414,11 +439,11 @@ class UserDetailScreen extends StatelessWidget {
                       onTap: () => _runUserAction(
                         context,
                         provider,
-                        () => provider.updateUserStatus(user.id, UserStatus.active),
-                        successMessage: '${user.name} reactivated',
+                        () => provider.updateUserStatus(live.id, UserStatus.active),
+                        successMessage: '${live.name} reactivated',
                       ),
                     )
-                  else if (user.status == UserStatus.banned)
+                  else if (live.status == UserStatus.banned)
                     _ActionButton(
                       label: 'Unban User',
                       icon: Icons.check_circle_outline_rounded,
@@ -426,12 +451,12 @@ class UserDetailScreen extends StatelessWidget {
                       onTap: () => _runUserAction(
                         context,
                         provider,
-                        () => provider.updateUserStatus(user.id, UserStatus.active),
-                        successMessage: '${user.name} has been unbanned',
+                        () => provider.updateUserStatus(live.id, UserStatus.active),
+                        successMessage: '${live.name} has been unbanned',
                       ),
                     ),
                   const SizedBox(height: 8),
-                  if (user.status != UserStatus.banned)
+                  if (live.status != UserStatus.banned)
                     _ActionButton(
                       label: 'Ban User',
                       icon: Icons.block_rounded,
@@ -444,11 +469,37 @@ class UserDetailScreen extends StatelessWidget {
           ],
         ),
       ),
+      ),
+    );
+  }
+
+  Future<void> _callUser(BuildContext context, AdminUser target) async {
+    final phone = target.phone?.trim() ?? '';
+    final opened = await callPhoneNumber(phone);
+    if (!context.mounted) return;
+    if (!opened) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        _snackBar('Could not open the phone app for $phone', isError: true),
+      );
+    }
+  }
+
+  Future<void> _toggleProspect(BuildContext context, AdminProvider provider, AdminUser target) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final saving = !target.isProspect;
+    final error = await provider.updateUserProspect(target.id, saving);
+    if (!context.mounted) return;
+    if (error != null) {
+      messenger.showSnackBar(_snackBar(error, isError: true));
+      return;
+    }
+    messenger.showSnackBar(
+      _snackBar(saving ? '${target.name} saved as a prospect' : '${target.name} removed from prospects'),
     );
   }
 
   void _confirmBan(BuildContext context, AdminProvider provider) {
-    showDialog(
+    showAdminDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AdminColors.surface,
@@ -590,6 +641,26 @@ class _ActionButton extends StatelessWidget {
             Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.6), size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ProspectBadge extends StatelessWidget {
+  const _ProspectBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AdminColors.purpleGlow,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AdminColors.purple.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        'Prospect',
+        style: GoogleFonts.inter(color: AdminColors.purple, fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

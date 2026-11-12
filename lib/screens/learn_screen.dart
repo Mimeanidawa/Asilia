@@ -39,15 +39,18 @@ class _LearnScreenState extends State<LearnScreen> {
 
   static const _categories = <_LearnCategory>[
     _LearnCategory('Zote', null, Icons.auto_stories_rounded),
-    _LearnCategory('Matunda', 'matunda', Icons.spa_rounded),
     _LearnCategory('Mizizi', 'mizizi', Icons.grass_rounded),
     _LearnCategory('Miti', 'miti', Icons.park_rounded),
+    _LearnCategory('Matunda', 'matunda', Icons.spa_rounded),
     _LearnCategory('Mimea', 'mimea', Icons.eco_rounded),
     _LearnCategory('Vyakula', 'vyakula', Icons.restaurant_rounded),
+    _LearnCategory('Wanawake', 'wanawake', Icons.female_rounded),
+    _LearnCategory('Watoto', 'watoto', Icons.child_care_rounded),
+    _LearnCategory('Wanaume', 'wanaume', Icons.male_rounded),
   ];
 
   List<ContentPost> _filtered(ContentService content) {
-    if (_selectedCat == 'Zote') return content.jifunzePosts;
+    if (_selectedCat == 'Zote') return content.allMakalaPosts;
     final cat = _categories.where((c) => c.label == _selectedCat).firstOrNull;
     if (cat?.key == null) return content.jifunzePosts;
     return content.postsForCategory(cat!.key!);
@@ -104,11 +107,11 @@ class _LearnScreenState extends State<LearnScreen> {
     return SizedBox.expand(
       child: Column(
         children: [
-          _LibraryHeader(count: content.jifunzePosts.length),
+          _LibraryHeader(count: content.allMakalaPosts.length),
           ModernTabRail(
             items: _categories.map((c) {
               final count = c.key == null
-                  ? content.jifunzePosts.length
+                  ? content.allMakalaPosts.length
                   : content.postsForCategory(c.key!).length;
               return TabRailItem(
                 id: c.label,
@@ -126,7 +129,7 @@ class _LearnScreenState extends State<LearnScreen> {
           Expanded(
             child: PullToRefresh(
               onRefresh: () => AppRefresh.catalog(context),
-              child: content.jifunzePosts.isEmpty && _selectedCat == 'Zote'
+              child: content.allMakalaPosts.isEmpty && _selectedCat == 'Zote'
                   ? _EmptyLibrary(loading: content.isLoading)
                   : filtered.isEmpty
                       ? _EmptyCategory(label: _selectedCat)
@@ -145,6 +148,7 @@ class _LearnScreenState extends State<LearnScreen> {
                                   child: ContentFeaturedCard(
                                     post: featured,
                                     height: 300,
+                                    highlightNew: _selectedCat == 'Zote',
                                     onTap: () => _openPost(featured, user),
                                   ),
                                 ),

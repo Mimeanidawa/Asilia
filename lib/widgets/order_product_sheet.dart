@@ -43,6 +43,7 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
   bool _submitting = false;
 
   _OrderSheetStep _step = _OrderSheetStep.details;
+  int _wizardStep = 0;
   String _statusMessage = 'Tunatuma ombi la malipo...';
   DawaOrder? _currentOrder;
 
@@ -231,8 +232,21 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
 
-    String headerTitle = 'AGIZA & NUNUA DAWA HII';
-    String headerSubtitle = 'Utoaji nchi nzima Tanzania kwa uhakika';
+    const stepTitles = [
+      'HATUA 1 YA 4 • KIASI',
+      'HATUA 2 YA 4 • ANWANI',
+      'HATUA 3 YA 4 • MALIPO',
+      'HATUA 4 YA 4 • THIBITISHA',
+    ];
+    const stepSubs = [
+      'Chagua idadi, kisha endelea',
+      'Weka mahali dawa itakapofika',
+      'Jina, simu, na njia ya kulipa',
+      'Kagua oda yako kisha lipa',
+    ];
+
+    var headerTitle = stepTitles[_wizardStep];
+    var headerSubtitle = stepSubs[_wizardStep];
     if (_step == _OrderSheetStep.processing) {
       headerTitle = 'UTHIBITISHO WA MALIPO';
       headerSubtitle = 'Ombi la malipo limetumwa kwenye simu yako';
@@ -326,155 +340,310 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
     );
   }
 
+  static const _wizardLabels = ['Kiasi', 'Anwani', 'Malipo', 'Thibitisha'];
+
+  bool _validateWizardStep() {
+    if (_wizardStep == 1) {
+      if (_districtController.text.trim().isEmpty) {
+        setState(() => _errorMessage = 'Andika wilaya yako (mf. Kinondoni, Ilala, Nyamagana).');
+        return false;
+      }
+      if (_wardController.text.trim().isEmpty) {
+        setState(() => _errorMessage = 'Andika kata au mtaa wako unapoishi.');
+        return false;
+      }
+    }
+    if (_wizardStep == 2) {
+      if (_nameController.text.trim().isEmpty) {
+        setState(() => _errorMessage = 'Andika jina lako kamili au jina la mpokeaji.');
+        return false;
+      }
+      if (toLocalPaymentPhone(_phoneController.text.trim()) == null) {
+        setState(() => _errorMessage = 'Weka namba sahihi ya simu (mf. 07XXXXXXXX au 06XXXXXXXX).');
+        return false;
+      }
+    }
+    setState(() => _errorMessage = null);
+    return true;
+  }
+
+  void _goForward() {
+    if (!_validateWizardStep()) return;
+    if (_wizardStep < 3) {
+      setState(() => _wizardStep++);
+      return;
+    }
+    _handleOrder();
+  }
+
+  void _goBack() {
+    if (_wizardStep == 0) return;
+    setState(() {
+      _wizardStep--;
+      _errorMessage = null;
+    });
+  }
+
+  InputDecoration _fieldDecoration(String hint, {Widget? prefix, String? helper}) {
+    return InputDecoration(
+      prefixIcon: prefix,
+      hintText: hint,
+      hintStyle: const TextStyle(fontSize: 13, color: AppColors.gray400, fontWeight: FontWeight.w500),
+      helperText: helper,
+      helperStyle: const TextStyle(fontSize: 11, color: AppColors.emerald800, fontWeight: FontWeight.w600),
+      helperMaxLines: 2,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.borderLight),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.borderLight),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: AppColors.emerald700, width: 1.6),
+      ),
+    );
+  }
+
   Widget _buildFormView() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    return Column(
       children: [
-        // Product Summary Card
+        _buildWizardRail(),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: ListView(
+              key: ValueKey(_wizardStep),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              children: [
+                if (_wizardStep == 0) _buildQuantityStep(),
+                if (_wizardStep == 1) _buildAddressStep(),
+                if (_wizardStep == 2) _buildPaymentStep(),
+                if (_wizardStep == 3) _buildReviewStep(),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFECDCA)),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(fontSize: 12.5, color: Color(0xFFB42318), fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        _buildWizardFooter(),
+      ],
+    );
+  }
+
+  Widget _buildWizardRail() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Row(
+        children: [
+          for (var i = 0; i < _wizardLabels.length; i++) ...[
+            if (i > 0)
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  color: i <= _wizardStep ? AppColors.forest : const Color(0xFFD9CBB8),
+                ),
+              ),
+            Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: i <= _wizardStep ? AppColors.forest : Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: i <= _wizardStep ? AppColors.forest : const Color(0xFFD9CBB8),
+                      width: 1.4,
+                    ),
+                  ),
+                  child: Center(
+                    child: i < _wizardStep
+                        ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                        : Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              color: i == _wizardStep ? Colors.white : AppColors.gray500,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _wizardLabels[i],
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: i == _wizardStep ? AppColors.forest : AppColors.gray500,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuantityStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                HerbImage(
+                  url: widget.product.imageUrl,
+                  height: 220,
+                  fit: BoxFit.cover,
+                  borderRadius: 0,
+                ),
+                Positioned(
+                  left: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.62),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      widget.product.badgeText.isNotEmpty ? widget.product.badgeText : 'Punguzo la 50%',
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          widget.product.title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.forest, height: 1.2),
+        ),
+        if (widget.product.subtitle.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            widget.product.subtitle,
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.forest.withValues(alpha: 0.7)),
+          ),
+        ],
+        const SizedBox(height: 14),
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
-            boxShadow: AppColors.elevationSm,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFD9CBB8)),
           ),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: HerbImage(
-                  url: widget.product.imageUrl,
-                  width: 65,
-                  height: 65,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF3F2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'PUNGUZO LA HADI 50% 🔥',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFB42318),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.product.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.forest,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          TzsFormat.full(widget.product.price),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.emerald800,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          TzsFormat.full(widget.product.originalPrice),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.gray400,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ),
+                    Text('Idadi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.forest)),
+                    SizedBox(height: 2),
+                    Text('Chupa au pakiti', style: TextStyle(fontSize: 12, color: AppColors.gray500, fontWeight: FontWeight.w600)),
                   ],
                 ),
+              ),
+              _QtyButton(
+                icon: Icons.remove_rounded,
+                onTap: _quantity > 1 ? () => setState(() => _quantity--) : null,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  '$_quantity',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.forest),
+                ),
+              ),
+              _QtyButton(
+                icon: Icons.add_rounded,
+                onTap: () => setState(() => _quantity++),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
-
-        // 1. Quantity Selector
+        const SizedBox(height: 12),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Idadi ya Dawa (Chupa/Pakiti):',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: AppColors.forest,
-              ),
+            Text(
+              TzsFormat.full(widget.product.price),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.emerald800),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.forest.withValues(alpha: 0.15)),
+            if (widget.product.originalPrice > widget.product.price) ...[
+              const SizedBox(width: 8),
+              Text(
+                TzsFormat.full(widget.product.originalPrice),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.gray400,
+                  decoration: TextDecoration.lineThrough,
+                ),
               ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
-                    icon: const Icon(Icons.remove_rounded, size: 18),
-                    color: AppColors.forest,
-                  ),
-                  Text(
-                    '$_quantity',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.forest,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() => _quantity++),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    color: AppColors.forest,
-                  ),
-                ],
-              ),
-            ),
+            ],
+            const Spacer(),
+            const Text('kwa kila moja', style: TextStyle(fontSize: 12, color: AppColors.gray500, fontWeight: FontWeight.w600)),
           ],
         ),
-        const SizedBox(height: 20),
+      ],
+    );
+  }
 
-        // 2. Location in Tanzania
+  Widget _buildAddressStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const Text(
-          'MAHALI ULIPO NCHINI TANZANIA',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            color: AppColors.emerald800,
-            letterSpacing: 0.8,
-          ),
+          'Dawa itafika wapi?',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.forest),
         ),
-        const SizedBox(height: 10),
-
-        // Mkoa (Region Dropdown)
+        const SizedBox(height: 4),
+        const Text(
+          'Tunatuma nchi nzima. Anza na mkoa, kisha wilaya na kata.',
+          style: TextStyle(fontSize: 13, color: AppColors.gray600, fontWeight: FontWeight.w600, height: 1.35),
+        ),
+        const SizedBox(height: 16),
+        const Text('Mkoa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest)),
+        const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderLight),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFD9CBB8)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
@@ -484,13 +653,7 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
               items: DawaOrderService.tanzaniaRegions.map((r) {
                 return DropdownMenuItem<String>(
                   value: r,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, size: 16, color: AppColors.emerald700),
-                      const SizedBox(width: 8),
-                      Text(r, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.forest)),
-                    ],
-                  ),
+                  child: Text(r, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.forest)),
                 );
               }).toList(),
               onChanged: (val) {
@@ -499,165 +662,88 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
-
-        // Wilaya & Kata
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _districtController,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.forest),
-                decoration: InputDecoration(
-                  hintText: 'Wilaya (mf. Ilala)',
-                  hintStyle: const TextStyle(fontSize: 12, color: AppColors.gray400),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.borderLight),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.emerald700, width: 1.5),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                controller: _wardController,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.forest),
-                decoration: InputDecoration(
-                  hintText: 'Kata / Mtaa',
-                  hintStyle: const TextStyle(fontSize: 12, color: AppColors.gray400),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.borderLight),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.borderLight),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: AppColors.emerald700, width: 1.5),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        const SizedBox(height: 14),
+        const Text('Wilaya', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _districtController,
+          textInputAction: TextInputAction.next,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.forest),
+          decoration: _fieldDecoration('mf. Ilala, Kinondoni, Nyamagana'),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
+        const Text('Kata au mtaa', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _wardController,
+          textInputAction: TextInputAction.done,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.forest),
+          decoration: _fieldDecoration('mf. Kariakoo, Mikocheni, Igoma'),
+        ),
+      ],
+    );
+  }
 
-        // 3. Recipient Info
+  Widget _buildPaymentStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const Text(
-          'TAARIFA ZA MPOKEAJI & SIMU',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            color: AppColors.emerald800,
-            letterSpacing: 0.8,
-          ),
+          'Nani anapokea, na lipa vipi?',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.forest),
         ),
-        const SizedBox(height: 10),
-
+        const SizedBox(height: 4),
+        const Text(
+          'Ombi la PIN litatumwa kwenye namba hii.',
+          style: TextStyle(fontSize: 13, color: AppColors.gray600, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 16),
+        const Text('Jina la mpokeaji', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest)),
+        const SizedBox(height: 6),
         TextField(
           controller: _nameController,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.forest),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.person_outline_rounded, size: 18, color: AppColors.gray400),
-            hintText: 'Jina lako kamili la mpokeaji',
-            hintStyle: const TextStyle(fontSize: 12, color: AppColors.gray400),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderLight),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderLight),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.emerald700, width: 1.5),
-            ),
+          textCapitalization: TextCapitalization.words,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.forest),
+          decoration: _fieldDecoration(
+            'Jina kamili',
+            prefix: const Icon(Icons.person_outline_rounded, size: 18, color: AppColors.gray400),
           ),
         ),
-        const SizedBox(height: 10),
-
+        const SizedBox(height: 14),
+        const Text('Namba ya simu', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest)),
+        const SizedBox(height: 6),
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.forest),
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: AppColors.gray400),
-            hintText: 'Namba ya simu (mf. 07XXXXXXXX)',
-            hintStyle: const TextStyle(fontSize: 12, color: AppColors.gray400),
-            helperText: 'Ombi la malipo (USSD) litatumwa moja kwa moja kwenye namba hii.',
-            helperStyle: const TextStyle(fontSize: 10.5, color: AppColors.emerald800, fontWeight: FontWeight.w600),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderLight),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderLight),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.emerald700, width: 1.5),
-            ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.forest),
+          decoration: _fieldDecoration(
+            '07XXXXXXXX',
+            prefix: const Icon(Icons.phone_outlined, size: 18, color: AppColors.gray400),
+            helper: 'Mtandao unachaguliwa kutokana na namba yako.',
           ),
         ),
         const SizedBox(height: 16),
-
-        // 4. Payment Method
-        const Text(
-          'CHAGUA MTANDAO WA MALIPO',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            color: AppColors.emerald800,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const Text('Mtandao wa malipo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.forest)),
+        const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: _paymentMethods.map((method) {
             final selected = _selectedPaymentMethod == method;
-            return InkWell(
+            return PressableScale(
               onTap: () => setState(() => _selectedPaymentMethod = method),
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: selected ? AppColors.forest : Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: selected ? AppColors.forest : AppColors.borderLight,
-                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: selected ? AppColors.forest : const Color(0xFFD9CBB8)),
                 ),
                 child: Text(
                   method,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: selected ? Colors.white : AppColors.forest,
                   ),
@@ -666,130 +752,165 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
             );
           }).toList(),
         ),
-        const SizedBox(height: 20),
+      ],
+    );
+  }
 
-        // Total Summary Box
+  Widget _buildReviewStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kagua kabla ya kulipa',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.forest),
+        ),
+        const SizedBox(height: 12),
+        _reviewTile(
+          'Dawa',
+          '${widget.product.title}  ×  $_quantity',
+          onEdit: () => setState(() => _wizardStep = 0),
+        ),
+        const SizedBox(height: 8),
+        _reviewTile(
+          'Anwani',
+          '$_selectedRegion, ${_districtController.text.trim()}, ${_wardController.text.trim()}',
+          onEdit: () => setState(() => _wizardStep = 1),
+        ),
+        const SizedBox(height: 8),
+        _reviewTile(
+          'Malipo',
+          '${_nameController.text.trim()}\n${_phoneController.text.trim()}  •  $_selectedPaymentMethod',
+          onEdit: () => setState(() => _wizardStep = 2),
+        ),
+        const SizedBox(height: 14),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+            border: Border.all(color: const Color(0xFFD9CBB8)),
           ),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Dawa (${_quantity}x):', style: const TextStyle(fontSize: 12, color: AppColors.gray600, fontWeight: FontWeight.w600)),
-                  Text(TzsFormat.full(_itemsTotal), style: const TextStyle(fontSize: 12, color: AppColors.forest, fontWeight: FontWeight.w700)),
-                ],
-              ),
+              _moneyRow('Dawa ($_quantity)', TzsFormat.full(_itemsTotal)),
+              if (_savings > 0) ...[
+                const SizedBox(height: 6),
+                _moneyRow('Punguzo', '- ${TzsFormat.full(_savings)}', valueColor: const Color(0xFFB42318)),
+              ],
               const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Bei ya Kawaida:', style: TextStyle(fontSize: 12, color: AppColors.gray500)),
-                  Text(TzsFormat.full(_originalTotal), style: const TextStyle(fontSize: 12, color: AppColors.gray400, decoration: TextDecoration.lineThrough)),
-                ],
+              _moneyRow('Usafirishaji', TzsFormat.full(_transferFee)),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(height: 1, color: AppColors.borderLight),
               ),
-              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Punguzo Maalum (50%):', style: TextStyle(fontSize: 12, color: Color(0xFFB42318), fontWeight: FontWeight.w700)),
-                  Text('- ${TzsFormat.full(_savings)}', style: const TextStyle(fontSize: 12, color: Color(0xFFB42318), fontWeight: FontWeight.w700)),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Gharama ya Usafirishaji (Transfer Fee):', style: TextStyle(fontSize: 12, color: AppColors.emerald800, fontWeight: FontWeight.w700)),
-                      Text('Usafirishaji nchi nzima Tanzania', style: TextStyle(fontSize: 10, color: AppColors.gray500)),
-                    ],
+                  const Text('Jumla', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: AppColors.forest)),
+                  Text(
+                    TzsFormat.full(_totalAmount),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.emerald800),
                   ),
-                  Text(TzsFormat.full(_transferFee), style: const TextStyle(fontSize: 12, color: AppColors.emerald800, fontWeight: FontWeight.w800)),
-                ],
-              ),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: AppColors.borderLight)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Jumla Kuu ya Kulipa:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.forest)),
-                  Text(TzsFormat.full(_totalAmount), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.emerald800)),
                 ],
               ),
             ],
           ),
         ),
+      ],
+    );
+  }
 
-        if (_errorMessage != null) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3F2),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFECDCA)),
+  Widget _reviewTile(String label, String value, {required VoidCallback onEdit}) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD9CBB8)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.gray500, letterSpacing: 0.4)),
+                const SizedBox(height: 3),
+                Text(value, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.forest, height: 1.3)),
+              ],
             ),
-            child: Text(
-              _errorMessage!,
-              style: const TextStyle(fontSize: 12, color: Color(0xFFB42318), fontWeight: FontWeight.w600),
+          ),
+          TextButton(
+            onPressed: onEdit,
+            child: const Text('Badili'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _moneyRow(String label, String value, {Color? valueColor}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: AppColors.gray600, fontWeight: FontWeight.w600)),
+        Text(value, style: TextStyle(fontSize: 13, color: valueColor ?? AppColors.forest, fontWeight: FontWeight.w800)),
+      ],
+    );
+  }
+
+  Widget _buildWizardFooter() {
+    final isLast = _wizardStep == 3;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF7F1E6),
+        border: Border(top: BorderSide(color: Color(0xFFD9CBB8))),
+      ),
+      child: Row(
+        children: [
+          if (_wizardStep > 0) ...[
+            PressableScale(
+              onTap: _submitting ? () {} : _goBack,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFD9CBB8)),
+                ),
+                child: const Text('Rudi', style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.forest)),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: PressableScale(
+              onTap: _submitting ? () {} : _goForward,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF0F4C3A), Color(0xFF1E755B)]),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.4),
+                        )
+                      : Text(
+                          isLast ? 'Lipa ${TzsFormat.full(_totalAmount)}' : 'Endelea',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.white),
+                        ),
+                ),
+              ),
             ),
           ),
         ],
-        const SizedBox(height: 20),
-
-        // Submit Button
-        PressableScale(
-          onTap: _submitting ? () {} : _handleOrder,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0F4C3A), Color(0xFF1E755B)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0F4C3A).withValues(alpha: 0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Center(
-              child: _submitting
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                    )
-                  : const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.lock_outline_rounded, color: Colors.white, size: 20),
-                        SizedBox(width: 8),
-                        Text(
-                          'Lipa Sasa & Toa Risiti Rasmi',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -1014,6 +1135,7 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
                 onPressed: () {
                   setState(() {
                     _step = _OrderSheetStep.details;
+                    _wizardStep = 2;
                     _submitting = false;
                     _errorMessage = null;
                   });
@@ -1157,6 +1279,31 @@ class _OrderProductSheetState extends State<OrderProductSheet> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QtyButton extends StatelessWidget {
+  const _QtyButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    return Material(
+      color: enabled ? AppColors.forest : const Color(0xFFE7DDD0),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: Icon(icon, color: enabled ? Colors.white : AppColors.gray400, size: 20),
+        ),
       ),
     );
   }

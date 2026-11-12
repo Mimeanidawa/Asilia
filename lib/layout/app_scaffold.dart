@@ -5,16 +5,21 @@ import '../theme/app_colors.dart';
 import '../utils/responsive.dart';
 import '../widgets/app_bottom_nav.dart';
 
-/// Full-screen shell with a compact floating navigation dock.
+/// Full-screen shell with the bottom navigation bar.
+///
+/// When [immersiveTop] is true (home) the child draws under the status bar
+/// itself (e.g. a green brand header) and the status icons turn light.
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
     super.key,
     required this.child,
     this.showBottomNav = true,
+    this.immersiveTop = false,
   });
 
   final Widget child;
   final bool showBottomNav;
+  final bool immersiveTop;
 
   @override
   Widget build(BuildContext context) {
@@ -30,39 +35,43 @@ class AppScaffold extends StatelessWidget {
       ),
     );
 
+    final page = ResponsivePage(child: child);
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
+      value: (immersiveTop
+              ? SystemUiOverlayStyle.light
+              : SystemUiOverlayStyle.dark)
+          .copyWith(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: AppColors.surfaceElevated,
+        statusBarIconBrightness:
+            immersiveTop ? Brightness.light : Brightness.dark,
+        statusBarBrightness: immersiveTop ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor:
+            showBottomNav ? AppColors.surfaceElevated : AppColors.cream,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: AppColors.cream,
-        body: DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.canvasGradient),
-          child: MediaQuery(
-            data: injected,
-            child: Column(
-              children: [
-                Expanded(
-                  child: SafeArea(
-                    bottom: false,
-                    child: ResponsivePage(child: child),
+        body: MediaQuery(
+          data: injected,
+          child: Column(
+            children: [
+              Expanded(
+                child: immersiveTop
+                    ? page
+                    : SafeArea(bottom: false, child: page),
+              ),
+              if (showBottomNav)
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: Responsive.bottomNavMaxWidth(context),
+                    ),
+                    child: const AppBottomNav(),
                   ),
                 ),
-                if (showBottomNav)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: Responsive.bottomNavMaxWidth(context),
-                      ),
-                      child: const AppBottomNav(),
-                    ),
-                  ),
-              ],
-            ),
+            ],
           ),
         ),
       ),

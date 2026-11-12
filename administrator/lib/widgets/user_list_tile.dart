@@ -117,6 +117,12 @@ class UserListTile extends StatelessWidget {
                             icon: Icons.calendar_today_rounded,
                             text: DateFormat('MMM d, y').format(user.joinedAt),
                           ),
+                          if (user.isProspect)
+                            const _MetaChip(
+                              icon: Icons.bookmark_rounded,
+                              text: 'Prospect',
+                              color: AdminColors.purple,
+                            ),
                         ],
                       ),
                     ],
@@ -145,21 +151,23 @@ class UserListTile extends StatelessWidget {
 }
 
 class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.icon, required this.text});
+  const _MetaChip({required this.icon, required this.text, this.color});
 
   final IconData icon;
   final String text;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
+    final tint = color ?? AdminColors.textDim;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 10, color: AdminColors.textDim),
+        Icon(icon, size: 10, color: tint),
         const SizedBox(width: 3),
         Text(
           text,
-          style: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 10),
+          style: GoogleFonts.plusJakartaSans(color: tint, fontSize: 10, fontWeight: color != null ? FontWeight.w700 : FontWeight.w500),
         ),
       ],
     );

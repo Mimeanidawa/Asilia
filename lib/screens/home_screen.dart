@@ -1,39 +1,42 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/app_data.dart' as app_catalog;
 import '../models/content_models.dart';
 import '../models/models.dart';
 import '../providers/app_provider.dart';
 import '../services/content_service.dart';
+import '../services/dawa_order_service.dart';
 import '../services/notification_center_service.dart';
 import '../theme/app_colors.dart';
-import '../utils/content_search.dart';
-import '../data/app_data.dart' as app_catalog;
-import '../widgets/condition_icon_widget.dart';
-import '../widgets/api_carousel.dart';
-import '../widgets/app_screen_message_banner.dart';
-import '../widgets/carousel_content_picker_sheet.dart';
-import '../widgets/app_drawer.dart';
-import '../widgets/content_post_card.dart';
-import '../widgets/darasa_huru_carousel.dart';
-import '../widgets/makala_ads.dart';
-import '../widgets/shimmer_loading.dart';
 import '../theme/app_typography.dart';
-import '../widgets/grouped_category_hub.dart';
-import '../widgets/pressable_scale.dart';
-import '../widgets/stats_strip.dart';
 import '../utils/app_refresh.dart';
+import '../utils/content_search.dart';
+import '../utils/platform_fonts.dart';
 import '../utils/premium_content_flow.dart';
 import '../utils/responsive.dart';
-import '../services/dawa_order_service.dart';
-import '../utils/tzs_format.dart';
-import '../widgets/herb_image.dart';
+import '../widgets/api_carousel.dart';
+import '../widgets/app_drawer.dart';
+import '../widgets/app_screen_message_banner.dart';
+import '../widgets/carousel_content_picker_sheet.dart';
+import '../widgets/condition_icon_widget.dart';
+import '../widgets/content_post_card.dart';
+import '../widgets/darasa_huru_carousel.dart';
+import '../widgets/home_widgets.dart';
+import '../widgets/makala_ads.dart';
 import '../widgets/order_product_sheet.dart';
+import '../widgets/pressable_scale.dart';
 import '../widgets/pull_to_refresh.dart';
 import '../widgets/section_header.dart';
+import '../widgets/shimmer_loading.dart';
+
+/// Page gutter shared by every block on the home screen so cards, banners and
+/// ads all line up on the same left/right edges.
+const double _kGutter = 16;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -56,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _loadRecentSearches();
     _searchFocus.addListener(() {
+      if (!mounted) return;
       setState(() => _isInputFocused = _searchFocus.hasFocus);
     });
   }
@@ -70,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('da_recent_searches');
-    if (saved != null) {
+    if (saved != null && mounted) {
       setState(() {
         _recentSearches = List<String>.from(jsonDecode(saved) as List);
       });
@@ -85,13 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final updated = [trimmed, ...filtered].take(5).toList();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('da_recent_searches', jsonEncode(updated));
-    setState(() => _recentSearches = updated);
+    if (mounted) setState(() => _recentSearches = updated);
   }
 
   Future<void> _clearRecentSearches() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('da_recent_searches');
-    setState(() => _recentSearches = []);
+    if (mounted) setState(() => _recentSearches = []);
   }
 
   void _exitSearch() {
@@ -111,6 +115,15 @@ class _HomeScreenState extends State<HomeScreen> {
       _isInputFocused = true;
     });
     _commitSearch(term);
+  }
+
+  void _submitSearch() {
+    if (_searchQuery.trim().isEmpty) {
+      _searchFocus.requestFocus();
+      return;
+    }
+    _commitSearch(_searchQuery);
+    _searchFocus.unfocus();
   }
 
   @override
@@ -142,196 +155,42 @@ class _HomeScreenState extends State<HomeScreen> {
         .map((h) => h.lesson!)
         .toList();
 
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+
     return Scaffold(
       key: _scaffoldKey,
       drawer: const AppDrawer(),
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppColors.cream,
       resizeToAvoidBottomInset: false,
-      body: SizedBox.expand(
-        child: Column(
+      body: DecoratedBox(
+        decoration: BoxDecoration(gradient: AppColors.brandGradient),
+        child: Stack(
           children: [
-            _buildHeader(context, app),
-            const AppScreenMessageBanner(),
-            if (isSearchMode)
-              _buildSearchFilterChips(
-                isSearching: isSearching,
-                conditionsCount: filteredConditions.length,
-                postsCount: filteredPosts.length,
-                lessonsCount: filteredLessons.length,
-              ),
-            Expanded(
-              child: isSearchMode
-                  ? (isSearching
-                      ? _buildSearchResultsScroll(
-                          context,
-                          app,
-                          filteredConditions,
-                          filteredPosts,
-                          filteredLessons,
-                        )
-                      : _buildSearchSuggestions(context, app, content))
-                  : PullToRefresh(
-                      onRefresh: () => AppRefresh.catalog(context),
-                      child: ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: EdgeInsets.only(
-                          bottom: Responsive.scrollBottomPadding(context, extra: 8),
-                        ),
-                        children: [
-                          _buildHeroCarousel(context),
-                          const StatsStrip(),
-                          _buildDawaShelf(context, app),
-                          const GroupedCategoryHub(),
-                          _buildDarasaHuru(context, app),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 20),
-                            child: HomeFeedBannerAd(),
-                          ),
-                          _buildMakalaSection(context, app),
-                        ],
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, AppProvider app) {
-    final unread = context.watch<NotificationCenterService>().unreadCount;
-    final isSearchMode = _isInputFocused || _searchQuery.isNotEmpty;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: AppColors.headerSheen,
-        border: Border(
-          bottom: BorderSide(color: AppColors.forest.withValues(alpha: 0.05)),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-        child: Row(
-          children: [
-            isSearchMode
-                ? _HeaderIconButton(
-                    icon: Icons.arrow_back_rounded,
-                    onTap: _exitSearch,
-                  )
-                : _HeaderIconButton(
-                    icon: Icons.menu_rounded,
-                    onTap: () => _scaffoldKey.currentState?.openDrawer(),
-                  ),
-            Expanded(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                height: 42,
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
-                  border: Border.all(
-                    color: _isInputFocused
-                        ? AppColors.emerald700.withValues(alpha: 0.5)
-                        : AppColors.forest.withValues(alpha: 0.08),
-                    width: _isInputFocused ? 1.3 : 1,
-                  ),
-                  boxShadow: _isInputFocused ? AppColors.elevationSm : null,
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  onChanged: (v) => setState(() => _searchQuery = v),
-                  onSubmitted: _commitSearch,
-                  textInputAction: TextInputAction.search,
-                  style: TextStyle(
-                    fontSize: AppTypography.body,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.forest,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Tafuta dawa, magonjwa, makala...',
-                    hintStyle: TextStyle(
-                      fontSize: AppTypography.subtitle,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.forest.withValues(alpha: 0.4),
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      size: 20,
-                      color: _isInputFocused
-                          ? AppColors.emerald700
-                          : AppColors.forest.withValues(alpha: 0.45),
-                    ),
-                    prefixIconConstraints:
-                        const BoxConstraints(minWidth: 38, minHeight: 38),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                            child: Icon(
-                              Icons.close_rounded,
-                              size: 18,
-                              color: AppColors.forest.withValues(alpha: 0.5),
-                            ),
-                          )
-                        : (isSearchMode
-                            ? GestureDetector(
-                                onTap: _exitSearch,
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  size: 18,
-                                  color: AppColors.forest.withValues(alpha: 0.35),
-                                ),
-                              )
-                            : null),
-                    suffixIconConstraints:
-                        const BoxConstraints(minWidth: 34, minHeight: 38),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    isDense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 11),
-                  ),
-                ),
-              ),
-            ),
-            Stack(
-              clipBehavior: Clip.none,
+            const Positioned.fill(child: _HeaderDecor()),
+            Column(
               children: [
-                _HeaderIconButton(
-                  icon: Icons.notifications_none_rounded,
-                  onTap: () => app.navigate(AppScreen.notifications),
+                SizedBox(height: topInset),
+                _buildTopBar(context, app, isSearchMode),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: isSearchMode
+                      ? const SizedBox(width: double.infinity, height: 8)
+                      : const _BrandBlock(),
                 ),
-                if (unread > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      constraints:
-                          const BoxConstraints(minWidth: 16, minHeight: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.amber,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: Text(
-                        unread > 9 ? '9+' : '$unread',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          height: 1,
-                        ),
-                      ),
-                    ),
+                Expanded(
+                  child: _buildSheet(
+                    context,
+                    app,
+                    content,
+                    isSearchMode: isSearchMode,
+                    isSearching: isSearching,
+                    conditions: filteredConditions,
+                    posts: filteredPosts,
+                    lessons: filteredLessons,
                   ),
+                ),
               ],
             ),
           ],
@@ -340,9 +199,565 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Header ────────────────────────────────────────────────────────────────
+
+  Widget _buildTopBar(
+    BuildContext context,
+    AppProvider app,
+    bool isSearchMode,
+  ) {
+    final unread = context.watch<NotificationCenterService>().unreadCount;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+      child: Row(
+        children: [
+          isSearchMode
+              ? _HeaderIconButton(
+                  icon: Icons.arrow_back_rounded,
+                  onTap: _exitSearch,
+                )
+              : _HeaderIconButton(
+                  icon: Icons.menu_rounded,
+                  onTap: () => _scaffoldKey.currentState?.openDrawer(),
+                ),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: isSearchMode
+                  ? const Center(
+                      key: ValueKey('search-title'),
+                      child: Text(
+                        'Tafuta',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('no-title')),
+            ),
+          ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _HeaderIconButton(
+                icon: Icons.notifications_none_rounded,
+                onTap: () => app.navigate(AppScreen.notifications),
+              ),
+              if (unread > 0)
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    constraints:
+                        const BoxConstraints(minWidth: 16, minHeight: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                    child: Text(
+                      unread > 9 ? '9+' : '$unread',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── White sheet: search + chips + content ─────────────────────────────────
+
+  Widget _buildSheet(
+    BuildContext context,
+    AppProvider app,
+    ContentService content, {
+    required bool isSearchMode,
+    required bool isSearching,
+    required List<Condition> conditions,
+    required List<ContentPost> posts,
+    required List<DailyLesson> lessons,
+  }) {
+    final Widget body;
+    if (isSearchMode) {
+      body = isSearching
+          ? _buildSearchResultsScroll(context, app, conditions, posts, lessons)
+          : _buildSearchSuggestions(context, app, content);
+    } else {
+      body = PullToRefresh(
+        color: AppColors.brand,
+        onRefresh: () => AppRefresh.catalog(context),
+        child: _buildHomeFeed(context, app, content),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(
+        color: AppColors.cream,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        children: [
+          _buildSearchBar(isSearchMode),
+          if (isSearchMode)
+            _buildSearchFilterChips(
+              isSearching: isSearching,
+              conditionsCount: conditions.length,
+              postsCount: posts.length,
+              lessonsCount: lessons.length,
+            )
+          else
+            _buildQuickChips(app),
+          const AppScreenMessageBanner(),
+          Expanded(child: body),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(bool isSearchMode) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_kGutter, 18, _kGutter, 0),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        height: 54,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: _isInputFocused
+                ? AppColors.brand.withValues(alpha: 0.55)
+                : AppColors.forest.withValues(alpha: 0.06),
+            width: _isInputFocused ? 1.4 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.forest.withValues(alpha: 0.07),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+              spreadRadius: -4,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                onChanged: (v) => setState(() => _searchQuery = v),
+                onSubmitted: (v) {
+                  _commitSearch(v);
+                  _searchFocus.unfocus();
+                },
+                textInputAction: TextInputAction.search,
+                cursorColor: AppColors.brand,
+                style: TextStyle(
+                  fontSize: AppTypography.cardTitle,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.forest,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Tafuta dawa, magonjwa, makala...',
+                  hintStyle: TextStyle(
+                    fontSize: AppTypography.body,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.forest.withValues(alpha: 0.4),
+                  ),
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.fromLTRB(18, 16, 4, 16),
+                ),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 19,
+                    color: AppColors.forest.withValues(alpha: 0.4),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(5),
+              child: PressableScale(
+                onTap: _submitSearch,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.brandGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.brand.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.search_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickChips(AppProvider app) {
+    void openSection(String section) {
+      app.selectedContentCategory = null;
+      app.navigate(AppScreen.contentList, contentSection: section);
+    }
+
+    final items = <_QuickChip>[
+      _QuickChip(
+        Icons.spa_rounded,
+        'Mimea',
+        () => openSection(ContentSections.dodoso),
+      ),
+      _QuickChip(
+        Icons.monitor_heart_rounded,
+        'Magonjwa',
+        () => app.navigate(AppScreen.conditions),
+      ),
+      _QuickChip(
+        Icons.menu_book_rounded,
+        'Makala',
+        () => openSection(ContentSections.allMakala),
+      ),
+      _QuickChip(
+        Icons.school_rounded,
+        'Masomo',
+        () => app.navigate(AppScreen.darasaHuru),
+      ),
+      _QuickChip(
+        Icons.local_pharmacy_rounded,
+        'Duka',
+        () => app.navigate(AppScreen.dawaShop),
+      ),
+    ];
+
+    return SizedBox(
+      height: 56,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(_kGutter, 10, _kGutter, 10),
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final chip = items[i];
+          return PressableScale(
+            onTap: chip.onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                border: Border.all(
+                  color: AppColors.brand.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(chip.icon, size: 16, color: AppColors.brand),
+                  const SizedBox(width: 6),
+                  Text(
+                    chip.label,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Home feed ─────────────────────────────────────────────────────────────
+
+  /// Herbs / articles with images first, for the "Featured" grid.
+  List<ContentPost> _featuredPosts(ContentService content, {int count = 8}) {
+    final pool = content.dodosoPosts
+        .where((p) => p.category != 'darasa_huru')
+        .toList();
+    final source = pool.isNotEmpty ? pool : content.allMakalaPosts;
+
+    final picked = <ContentPost>[];
+    for (final p in source) {
+      if (p.displayImageUrl.trim().isNotEmpty) picked.add(p);
+      if (picked.length >= count) return picked;
+    }
+    for (final p in source) {
+      if (picked.length >= count) break;
+      if (!picked.contains(p)) picked.add(p);
+    }
+    return picked;
+  }
+
+  Widget _buildHomeFeed(
+    BuildContext context,
+    AppProvider app,
+    ContentService content,
+  ) {
+    final orderService = context.watch<DawaOrderService>();
+    final products = orderService.products;
+    final featured = _featuredPosts(content);
+    final featuredIds = featured.map((p) => p.id).toSet();
+    final feedPosts = content.allMakalaPosts
+        .where((p) => !featuredIds.contains(p.id))
+        .take(12)
+        .toList();
+
+    // Feed entries: posts with an ad slot after the 4th and 8th card.
+    final entries = <ContentPost?>[];
+    for (var i = 0; i < feedPosts.length; i++) {
+      entries.add(feedPosts[i]);
+      if (i == 3 || i == 7) entries.add(null);
+    }
+
+    const adPadding = EdgeInsets.fromLTRB(_kGutter, 14, _kGutter, 0);
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        if (content.carousels.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: ApiCarousel(
+                slides: content.carousels,
+                height: 188,
+                autoPlay: true,
+                onSlideTap: (slide) => showCarouselContentPicker(
+                  context,
+                  slide: slide,
+                ),
+              ),
+            ),
+          ),
+
+        // Featured Asili
+        if (featured.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: 'Dawa Asili Teule',
+              subtitle: 'Mimea na tiba maarufu kwa afya yako',
+              padding: const EdgeInsets.fromLTRB(_kGutter + 2, 22, _kGutter, 12),
+              actionLabel: 'Zote',
+              onAction: () {
+                app.selectedContentCategory = null;
+                app.navigate(
+                  AppScreen.contentList,
+                  contentSection: ContentSections.dodoso,
+                );
+              },
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: FeaturedAsiliGrid(
+              posts: featured,
+              onOpen: (post) => openContentPost(context, post),
+            ),
+          ),
+          const SliverToBoxAdapter(
+            child: HomeFeedBannerAd(padding: adPadding),
+          ),
+        ] else if (content.isLoading)
+          const SliverToBoxAdapter(child: _FeaturedSkeleton()),
+
+        // Dawa shop
+        if (products.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: 'Duka la Dawa Asili',
+              subtitle: 'Tiba zilizothibitishwa • Punguzo la hadi 50%',
+              padding: const EdgeInsets.fromLTRB(_kGutter + 2, 22, _kGutter, 10),
+              actionLabel: 'Dukani',
+              onAction: () => app.navigate(AppScreen.dawaShop),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: DawaProductShelf(
+              products: products,
+              onBuy: (p) => OrderProductSheet.show(context, p),
+            ),
+          ),
+        ],
+
+        // Categories
+        SliverToBoxAdapter(
+          child: SectionHeader(
+            title: 'Gundua kwa Makundi',
+            padding: const EdgeInsets.fromLTRB(_kGutter + 2, 14, _kGutter, 12),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: HomeCategoryStrip(
+            onSelect: (cat) => app.navigate(
+              AppScreen.contentList,
+              contentSection: cat.section,
+              contentCategory: cat.id,
+            ),
+          ),
+        ),
+
+        // Darasa Huru
+        SliverToBoxAdapter(child: _buildDarasaHuru(context, app)),
+        const SliverToBoxAdapter(
+          child: HomeFeedBannerAd(padding: adPadding),
+        ),
+
+        // Makala feed
+        if (feedPosts.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: 'Makala Mpya',
+              subtitle: 'Soma na ujifunze kuhusu afya asilia',
+              padding: const EdgeInsets.fromLTRB(_kGutter + 2, 22, _kGutter, 12),
+              actionLabel: 'Zote',
+              onAction: _openAllMakala(app),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: _kGutter),
+            sliver: SliverList.builder(
+              itemCount: entries.length,
+              itemBuilder: (context, i) {
+                final post = entries[i];
+                if (post == null) {
+                  return const HomeFeedBannerAd(
+                    padding: EdgeInsets.only(bottom: 14),
+                  );
+                }
+                return ContentPostCard(
+                  post: post,
+                  showSectionLabel: true,
+                  animationIndex: i < 6 ? i : 0,
+                  onTap: () => openContentPost(context, post),
+                );
+              },
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(_kGutter, 4, _kGutter, 0),
+              child: _SeeAllButton(
+                label: 'Ona Makala Zote',
+                onTap: _openAllMakala(app),
+              ),
+            ),
+          ),
+        ] else if (!content.isLoading)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(_kGutter, 24, _kGutter, 0),
+              child: const _EmptyFeedHint(),
+            ),
+          ),
+
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: Responsive.scrollBottomPadding(context, extra: 20),
+          ),
+        ),
+      ],
+    );
+  }
+
+  VoidCallback _openAllMakala(AppProvider app) => () {
+        app.selectedContentCategory = null;
+        app.navigate(
+          AppScreen.contentList,
+          contentSection: ContentSections.allMakala,
+        );
+      };
+
+  Widget _buildDarasaHuru(BuildContext context, AppProvider app) {
+    final lessons = app.lessonService;
+    if (lessons.isSyncing && lessons.publishedLessons.isEmpty) {
+      return const Column(
+        children: [
+          SectionHeader(
+            title: 'Darasa Huru',
+            subtitle: 'Masomo ya kila siku kutoka kwa wataalamu wetu',
+            padding: EdgeInsets.fromLTRB(_kGutter + 2, 22, _kGutter, 10),
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: _kGutter),
+            child: ShimmerLoading(child: DarasaCardSkeleton()),
+          ),
+        ],
+      );
+    }
+
+    final published = lessons.publishedLessons;
+    if (published.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        SectionHeader(
+          title: 'Darasa Huru',
+          subtitle: 'Masomo kutoka kwa wataalamu wetu',
+          padding: const EdgeInsets.fromLTRB(_kGutter + 2, 22, _kGutter, 10),
+          actionLabel: 'Zote',
+          onAction: () => app.navigate(AppScreen.darasaHuru),
+        ),
+        DarasaHuruCarousel(
+          lessons: published,
+          height: 290,
+          onOpen: (lesson) => app.navigate(
+            AppScreen.darasaHuru,
+            lessonId: lesson.id,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildRecentSearchesBar() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+      margin: const EdgeInsets.fromLTRB(0, 6, 0, 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfaceElevated,
@@ -444,7 +859,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       height: 40,
-      margin: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+      margin: const EdgeInsets.fromLTRB(_kGutter, 12, _kGutter, 6),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: chips.length,
@@ -635,9 +1050,9 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(
-        20,
+        _kGutter,
         4,
-        20,
+        _kGutter,
         Responsive.scrollBottomPadding(context, extra: 16),
       ),
       children: [
@@ -814,318 +1229,225 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     );
   }
+}
 
-  Widget _buildHeroCarousel(BuildContext context) {
-    final content = context.watch<ContentService>();
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: ApiCarousel(
-        slides: content.carousels,
-        height: 236,
-        autoPlay: true,
-        onSlideTap: (slide) => _handleCarouselTap(context, slide),
-      ),
-    );
-  }
+class _QuickChip {
+  const _QuickChip(this.icon, this.label, this.onTap);
 
-  void _handleCarouselTap(BuildContext context, CarouselSlide slide) {
-    showCarouselContentPicker(context, slide: slide);
-  }
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+}
 
-  Widget _buildMakalaSection(BuildContext context, AppProvider app) {
-    final content = context.watch<ContentService>();
-    // Prefer covers so the feed looks visual; text-only posts still appear after.
-    final posts = [...content.allMakalaPosts]..sort((a, b) {
-      final ai = a.displayImageUrl.trim().isEmpty ? 1 : 0;
-      final bi = b.displayImageUrl.trim().isEmpty ? 1 : 0;
-      return ai.compareTo(bi);
-    });
+/// Soft botanical decoration drawn behind the green header.
+class _HeaderDecor extends StatelessWidget {
+  const _HeaderDecor();
 
-    return _buildPostListSection(
-      context,
-      app,
-      title: 'Makala',
-      subtitle: 'Machapisho yote kutoka Dodoso, Chagua Mada, Vyakula na Jifunze',
-      posts: posts,
-      section: ContentSections.allMakala,
-      showSectionOnCards: true,
-      headerPadding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
-      onViewAll: () {
-        app.selectedContentCategory = null;
-        app.navigate(
-          AppScreen.contentList,
-          contentSection: ContentSections.allMakala,
-        );
-      },
-    );
-  }
-
-  Widget _buildPostListSection(
-    BuildContext context,
-    AppProvider app, {
-    required String title,
-    required String subtitle,
-    required List<ContentPost> posts,
-    required String section,
-    EdgeInsets headerPadding = const EdgeInsets.fromLTRB(20, 12, 20, 10),
-    bool showSectionOnCards = false,
-    VoidCallback? onViewAll,
-  }) {
-    if (posts.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: _EmptySectionHint(title: title, subtitle: subtitle),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: title,
-          subtitle: subtitle,
-          padding: headerPadding,
-          actionLabel: 'Zote',
-          onAction: onViewAll ??
-              () => app.navigate(
-                    AppScreen.contentList,
-                    contentSection: section,
-                  ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: Responsive.horizontalGutter(context)),
-          child: Responsive.listColumns(context) == 1
-              ? Column(
-                  children: [
-                    for (var i = 0; i < posts.length; i++)
-                      ContentPostCard(
-                        post: posts[i],
-                        showSectionLabel: showSectionOnCards,
-                        animationIndex: i,
-                        onTap: () => openContentPost(context, posts[i]),
-                      ),
-                  ],
-                )
-              : GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: Responsive.listColumns(context),
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 0.82,
-                  ),
-                  itemCount: posts.length,
-                  itemBuilder: (context, i) => ContentPostCard(
-                    post: posts[i],
-                    showSectionLabel: showSectionOnCards,
-                    margin: EdgeInsets.zero,
-                    animationIndex: i,
-                    onTap: () => openContentPost(context, posts[i]),
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDarasaHuru(BuildContext context, AppProvider app) {
-    final lessons = app.lessonService;
-    if (lessons.isSyncing && lessons.publishedLessons.isEmpty) {
-      return Column(
-        children: [
-          const SectionHeader(
-            title: 'Darasa Huru',
-            subtitle: 'Masomo ya kila siku kutoka kwa wataalamu wetu',
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 4),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: ShimmerLoading(child: DarasaCardSkeleton()),
-          ),
-        ],
-      );
-    }
-
-    final published = lessons.publishedLessons;
-    if (published.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: 'Darasa Huru',
-          subtitle: 'Masomo kutoka kwa wataalamu — yanazunguka kila mara',
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
-          actionLabel: 'Zote',
-          onAction: () => app.navigate(AppScreen.darasaHuru),
-        ),
-        DarasaHuruCarousel(
-          lessons: published,
-          height: 340,
-          onOpen: (lesson) => app.navigate(
-            AppScreen.darasaHuru,
-            lessonId: lesson.id,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDawaShelf(BuildContext context, AppProvider app) {
-    final orderService = context.watch<DawaOrderService>();
-    final products = orderService.products;
-    if (products.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Duka la Dawa Asili',
-          subtitle: 'Tiba asili zilizothibitishwa • Punguzo la 50% leo',
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          actionLabel: 'Dukani >',
-          onAction: () => app.navigate(AppScreen.dawaShop),
-        ),
-        SizedBox(
-          height: 250,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: products.length,
-            itemBuilder: (context, i) {
-              final p = products[i];
-              return Container(
-                width: 200,
-                margin: const EdgeInsets.only(right: 12, bottom: 6),
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            Positioned(
+              top: -70,
+              right: -60,
+              child: Container(
+                width: 260,
+                height: 260,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.forest.withValues(alpha: 0.1)),
-                  boxShadow: AppColors.elevationSm,
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.white.withValues(alpha: 0.16),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                          child: HerbImage(
-                            url: p.imageUrl,
-                            width: 200,
-                            height: 130,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              p.badgeText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              p.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.forest,
-                                height: 1.2,
-                              ),
-                            ),
-                            const Spacer(),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      TzsFormat.full(p.price),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w900,
-                                        color: Color(0xFF047857),
-                                      ),
-                                    ),
-                                    if (p.originalPrice > p.price)
-                                      Text(
-                                        TzsFormat.full(p.originalPrice),
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.forest.withValues(alpha: 0.45),
-                                          decoration: TextDecoration.lineThrough,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                PressableScale(
-                                  onTap: () => OrderProductSheet.show(context, p),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [Color(0xFF10B981), Color(0xFF059669)],
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Text(
-                                      'Nunua',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+              ),
+            ),
+            Positioned(
+              top: 6,
+              right: -28,
+              child: Transform.rotate(
+                angle: 0.55,
+                child: Icon(
+                  Icons.eco_rounded,
+                  size: 170,
+                  color: Colors.white.withValues(alpha: 0.08),
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+            Positioned(
+              top: 56,
+              left: -34,
+              child: Transform.rotate(
+                angle: -0.7,
+                child: Icon(
+                  Icons.spa_rounded,
+                  size: 130,
+                  color: Colors.white.withValues(alpha: 0.07),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 120,
+              right: 70,
+              child: Transform.rotate(
+                angle: 0.3,
+                child: Icon(
+                  Icons.energy_savings_leaf_rounded,
+                  size: 58,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
-class _EmptySectionHint extends StatelessWidget {
-  const _EmptySectionHint({required this.title, required this.subtitle});
+/// "DAWA ASILI — MIMEA NI DAWA!" brand lockup.
+class _BrandBlock extends StatelessWidget {
+  const _BrandBlock();
 
-  final String title;
-  final String subtitle;
+  @override
+  Widget build(BuildContext context) {
+    final titleStyle = useSystemFonts
+        ? const TextStyle(
+            fontFamily: 'serif',
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 1.8,
+            height: 1.1,
+          )
+        : GoogleFonts.playfairDisplay(
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            letterSpacing: 1.8,
+            height: 1.1,
+          );
+
+    return SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
+        child: Column(
+          children: [
+            Text('DAWA ASILI', textAlign: TextAlign.center, style: titleStyle),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 22,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'MIMEA NI DAWA!',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2.6,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  width: 22,
+                  height: 1.5,
+                  color: Colors.white.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeaturedSkeleton extends StatelessWidget {
+  const _FeaturedSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(_kGutter, 22, _kGutter, 0),
+      child: ShimmerLoading(
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final w = (c.maxWidth - 12) / 2;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (var i = 0; i < 4; i++)
+                  SkeletonBox(
+                    width: w,
+                    height: w * 0.84 + 70,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SeeAllButton extends StatelessWidget {
+  const _SeeAllButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        height: 50,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.brand.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.brand,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              size: 17,
+              color: AppColors.brand,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyFeedHint extends StatelessWidget {
+  const _EmptyFeedHint();
 
   @override
   Widget build(BuildContext context) {
@@ -1133,16 +1455,16 @@ class _EmptySectionHint extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.055)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.06)),
       ),
       child: Column(
         children: [
           Icon(Icons.article_outlined, size: 36, color: AppColors.gray400),
           const SizedBox(height: 12),
-          Text(
-            'Hakuna makala za $title bado',
-            style: const TextStyle(
+          const Text(
+            'Hakuna makala bado',
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
               color: AppColors.forest,
@@ -1150,11 +1472,35 @@ class _EmptySectionHint extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            subtitle,
+            'Vuta chini ili kusasisha au jaribu tena baadaye.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: AppColors.gray400),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+        ),
+        child: Icon(icon, color: Colors.white, size: 21),
       ),
     );
   }
@@ -1451,30 +1797,6 @@ class _LessonSearchTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PressableScale(
-      onTap: onTap,
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: AppColors.emerald50.withValues(alpha: 0.85),
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Icon(icon, color: AppColors.forest, size: 21),
       ),
     );
   }

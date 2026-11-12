@@ -48,7 +48,7 @@ function buildConfig(settings) {
     },
     about: {
       appName: settings.about_app_name || 'Dawa Asili',
-      appVersion: settings.about_app_version || '1.1.6',
+      appVersion: settings.about_app_version || '1.1.13',
       appDescription: settings.about_app_description ||
         'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.',
       contactPhone: settings.about_contact_phone || '+255 700 000 000',

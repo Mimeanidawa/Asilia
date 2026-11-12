@@ -50,6 +50,8 @@ class ModernTabRail extends StatelessWidget {
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        primary: false,
+        physics: const BouncingScrollPhysics(),
         padding: padding,
         itemCount: items.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),

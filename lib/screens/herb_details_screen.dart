@@ -7,6 +7,7 @@ import '../providers/app_provider.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/app_refresh.dart';
+import '../utils/disease_extractor.dart';
 import '../widgets/app_bottom_nav.dart';
 import '../widgets/herb_image.dart';
 import '../widgets/makala_ads.dart';
@@ -336,7 +337,13 @@ class HerbDetailsScreen extends StatelessWidget {
                     InkWell(
                       onTap: () {
                         final product = context.read<DawaOrderService>().getProductForHerb(herb.name);
-                        OrderProductSheet.show(context, product);
+                        if (product != null) {
+                          OrderProductSheet.show(context, product);
+                        } else {
+                          context.read<AppProvider>().openMwalimuWithDraft(
+                                DiseaseExtractor.formatMwalimuInquiry(herb.name),
+                              );
+                        }
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(

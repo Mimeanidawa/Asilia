@@ -28,6 +28,7 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
   final _scrollController = ScrollController();
   MwalimuService? _mwalimuService;
   int _lastMessageCount = 0;
+  int _sendingCount = 0;
 
   @override
   void initState() {
@@ -109,7 +110,10 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
         return;
       }
       _controller.clear();
+      setState(() => _sendingCount++);
+      _scrollToBottom();
       final ok = await mwalimu.sendGuestMessage(text);
+      if (mounted) setState(() => _sendingCount = (_sendingCount - 1).clamp(0, 99));
       if (!ok && mounted) {
         if (!mwalimu.canSendAsGuest()) {
           _showSignupRequiredDialog();
@@ -133,9 +137,21 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
     }
 
     _controller.clear();
+    setState(() => _sendingCount++);
+    _scrollToBottom();
     final ok = await mwalimu.sendMessage(text, user.token!);
-    if (!ok && mounted && !mwalimu.canSendMessage()) {
-      _showPremiumDialog();
+    if (mounted) setState(() => _sendingCount = (_sendingCount - 1).clamp(0, 99));
+    if (!ok && mounted) {
+      if (!mwalimu.canSendMessage()) {
+        _showPremiumDialog();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mwalimu.error ?? 'Imeshindwa kutuma ujumbe'),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
       return;
     }
     _scrollToBottom();
@@ -347,34 +363,35 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
               ],
             ),
           ).animate().fadeIn(duration: 400.ms),
+          if (mwalimu.isLoading && chatMessages.isNotEmpty)
+            const LinearProgressIndicator(
+              minHeight: 2,
+              color: AppColors.forest,
+              backgroundColor: AppColors.emerald50,
+            ),
           Expanded(
             child: PullToRefresh(
               onRefresh: _refresh,
               child: ListView(
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   _Bubble(
                     isUser: false,
                     content: settings.mwalimuWelcome,
                     avatarUrl: settings.mwalimuImage,
                   ),
-                  ...chatMessages.map(
-                    (m) => _Bubble(
-                      isUser: m.isUser,
-                      content: m.content,
-                      avatarUrl: m.isAdmin ? settings.mwalimuImage : null,
-                    ),
-                  ),
-                  if (mwalimu.isLoading)
-                    const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.forest,
-                        ),
+                  if (mwalimu.isLoading && chatMessages.isEmpty)
+                    const _MessageSkeleton()
+                  else
+                    ...chatMessages.map(
+                      (m) => _Bubble(
+                        isUser: m.isUser,
+                        content: m.content,
+                        avatarUrl: m.isAdmin ? settings.mwalimuImage : null,
+                        sending: m.pending,
+                        failed: m.failed,
                       ),
                     ),
                 ],
@@ -478,13 +495,22 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
                         onTap: guestLimitReached
                             ? _showSignupRequiredDialog
                             : _send,
-                        child: const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: Icon(
-                            Icons.send_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: _sendingCount > 0
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.send_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                         ),
                       ),
                     ),
@@ -499,62 +525,163 @@ class _AskExpertScreenState extends State<AskExpertScreen> {
   }
 }
 
+class _MessageSkeleton extends StatelessWidget {
+  const _MessageSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Column(
+        children: [
+          _SkeletonBubble(alignEnd: false, widthFactor: 0.62),
+          _SkeletonBubble(alignEnd: true, widthFactor: 0.48),
+          _SkeletonBubble(alignEnd: false, widthFactor: 0.7),
+          SizedBox(height: 8),
+          SizedBox(
+            width: 22,
+            height: 22,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.forest,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBubble extends StatelessWidget {
+  const _SkeletonBubble({required this.alignEnd, required this.widthFactor});
+
+  final bool alignEnd;
+  final double widthFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        width: MediaQuery.sizeOf(context).width * widthFactor,
+        height: 42,
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: alignEnd
+              ? AppColors.forest.withValues(alpha: 0.12)
+              : AppColors.emerald50,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(alignEnd ? 18 : 4),
+            bottomRight: Radius.circular(alignEnd ? 4 : 18),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.isUser, required this.content, this.avatarUrl});
+  const _Bubble({
+    required this.isUser,
+    required this.content,
+    this.avatarUrl,
+    this.sending = false,
+    this.failed = false,
+  });
 
   final bool isUser;
   final String content;
   final String? avatarUrl;
+  final bool sending;
+  final bool failed;
 
   @override
   Widget build(BuildContext context) {
     final parts = !isUser
         ? _SharedArticleTagParser.parse(content)
         : const <_MessagePart>[];
+    final maxWidth = MediaQuery.sizeOf(context).width * 0.78;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: isUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isUser && avatarUrl != null && avatarUrl!.isNotEmpty)
-            CircleAvatar(
-              radius: 16,
-              backgroundImage: CachedNetworkImageProvider(ImageUrl.display(avatarUrl!)),
-            ),
-          if (!isUser && (avatarUrl == null || avatarUrl!.isEmpty))
-            const CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.emerald50,
-              child: Icon(Icons.school, size: 16, color: AppColors.forest),
-            ),
-          if (!isUser) const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isUser ? AppColors.forest : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isUser ? 18 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 18),
-                ),
-                border: isUser
-                    ? null
-                    : Border.all(
-                        color: AppColors.forest.withValues(alpha: 0.08),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Align(
+        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Column(
+            crossAxisAlignment:
+                isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (!isUser && avatarUrl != null && avatarUrl!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundImage: CachedNetworkImageProvider(
+                          ImageUrl.display(avatarUrl!),
+                        ),
                       ),
+                    ),
+                  if (!isUser && (avatarUrl == null || avatarUrl!.isEmpty))
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: AppColors.emerald50,
+                        child: Icon(Icons.school, size: 14, color: AppColors.forest),
+                      ),
+                    ),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isUser
+                            ? AppColors.forest.withValues(alpha: sending ? 0.72 : 1)
+                            : Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(18),
+                          topRight: const Radius.circular(18),
+                          bottomLeft: Radius.circular(isUser ? 18 : 4),
+                          bottomRight: Radius.circular(isUser ? 4 : 18),
+                        ),
+                        border: isUser
+                            ? null
+                            : Border.all(
+                                color: AppColors.forest.withValues(alpha: 0.08),
+                              ),
+                      ),
+                      child: _buildContent(context, parts),
+                    ),
+                  ),
+                ],
               ),
-              child: _buildContent(context, parts),
-            ),
+              if (sending || failed)
+                Padding(
+                  padding: EdgeInsets.only(
+                    top: 3,
+                    right: isUser ? 4 : 0,
+                    left: isUser ? 0 : 36,
+                  ),
+                  child: Text(
+                    failed ? 'Imeshindwa kutuma' : 'Inatuma...',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: failed ? Colors.red.shade700 : AppColors.gray500,
+                    ),
+                  ),
+                ),
+            ],
           ),
-        ],
+        ),
       ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.1);
+    );
   }
 
   Widget _buildContent(BuildContext context, List<_MessagePart> parts) {

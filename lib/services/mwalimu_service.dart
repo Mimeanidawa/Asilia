@@ -99,9 +99,10 @@ class MwalimuService extends ChangeNotifier {
         '/api/chat/guest/messages?sessionId=${Uri.encodeComponent(sessionId)}',
         timeout: const Duration(seconds: 12),
       );
-      guestMessages = (data['messages'] as List)
+      final server = (data['messages'] as List)
           .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
           .toList();
+      guestMessages = _mergeLocal(server, guestMessages);
       guestMessageCount = data['messageCount'] as int? ?? 0;
       messageLimit = data['messageLimit'] as int?;
       await _saveGuestState();
@@ -143,18 +144,30 @@ class MwalimuService extends ChangeNotifier {
     final trimmed = content.trim();
     if (trimmed.isEmpty || !canSendAsGuest()) return false;
 
-    final sessionId = await getGuestSessionId();
-
-    // Optimistic local bubble while request is in flight
+    // Show the bubble before any network or storage wait.
     final pendingId = 'guest_${DateTime.now().microsecondsSinceEpoch}';
     final pending = MwalimuMessage(
       id: pendingId,
       senderType: 'user',
       content: trimmed,
       createdAt: DateTime.now().toUtc().toIso8601String(),
+      pending: true,
     );
     guestMessages = [...guestMessages, pending];
     notifyListeners();
+
+    final String sessionId;
+    try {
+      sessionId = await getGuestSessionId();
+    } catch (e) {
+      error = e.toString().replaceAll('ApiException: ', '');
+      guestMessages = [
+        for (final m in guestMessages)
+          if (m.id == pendingId) m.copyWith(pending: false, failed: true) else m,
+      ];
+      notifyListeners();
+      return false;
+    }
 
     try {
       final data = await _api.post('/api/chat/guest/messages', body: {
@@ -177,7 +190,10 @@ class MwalimuService extends ChangeNotifier {
       return true;
     } catch (e) {
       error = e.toString().replaceAll('ApiException: ', '');
-      guestMessages = guestMessages.where((m) => m.id != pendingId).toList();
+      guestMessages = [
+        for (final m in guestMessages)
+          if (m.id == pendingId) m.copyWith(pending: false, failed: true) else m,
+      ];
       notifyListeners();
       return false;
     }
@@ -252,9 +268,10 @@ class MwalimuService extends ChangeNotifier {
 
     try {
       final data = await _api.get('/api/chat/messages', token: userToken);
-      messages = (data['messages'] as List)
+      final server = (data['messages'] as List)
           .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
           .toList();
+      messages = _mergeLocal(server, messages);
       messageCount = data['messageCount'] as int? ?? 0;
       messageLimit = data['messageLimit'] as int?;
       isPremium = data['isPremium'] as bool? ?? false;
@@ -268,20 +285,42 @@ class MwalimuService extends ChangeNotifier {
   }
 
   Future<bool> sendMessage(String content, String userToken) async {
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return false;
+
+    final pendingId = 'pending_${DateTime.now().microsecondsSinceEpoch}';
+    final pending = MwalimuMessage(
+      id: pendingId,
+      senderType: 'user',
+      content: trimmed,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+      pending: true,
+    );
+    messages = [...messages, pending];
+    notifyListeners();
+
     try {
       final data = await _api.post('/api/chat/messages', body: {
-        'content': content,
+        'content': trimmed,
       }, token: userToken);
 
       final msg = MwalimuMessage.fromJson(
         data['message'] as Map<String, dynamic>,
       );
-      messages = [...messages, msg];
+      messages = [
+        for (final m in messages)
+          if (m.id == pendingId) msg else m,
+      ];
       messageCount++;
+      error = null;
       notifyListeners();
       return true;
     } catch (e) {
       error = e.toString().replaceAll('ApiException: ', '');
+      messages = [
+        for (final m in messages)
+          if (m.id == pendingId) m.copyWith(pending: false, failed: true) else m,
+      ];
       notifyListeners();
       return false;
     }
@@ -329,9 +368,10 @@ class MwalimuService extends ChangeNotifier {
     await _loadState();
     try {
       final data = await _api.get('/api/chat/messages', token: userToken);
-      messages = (data['messages'] as List)
+      final server = (data['messages'] as List)
           .map((e) => MwalimuMessage.fromJson(e as Map<String, dynamic>))
           .toList();
+      messages = _mergeLocal(server, messages);
       messageCount = data['messageCount'] as int? ?? 0;
       messageLimit = data['messageLimit'] as int?;
       isPremium = data['isPremium'] as bool? ?? false;
@@ -342,6 +382,19 @@ class MwalimuService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Mwalimu sync error: $e');
     }
+  }
+
+  List<MwalimuMessage> _mergeLocal(
+    List<MwalimuMessage> server,
+    List<MwalimuMessage> current,
+  ) {
+    final local = current.where((m) => m.pending).toList();
+    if (local.isEmpty) return server;
+    final serverIds = server.map((m) => m.id).toSet();
+    return [
+      ...server,
+      ...local.where((m) => !serverIds.contains(m.id)),
+    ];
   }
 
   void _recomputeUnreadFromMessages(List<MwalimuMessage> list) {

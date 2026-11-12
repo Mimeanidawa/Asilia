@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import 'pressable_scale.dart';
 
+/// Clean section title with optional subtitle and a green "see all" action.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     super.key,
@@ -28,7 +28,7 @@ class SectionHeader extends StatelessWidget {
     return Padding(
       padding: padding,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
@@ -39,8 +39,10 @@ class SectionHeader extends StatelessWidget {
                     Flexible(
                       child: Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: AppTypography.sectionTitle,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
                           color: AppColors.forest,
                           letterSpacing: -0.3,
@@ -57,7 +59,8 @@ class SectionHeader extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.emerald50,
-                          borderRadius: BorderRadius.circular(AppColors.radiusPill),
+                          borderRadius:
+                              BorderRadius.circular(AppColors.radiusPill),
                           border: Border.all(color: AppColors.borderLight),
                         ),
                         child: Text(
@@ -77,6 +80,8 @@ class SectionHeader extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: AppTypography.subtitle,
                       color: AppColors.textSecondary,
@@ -92,29 +97,24 @@ class SectionHeader extends StatelessWidget {
             const SizedBox(width: 8),
             PressableScale(
               onTap: onAction!,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.emerald50,
-                  borderRadius: BorderRadius.circular(AppColors.radiusPill),
-                  border: Border.all(color: AppColors.borderLight),
-                ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       actionLabel!,
                       style: const TextStyle(
-                        fontSize: AppTypography.caption,
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.emerald800,
+                        color: AppColors.brand,
                       ),
                     ),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 2),
                     const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 13,
-                      color: AppColors.emerald800,
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: AppColors.brand,
                     ),
                   ],
                 ),
@@ -123,9 +123,6 @@ class SectionHeader extends StatelessWidget {
           ],
         ],
       ),
-    )
-        .animate()
-        .fadeIn(duration: 380.ms, curve: Curves.easeOut)
-        .slideY(begin: 0.04, end: 0, curve: Curves.easeOutCubic);
+    );
   }
 }

@@ -32,7 +32,7 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoPlay());
     // Fallback: only if ad completely fails to load or open within 7 seconds, unlock so reader isn't blocked.
-    _safetyTimer = Timer(const Duration(seconds: 7), () {
+    _safetyTimer = Timer(const Duration(seconds: 40), () {
       if (mounted && _playing) {
         debugPrint('MakalaAdGate: Safety timeout reached before ad started, unlocking.');
         _unlock();
@@ -50,17 +50,23 @@ class _MakalaAdGateState extends State<MakalaAdGate> {
     if (!mounted) return;
     final ads = context.read<AdsService>();
     await ads.initialize();
+    await ads.preload();
 
-    final shown = await ads.showMakalaEntryAd(
-      onAdStarted: () {
-        debugPrint('MakalaAdGate: Ad started playback. Cancelling safety timer.');
-        _safetyTimer?.cancel();
-        _safetyTimer = null;
-      },
-      onCompleted: _unlock,
-      onFailed: _unlock,
-      grantRewardOnDismiss: true,
-    );
+    var shown = false;
+    for (var attempt = 0; attempt < 2 && mounted && _playing && !shown; attempt++) {
+      shown = await ads.showMakalaEntryAd(
+        onAdStarted: () {
+          debugPrint('MakalaAdGate: Ad started playback. Cancelling safety timer.');
+          _safetyTimer?.cancel();
+          _safetyTimer = null;
+        },
+        onCompleted: _unlock,
+        grantRewardOnDismiss: true,
+      );
+      if (!shown && mounted && _playing && attempt == 0) {
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+      }
+    }
     if (!shown && mounted && _playing) {
       _unlock();
     }

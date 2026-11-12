@@ -258,8 +258,8 @@ class ExclusiveProductBanner extends StatelessWidget {
                       children: [
                         // 3D Medicine Thumbnail
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 118,
+                          height: 148,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: [
@@ -280,15 +280,15 @@ class ExclusiveProductBanner extends StatelessWidget {
                             child: product != null
                                 ? HerbImage(
                                     url: product.imageUrl,
-                                    width: 80,
-                                    height: 80,
+                                    width: 118,
+                                    height: 148,
                                     fit: BoxFit.cover,
                                   )
                                 : (post?.displayImageUrl.isNotEmpty == true
                                     ? HerbImage(
                                         url: post!.displayImageUrl,
-                                        width: 80,
-                                        height: 80,
+                                        width: 118,
+                                        height: 148,
                                         fit: BoxFit.cover,
                                       )
                                     : const Center(

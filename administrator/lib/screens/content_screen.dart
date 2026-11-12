@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_blur.dart';
 
 class ContentScreen extends StatelessWidget {
   const ContentScreen({super.key});
@@ -22,7 +23,9 @@ class ContentScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            backgroundColor: AdminColors.bg,
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            flexibleSpace: const AdminBarBlur(),
             pinned: true,
             elevation: 0,
             toolbarHeight: 72,
@@ -166,7 +169,7 @@ class ContentScreen extends StatelessWidget {
   }
 
   void _confirmDelete(BuildContext context, AdminProvider provider, ContentItem item) {
-    showDialog(
+    showAdminDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AdminColors.surface,
@@ -198,7 +201,7 @@ class ContentScreen extends StatelessWidget {
   }
 
   void _showAddSheet(BuildContext context, AdminProvider provider) {
-    showModalBottomSheet(
+    showAdminSheet(
       context: context,
       backgroundColor: AdminColors.surface,
       shape: const RoundedRectangleBorder(

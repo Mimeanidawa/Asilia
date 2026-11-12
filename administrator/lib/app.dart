@@ -15,6 +15,7 @@ import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/admin_products_screen.dart';
 import 'screens/admin_orders_screen.dart';
+import 'screens/prospects_screen.dart';
 import 'screens/users_screen.dart';
 import 'theme/admin_colors.dart';
 import 'theme/admin_theme.dart';
@@ -144,6 +145,8 @@ class _MainShell extends StatelessWidget {
         screen = const DashboardScreen();
       case AdminScreen.users:
         screen = const UsersScreen();
+      case AdminScreen.prospects:
+        screen = const ProspectsScreen();
       case AdminScreen.analytics:
         screen = const AnalyticsScreen();
       case AdminScreen.notifications:
@@ -191,6 +194,7 @@ class _MainShell extends StatelessWidget {
         bottomNavigationBar: AdminBottomNav(
           current: provider.activeScreen,
           mwalimuUnread: provider.mwalimuUnreadCount,
+          prospectCount: provider.prospects.length,
           onTap: provider.setScreen,
         ),
       ),

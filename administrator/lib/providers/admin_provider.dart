@@ -16,7 +16,7 @@ import '../utils/admin_data_mapper.dart';
 
 import '../models/product_order_models.dart';
 
-enum AdminScreen { dashboard, users, analytics, notifications, content, darasaHuru, mwalimu, settings, products, orders }
+enum AdminScreen { dashboard, users, prospects, analytics, notifications, content, darasaHuru, mwalimu, settings, products, orders }
 
 class AdminProvider extends ChangeNotifier {
   AdminProvider({
@@ -105,6 +105,16 @@ class AdminProvider extends ChangeNotifier {
   int get mwalimuUnreadCount => _mwalimuUnreadCount;
   int get mwalimuConversationsWithUnread => _mwalimuConversationsWithUnread;
   List<Map<String, dynamic>> get mwalimuInbox => List.unmodifiable(_mwalimuInbox);
+
+  List<AdminUser> get prospects {
+    final list = _users.where((u) => u.isProspect).toList();
+    list.sort((a, b) {
+      final aAt = a.prospectAt ?? a.joinedAt;
+      final bAt = b.prospectAt ?? b.joinedAt;
+      return bAt.compareTo(aAt);
+    });
+    return list;
+  }
 
   List<AdminUser> get filteredUsers {
     return _users.where((u) {
@@ -387,18 +397,23 @@ class AdminProvider extends ChangeNotifier {
     switch (screen) {
       case AdminScreen.darasaHuru:
         refreshLessons();
+        refreshData();
+        break;
       case AdminScreen.dashboard:
       case AdminScreen.users:
+      case AdminScreen.prospects:
       case AdminScreen.analytics:
       case AdminScreen.notifications:
       case AdminScreen.settings:
         refreshData();
+        break;
       case AdminScreen.content:
       case AdminScreen.products:
       case AdminScreen.orders:
         break;
       case AdminScreen.mwalimu:
         refreshMwalimuUnread();
+        break;
     }
     notifyListeners();
   }
@@ -439,6 +454,32 @@ class AdminProvider extends ChangeNotifier {
         notifyListeners();
       }
       return null;
+    } catch (e) {
+      return e.toString().replaceFirst('Exception: ', '');
+    }
+  }
+
+  Future<String?> updateUserProspect(String userId, bool isProspect) async {
+    try {
+      final data = await _contentService.updateUserProspect(userId, isProspect);
+      final userJson = data['user'];
+      if (userJson is! Map<String, dynamic>) {
+        return 'Jibu la seva si sahihi';
+      }
+      final updated = AdminDataMapper.userFromJson(userJson);
+      final idx = _users.indexWhere((u) => u.id == userId);
+      if (idx != -1) {
+        _users[idx] = updated;
+      } else {
+        _users.insert(0, updated);
+      }
+      notifyListeners();
+      return null;
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        return 'Seva haijasasishwa bado. Weka backend mpya, kisha ujaribu tena.';
+      }
+      return e.message;
     } catch (e) {
       return e.toString().replaceFirst('Exception: ', '');
     }

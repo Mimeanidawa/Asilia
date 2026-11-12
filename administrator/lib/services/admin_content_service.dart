@@ -112,6 +112,11 @@ class AdminContentService {
         body: {'status': status}, token: _token);
   }
 
+  Future<Map<String, dynamic>> updateUserProspect(String userId, bool isProspect) async {
+    return _api.patch('/api/users/admin/$userId/prospect',
+        body: {'isProspect': isProspect}, token: _token);
+  }
+
   Future<Map<String, dynamic>> sendBroadcast({
     required String title,
     required String body,

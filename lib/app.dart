@@ -103,6 +103,9 @@ class _AsiliaAppState extends State<AsiliaApp> {
   Future<void> _bootstrapBackground() async {
     try {
       _notificationService.onNotificationTap = ({lessonId, contentId, type}) {
+        if (contentId != null && contentId.isNotEmpty) {
+          unawaited(_adsService.preload());
+        }
         _appProvider.openFromNotification(
           lessonId: lessonId,
           contentId: contentId,
@@ -318,6 +321,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
       },
       child: AppScaffold(
         showBottomNav: app.showsBottomNav,
+        immersiveTop: app.activeScreen == AppScreen.home,
         child: screen,
       ),
     );

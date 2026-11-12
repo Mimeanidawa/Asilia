@@ -68,7 +68,7 @@ class AppUpdateConfig {
 class AboutAppConfig {
   const AboutAppConfig({
     this.appName = 'Dawa Asili',
-    this.appVersion = '1.1.6',
+    this.appVersion = '1.1.14',
     this.appDescription =
         'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.',
     this.contactPhone = '+255 700 000 000',
@@ -92,7 +92,7 @@ class AboutAppConfig {
     if (json == null) return const AboutAppConfig();
     return AboutAppConfig(
       appName: '${json['appName'] ?? 'Dawa Asili'}',
-      appVersion: '${json['appVersion'] ?? '1.1.6'}',
+      appVersion: '${json['appVersion'] ?? '1.1.14'}',
       appDescription: '${json['appDescription'] ?? 'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha.'}',
       contactPhone: '${json['contactPhone'] ?? '+255 700 000 000'}',
       contactEmail: '${json['contactEmail'] ?? 'info@dawaasili.com'}',

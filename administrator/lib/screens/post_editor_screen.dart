@@ -6,6 +6,8 @@ import '../models/content_sections.dart';
 import '../theme/admin_colors.dart';
 import '../utils/block_accent_style.dart';
 import '../utils/content_tag_style.dart';
+import '../widgets/admin_blur.dart';
+import '../widgets/admin_ui.dart';
 import '../widgets/embedded_video_player.dart';
 import '../widgets/stable_text_field.dart';
 import '../widgets/url_image.dart';
@@ -165,10 +167,13 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AdminColors.bg,
+    return AdminBackground(
+      child: Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: AdminColors.bg,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        flexibleSpace: const AdminBarBlur(),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: AdminColors.textPrimary),
@@ -223,6 +228,7 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
           ),
           if (!_preview) _buildAddToolbar(),
         ],
+      ),
       ),
     );
   }

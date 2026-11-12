@@ -30,8 +30,17 @@ class MakalaInlineBannerAd extends StatelessWidget {
 }
 
 /// Feed card banner ad that sits naturally within post lists / home screen.
+///
+/// Reserves its space while the first ad request is in flight so the feed
+/// does not jump, and collapses completely if the ad cannot be served.
 class HomeFeedBannerAd extends StatelessWidget {
-  const HomeFeedBannerAd({super.key});
+  const HomeFeedBannerAd({
+    super.key,
+    this.padding = const EdgeInsets.symmetric(vertical: 8),
+  });
+
+  /// Outer spacing. Pass horizontal values to align with page gutters.
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +48,9 @@ class HomeFeedBannerAd extends StatelessWidget {
     final ads = context.watch<AdsService>();
     if (!ads.shouldShowAds(user)) return const SizedBox.shrink();
 
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: _MakalaBannerSlot(inline: true),
+    return Padding(
+      padding: padding,
+      child: const _MakalaBannerSlot(inline: true, feed: true),
     );
   }
 }
@@ -49,9 +58,12 @@ class HomeFeedBannerAd extends StatelessWidget {
 enum _BannerPhase { idle, loading, loaded, failed }
 
 class _MakalaBannerSlot extends StatefulWidget {
-  const _MakalaBannerSlot({required this.inline});
+  const _MakalaBannerSlot({required this.inline, this.feed = false});
 
   final bool inline;
+
+  /// Feed placement: tighter card, reserved space while loading.
+  final bool feed;
 
   @override
   State<_MakalaBannerSlot> createState() => _MakalaBannerSlotState();
@@ -64,7 +76,13 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
   int _retry = 0;
   int _generation = 0;
   bool _loadStarted = false;
+  bool _everFailed = false;
   Timer? _retryTimer;
+  double? _layoutWidth;
+  int? _requestedWidth;
+
+  /// Inline slots sit inside a card with 8px padding plus a 1px border.
+  static const double _inlineCardPadding = 9;
 
   @override
   bool get wantKeepAlive => true;
@@ -105,9 +123,40 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
 
     if (_phase == _BannerPhase.loaded && _banner != null) return;
     if (_phase == _BannerPhase.loading) return;
+    if (_targetAdWidth() == null) return;
 
     _loadStarted = true;
     await _load();
+  }
+
+  int? _targetAdWidth() {
+    final layoutWidth = _layoutWidth;
+    if (layoutWidth == null) return null;
+    final width = widget.inline
+        ? layoutWidth - _inlineCardPadding * 2
+        : layoutWidth;
+    final truncated = width.truncate();
+    return truncated > 0 ? truncated : null;
+  }
+
+  void _onLayoutWidth(double maxWidth) {
+    final width = maxWidth.isFinite ? maxWidth : MediaQuery.sizeOf(context).width;
+    if (width <= 0 || width == _layoutWidth) return;
+    _layoutWidth = width;
+
+    final target = _targetAdWidth();
+    final requested = _requestedWidth;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final needsResize = requested != null &&
+          target != null &&
+          (target - requested).abs() >= 8;
+      if (needsResize) {
+        unawaited(_load());
+      } else if (!_loadStarted) {
+        unawaited(_ensureLoaded());
+      }
+    });
   }
 
   Future<void> _load() async {
@@ -133,7 +182,10 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     if (!mounted || gen != _generation) return;
 
     if (!ads.isReady) {
-      setState(() => _phase = _BannerPhase.failed);
+      setState(() {
+        _phase = _BannerPhase.failed;
+        _everFailed = true;
+      });
       _scheduleRetry(gen);
       return;
     }
@@ -144,28 +196,32 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
 
     bool success = false;
     final adUnitId = AdsConfig.bannerAdUnitId;
+    final adWidth = _targetAdWidth();
+    if (adWidth == null) {
+      setState(() => _phase = _BannerPhase.idle);
+      _loadStarted = false;
+      return;
+    }
+    _requestedWidth = adWidth;
 
-    if (mounted) {
-      try {
-        final screenWidth = MediaQuery.sizeOf(context).width.truncate();
-        if (screenWidth > 0) {
-          final adWidth = widget.inline ? (screenWidth - 32).clamp(300, 728) : screenWidth;
-          final adaptiveSize = await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(adWidth);
-          if (adaptiveSize != null && mounted && gen == _generation) {
-            success = await _loadWithSize(
-              adaptiveSize,
-              gen,
-              adUnitId: adUnitId,
-            );
-          }
-        }
-      } catch (e) {
-        debugPrint('Adaptive banner size error: $e');
+    try {
+      final adaptiveSize = await AdSize.getLargeAnchoredAdaptiveBannerAdSize(adWidth);
+      if (adaptiveSize != null && mounted && gen == _generation) {
+        success = await _loadWithSize(
+          adaptiveSize,
+          gen,
+          adUnitId: adUnitId,
+        );
       }
+    } catch (e) {
+      debugPrint('Adaptive banner size error: $e');
     }
 
-    // If adaptive banner did not fill, fallback to standard AdSize.banner (320x50)
-    if (!success && mounted && gen == _generation) {
+    // Standard 320x50 fallback, only when it fits the slot.
+    if (!success &&
+        adWidth >= AdSize.banner.width &&
+        mounted &&
+        gen == _generation) {
       success = await _loadWithSize(
         AdSize.banner,
         gen,
@@ -176,7 +232,10 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
     if (!mounted || gen != _generation) return;
 
     if (!success) {
-      setState(() => _phase = _BannerPhase.failed);
+      setState(() {
+        _phase = _BannerPhase.failed;
+        _everFailed = true;
+      });
       _scheduleRetry(gen);
     }
   }
@@ -269,17 +328,39 @@ class _MakalaBannerSlotState extends State<_MakalaBannerSlot>
       return const SizedBox.shrink();
     }
 
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _onLayoutWidth(constraints.maxWidth);
+        return _buildBanner();
+      },
+    );
+  }
+
+  Widget _buildBanner() {
     final banner = _banner;
     final showNativeAd = AdsConfig.isSupportedPlatform &&
         _phase == _BannerPhase.loaded &&
         banner != null;
 
     if (!showNativeAd) {
+      final waiting = widget.feed &&
+          !_everFailed &&
+          AdsConfig.isSupportedPlatform &&
+          (_phase == _BannerPhase.idle || _phase == _BannerPhase.loading);
+      if (waiting) {
+        return _ModernAdContainer(
+          inline: true,
+          feed: true,
+          height: _slotHeight,
+          child: SizedBox(height: _slotHeight, width: double.infinity),
+        );
+      }
       return const SizedBox.shrink();
     }
 
     return _ModernAdContainer(
       inline: widget.inline,
+      feed: widget.feed,
       height: _slotHeight,
       child: Center(
         child: SizedBox(
@@ -300,9 +381,11 @@ class _ModernAdContainer extends StatelessWidget {
     required this.inline,
     required this.height,
     required this.child,
+    this.feed = false,
   });
 
   final bool inline;
+  final bool feed;
   final double height;
   final Widget child;
 
@@ -343,20 +426,22 @@ class _ModernAdContainer extends StatelessWidget {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      width: feed ? double.infinity : null,
+      margin: feed ? EdgeInsets.zero : const EdgeInsets.symmetric(vertical: 10),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppColors.radiusMd),
-        border: Border.all(color: AppColors.forest.withValues(alpha: 0.08)),
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppColors.radiusLg),
+        border: Border.all(color: AppColors.forest.withValues(alpha: 0.07)),
         boxShadow: AppColors.elevationSm,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              const SizedBox.shrink(),
               _buildTangazoPill(),
             ],
           ),

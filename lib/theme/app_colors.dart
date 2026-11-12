@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 /// Crisp luminous canvas, deep forest ink, emerald accents, and warm golden embers.
 class AppColors {
   // Canvas & surfaces
-  static const cream = Color(0xFFF4F7F4);
-  static const creamDark = Color(0xFFE8EFEA);
-  static const surface = Color(0xFFF9FBF9);
+  static const cream = Color(0xFFF3F7F4);
+  static const creamDark = Color(0xFFE3EBE5);
+  static const surface = Color(0xFFF8FBF9);
   static const surfaceElevated = Color(0xFFFFFFFF);
-  static const canvas = Color(0xFFF6F9F7);
+  static const canvas = Color(0xFFEEF3EF);
+
+  // Brand greens used by the home header, search button and nav FAB.
+  static const brand = Color(0xFF1F6F43);
+  static const brandDark = Color(0xFF13492C);
+  static const brandLight = Color(0xFF2E8B57);
 
   // Brand ink
   static const forest = Color(0xFF09281E);
@@ -122,9 +127,9 @@ class AppColors {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Color(0xFFFAFBF9),
-          Color(0xFFF4F7F4),
-          Color(0xFFEEF3EF),
+          Color(0xFFF8F1E6),
+          Color(0xFFE7F0EA),
+          Color(0xFFE8D9C4),
         ],
         stops: [0.0, 0.5, 1.0],
       );
@@ -133,9 +138,9 @@ class AppColors {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Color(0xFFECFDF5),
-          Color(0xFFF4F7F4),
-          Color(0xFFD1FAE5),
+          Color(0xFFE7F3EC),
+          Color(0xFFF6EFE4),
+          Color(0xFFD7EBDF),
         ],
       );
 
@@ -153,6 +158,13 @@ class AppColors {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [Color(0xFF10B981), Color(0xFF047857)],
+      );
+
+  static LinearGradient get brandGradient => const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [brandLight, brand, brandDark],
+        stops: [0.0, 0.55, 1.0],
       );
 
   static LinearGradient get headerSheen => LinearGradient(

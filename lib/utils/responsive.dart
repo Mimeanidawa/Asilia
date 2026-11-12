@@ -39,7 +39,7 @@ class Responsive {
     if (w >= AppBreakpoints.desktop) return 560;
     if (w >= AppBreakpoints.tablet) return 520;
     if (w >= AppBreakpoints.phone) return 480;
-    return w - 20;
+    return w;
   }
 
   static double horizontalGutter(BuildContext context) {

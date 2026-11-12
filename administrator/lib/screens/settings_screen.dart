@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/admin_ui.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -116,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _updateMessageCtrl.text = '${update['message'] ?? ''}';
       final about = config['about'] as Map<String, dynamic>? ?? {};
       _aboutAppNameCtrl.text = '${about['appName'] ?? 'Dawa Asili'}';
-      _aboutAppVersionCtrl.text = '${about['appVersion'] ?? '1.1.6'}';
+      _aboutAppVersionCtrl.text = '${about['appVersion'] ?? '1.1.14'}';
       _aboutDescriptionCtrl.text = '${about['appDescription'] ?? 'Elimu ya dawa za asili kutoka mizizi, miti na matunda kwa Kiswahili fasaha. Tunakuletea maarifa asilia ya afya na tiba salama za kiasili.'}';
       _aboutPhoneCtrl.text = '${about['contactPhone'] ?? '+255 700 000 000'}';
       _aboutEmailCtrl.text = '${about['contactEmail'] ?? 'info@dawaasili.com'}';
@@ -615,7 +616,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _confirmLogout(BuildContext context, AdminProvider provider) {
-    showDialog(
+    showAdminDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AdminColors.surface,
@@ -1210,7 +1211,7 @@ class _AboutDawaAsiliCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     _adminField(appNameCtrl, 'Jina la App (mf. Dawa Asili)'),
-                    _adminField(appVersionCtrl, 'Toleo la App (mf. 1.1.6)'),
+                    _adminField(appVersionCtrl, 'Toleo la App (mf. 1.1.14)'),
                     _adminField(
                       descriptionCtrl,
                       'Maelezo ya App (Kuhusu Dawa Asili)',

@@ -98,7 +98,21 @@ class ApiClient {
   Map<String, dynamic> _decode(http.Response res, {String? token}) {
     Map<String, dynamic> body = {};
     if (res.body.isNotEmpty) {
-      body = jsonDecode(res.body) as Map<String, dynamic>;
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) body = decoded;
+      } catch (_) {
+        if (res.statusCode >= 400) {
+          _maybeUnauthorized(res.statusCode, token);
+          throw ApiException(
+            res.statusCode == 404
+                ? 'Seva haijasasishwa bado. Weka backend mpya, kisha ujaribu tena.'
+                : 'Request failed (${res.statusCode})',
+            statusCode: res.statusCode,
+          );
+        }
+        throw ApiException('Jibu la seva si sahihi', statusCode: res.statusCode);
+      }
     }
     if (res.statusCode >= 400) {
       _maybeUnauthorized(res.statusCode, token);

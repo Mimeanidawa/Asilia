@@ -1,7 +1,10 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import 'admin_blur.dart';
 
 class AdminBottomNav extends StatelessWidget {
   const AdminBottomNav({
@@ -9,12 +12,14 @@ class AdminBottomNav extends StatelessWidget {
     required this.current,
     required this.onTap,
     this.mwalimuUnread = 0,
+    this.prospectCount = 0,
     this.onMaswaliTap,
   });
 
   final AdminScreen current;
   final void Function(AdminScreen) onTap;
   final int mwalimuUnread;
+  final int prospectCount;
   final VoidCallback? onMaswaliTap;
 
   /// Height of the floating bar itself (matches the Container height below).
@@ -39,13 +44,14 @@ class AdminBottomNav extends StatelessWidget {
   bool _isMoreActive() => !_primaryScreens.contains(current);
 
   void _showMoreMenu(BuildContext context) {
-    showModalBottomSheet<void>(
+    showAdminSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (ctx) => _MoreMenuSheet(
         current: current,
+        prospectCount: prospectCount,
         onSelect: (screen) {
           Navigator.pop(ctx);
           onTap(screen);
@@ -61,9 +67,28 @@ class AdminBottomNav extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPad + 12),
       child: Container(
-        height: 68,
-        decoration: AdminColors.navBarDecoration,
-        child: Row(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+            child: Container(
+              height: 68,
+              decoration: BoxDecoration(
+                color: AdminColors.surface.withValues(alpha: 0.62),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AdminColors.cardBorder.withValues(alpha: 0.8)),
+              ),
+              child: Row(
           children: [
             _NavSlot(
               icon: Icons.space_dashboard_rounded,
@@ -95,6 +120,9 @@ class AdminBottomNav extends StatelessWidget {
               onTap: () => _showMoreMenu(context),
             ),
           ],
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -259,10 +287,12 @@ class _MoreMenuSheet extends StatelessWidget {
   const _MoreMenuSheet({
     required this.current,
     required this.onSelect,
+    this.prospectCount = 0,
   });
 
   final AdminScreen current;
   final void Function(AdminScreen) onSelect;
+  final int prospectCount;
 
   @override
   Widget build(BuildContext context) {
@@ -326,6 +356,15 @@ class _MoreMenuSheet extends StatelessWidget {
                   onTap: () => onSelect(AdminScreen.orders),
                 ),
                 _MoreTile(
+                  icon: Icons.bookmark_added_rounded,
+                  label: 'Prospects',
+                  subtitle: 'Promised to buy later',
+                  color: AdminColors.purple,
+                  active: current == AdminScreen.prospects,
+                  count: prospectCount,
+                  onTap: () => onSelect(AdminScreen.prospects),
+                ),
+                _MoreTile(
                   icon: Icons.insights_rounded,
                   label: 'Analytics',
                   subtitle: 'Charts & performance',
@@ -375,6 +414,7 @@ class _MoreTile extends StatelessWidget {
     required this.color,
     required this.active,
     required this.onTap,
+    this.count = 0,
   });
 
   final IconData icon;
@@ -383,6 +423,7 @@ class _MoreTile extends StatelessWidget {
   final Color color;
   final bool active;
   final VoidCallback onTap;
+  final int count;
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +470,24 @@ class _MoreTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (count > 0) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    count > 99 ? '99+' : '$count',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               if (active)
                 Container(
                   width: 8,

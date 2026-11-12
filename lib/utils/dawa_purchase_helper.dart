@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
+import '../providers/app_provider.dart';
 import '../services/dawa_order_service.dart';
 import '../widgets/order_product_sheet.dart';
+import 'disease_extractor.dart';
 
 /// Helper to handle the "Nunua Dawa Hii" flow:
 /// 1. Searches available products matching the article topic.
@@ -89,6 +91,13 @@ class DawaPurchaseHelper {
     // Dismiss search modal
     Navigator.of(context, rootNavigator: true).pop();
 
-    OrderProductSheet.show(context, product);
+    if (product != null) {
+      OrderProductSheet.show(context, product);
+    } else {
+      final topic = DiseaseExtractor.extractTopic(post.title, post.category);
+      context.read<AppProvider>().openMwalimuWithDraft(
+            DiseaseExtractor.formatMwalimuInquiry(topic),
+          );
+    }
   }
 }

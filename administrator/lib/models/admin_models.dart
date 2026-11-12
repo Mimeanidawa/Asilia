@@ -24,6 +24,8 @@ class AdminUser {
     required this.totalSpent,
     this.premiumUntil,
     this.purchasedContentIds = const [],
+    this.isProspect = false,
+    this.prospectAt,
   });
 
   final String id;
@@ -40,6 +42,8 @@ class AdminUser {
   final int totalSpent;
   final DateTime? premiumUntil;
   final List<String> purchasedContentIds;
+  final bool isProspect;
+  final DateTime? prospectAt;
 
   String get displayContact => email?.isNotEmpty == true
       ? email!
@@ -47,7 +51,13 @@ class AdminUser {
           ? phone!
           : '—';
 
-  AdminUser copyWith({UserPlan? plan, UserStatus? status}) => AdminUser(
+  AdminUser copyWith({
+    UserPlan? plan,
+    UserStatus? status,
+    bool? isProspect,
+    DateTime? prospectAt,
+  }) =>
+      AdminUser(
         id: id,
         name: name,
         email: email,
@@ -62,6 +72,8 @@ class AdminUser {
         totalSpent: totalSpent,
         premiumUntil: premiumUntil,
         purchasedContentIds: purchasedContentIds,
+        isProspect: isProspect ?? this.isProspect,
+        prospectAt: prospectAt ?? this.prospectAt,
       );
 }
 

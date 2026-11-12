@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/admin_ui.dart';
 import '../widgets/url_image.dart';
 
@@ -96,7 +97,7 @@ class NotificationsScreen extends StatelessWidget {
     AdminProvider provider,
     AdminNotification notification,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdminDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AdminColors.surface,
@@ -136,7 +137,7 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   Future<void> _confirmClearAll(BuildContext context, AdminProvider provider) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdminDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AdminColors.surface,
@@ -176,7 +177,7 @@ class NotificationsScreen extends StatelessWidget {
   }
 
   void _showComposeSheet(BuildContext context, AdminProvider provider) {
-    showModalBottomSheet(
+    showAdminSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AdminColors.surface,
@@ -538,7 +539,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
 
   Future<void> _pickMakala() async {
     if (_posts.isEmpty) return;
-    final selected = await showModalBottomSheet<Map<String, dynamic>>(
+    final selected = await showAdminSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AdminColors.surface,

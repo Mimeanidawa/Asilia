@@ -86,7 +86,9 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
           _post = post;
           _loading = false;
         });
-        _maybeShowPremiumModal(post, user);
+        if (!ads.shouldShowAds(user)) {
+          _maybeShowPremiumModal(post, user);
+        }
       } else if (_post == null) {
         setState(() => _loading = false);
       }
@@ -158,7 +160,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
     final paid = user.hasPurchasedContent(post.id);
     final needsAd = ads.shouldShowAds(user) && !_adUnlocked;
 
-    if (needsAd && canRead) {
+    if (needsAd) {
       return MakalaAdGate(
         onUnlocked: () {
           if (!mounted) return;
@@ -167,7 +169,7 @@ class _ContentDetailScreenState extends State<ContentDetailScreen> {
             _adUnlockedForId = post.id;
           });
           RemoveAdsPromo.recordMakalaRead();
-
+          _maybeShowPremiumModal(post, user);
         },
         onCancel: app.goBack,
       );

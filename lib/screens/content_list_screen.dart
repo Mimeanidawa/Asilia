@@ -26,11 +26,12 @@ class ContentListScreen extends StatefulWidget {
 }
 
 class _FilterChipData {
-  const _FilterChipData(this.id, this.label, this.icon, {this.color});
+  const _FilterChipData(this.id, this.label, this.icon, {this.color, this.count});
   final String id;
   final String label;
   final IconData icon;
   final Color? color;
+  final int? count;
 }
 
 class _ContentListScreenState extends State<ContentListScreen> {
@@ -46,14 +47,38 @@ class _ContentListScreenState extends State<ContentListScreen> {
     }
   }
 
-  List<_FilterChipData> _chipsFor(String section) {
+  List<_FilterChipData> _chipsFor(String section, ContentService content) {
     if (section == ContentSections.allMakala) {
-      return const [
-        _FilterChipData('zote', 'Zote', Icons.auto_stories_rounded),
-        _FilterChipData(ContentSections.dodoso, 'Dodoso', Icons.forum_rounded),
-        _FilterChipData(ContentSections.chaguaMada, 'Chagua Mada', Icons.tune_rounded),
-        _FilterChipData(ContentSections.vyakulaMatunda, 'Vyakula', Icons.restaurant_rounded),
-        _FilterChipData(ContentSections.jifunze, 'Jifunze', Icons.menu_book_rounded),
+      final known = ContentSections.makalaFeedCategories.toSet();
+      final extra = <String>[];
+      for (final post in content.allMakalaPosts) {
+        final cat = (post.category ?? '').trim().toLowerCase();
+        if (cat.isEmpty || cat == 'darasa_huru' || known.contains(cat) || extra.contains(cat)) {
+          continue;
+        }
+        extra.add(cat);
+      }
+      final categories = [
+        ...ContentSections.makalaFeedCategories,
+        ...extra,
+      ].where((c) => content.countForCategory(c) > 0);
+
+      return [
+        _FilterChipData(
+          'zote',
+          'Zote',
+          Icons.auto_stories_rounded,
+          count: content.allMakalaPosts.length,
+        ),
+        ...categories.map(
+          (c) => _FilterChipData(
+            c,
+            ContentSections.categoryLabel(c),
+            _iconForCategory(c),
+            color: ContentTagStyle.colorFor(c),
+            count: content.countForCategory(c),
+          ),
+        ),
       ];
     }
 
@@ -84,7 +109,8 @@ class _ContentListScreenState extends State<ContentListScreen> {
     if (_filter == 'zote' || lockedCategory != null) return posts;
 
     if (section == ContentSections.allMakala) {
-      return posts.where((p) => p.section == _filter).toList();
+      final key = _filter.trim().toLowerCase();
+      return posts.where((p) => (p.category ?? '').trim().toLowerCase() == key).toList();
     }
     return posts.where((p) => p.category == _filter).toList();
   }
@@ -96,7 +122,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
     final section = app.selectedContentSection ?? ContentSections.dodoso;
     final lockedCategory = app.selectedContentCategory;
 
-    final chips = lockedCategory == null ? _chipsFor(section) : const <_FilterChipData>[];
+    final chips = lockedCategory == null ? _chipsFor(section, content) : const <_FilterChipData>[];
     final posts = _filtered(content, section, lockedCategory);
     final title = _sectionTitle(section, lockedCategory);
     final subtitle = _sectionSubtitle(section, lockedCategory);
@@ -124,6 +150,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
                         label: c.label,
                         icon: c.icon,
                         color: c.color,
+                        badgeCount: c.count,
                       ))
                   .toList(),
               selectedId: _filter,
@@ -159,6 +186,8 @@ class _ContentListScreenState extends State<ContentListScreen> {
                                 height: 300,
                                 showSectionLabel:
                                     section == ContentSections.allMakala,
+                                highlightNew: section == ContentSections.allMakala &&
+                                    _filter == 'zote',
                                 onTap: () => openContentPost(context, featured),
                               ),
                             ),
@@ -267,7 +296,7 @@ class _ContentListScreenState extends State<ContentListScreen> {
       return 'Makala zote za ${ContentSections.categoryLabel(category)}';
     }
     if (section == ContentSections.allMakala) {
-      return 'Machapisho ya dawa asili kutoka sehemu zote';
+      return 'Machapisho yote. Mapya yako mwanzo.';
     }
     return ContentSections.sectionLabel(section);
   }

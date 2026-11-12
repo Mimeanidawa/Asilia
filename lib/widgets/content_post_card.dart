@@ -18,12 +18,14 @@ class ContentFeaturedCard extends StatelessWidget {
     required this.post,
     required this.onTap,
     this.showSectionLabel = false,
+    this.highlightNew = false,
     this.height = 300,
   });
 
   final ContentPost post;
   final VoidCallback onTap;
   final bool showSectionLabel;
+  final bool highlightNew;
   final double height;
 
   @override
@@ -97,6 +99,14 @@ class ContentFeaturedCard extends StatelessWidget {
                 child: Row(
                   children: [
                     _GlassLabel(label: chip, accent: catColor),
+                    if (highlightNew) ...[
+                      const SizedBox(width: 8),
+                      const _GlassLabel(
+                        label: 'Mpya',
+                        accent: Color(0xFF059669),
+                        filled: true,
+                      ),
+                    ],
                     const Spacer(),
                     if (paid)
                       const PaidMakalaBadge(onDark: true)

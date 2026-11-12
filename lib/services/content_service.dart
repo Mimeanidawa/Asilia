@@ -349,7 +349,21 @@ class ContentService extends ChangeNotifier {
   List<ContentPost> postsForCategory(String category) {
     final key = category.trim().toLowerCase();
     if (key.isEmpty) return allMakalaPosts;
-    return _filterByCategory(allPosts, key);
+    return newestFirst(_filterByCategory(allPosts, key));
+  }
+
+  /// Newest admin posts first so a fresh publish is at the top of Zote.
+  List<ContentPost> newestFirst(List<ContentPost> posts) {
+    final copy = [...posts];
+    copy.sort((a, b) {
+      final ad = a.createdAt ?? a.updatedAt;
+      final bd = b.createdAt ?? b.updatedAt;
+      if (ad == null && bd == null) return 0;
+      if (ad == null) return 1;
+      if (bd == null) return -1;
+      return bd.compareTo(ad);
+    });
+    return copy;
   }
 
   int countForCategory(String category) => postsForCategory(category).length;
@@ -369,9 +383,9 @@ class ContentService extends ChangeNotifier {
       if (sharedCategories.contains(key)) {
         return postsForCategory(key);
       }
-      return _filterByCategory(_postsForSectionOnly(section), key);
+      return newestFirst(_filterByCategory(_postsForSectionOnly(section), key));
     }
-    return _postsForSectionOnly(section);
+    return newestFirst(_postsForSectionOnly(section));
   }
 
   /// Every content post in the app (all sections, deduplicated).
@@ -401,7 +415,7 @@ class ContentService extends ChangeNotifier {
     ]) {
       if (seen.add(post.id)) combined.add(post);
     }
-    return combined;
+    return newestFirst(combined);
   }
 
   List<ContentPost> _parsePosts(Map<String, dynamic> data) =>
@@ -462,5 +476,7 @@ class ContentService extends ChangeNotifier {
         'content': p.content,
         'imageUrl': p.imageUrl, 'isPremium': p.isPremium, 'price': p.price,
         'readTimeMinutes': p.readTimeMinutes,
+        if (p.createdAt != null) 'createdAt': p.createdAt!.toIso8601String(),
+        if (p.updatedAt != null) 'updatedAt': p.updatedAt!.toIso8601String(),
       };
 }

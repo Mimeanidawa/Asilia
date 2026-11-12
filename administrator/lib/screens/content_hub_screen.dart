@@ -7,6 +7,7 @@ import '../models/content_sections.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/admin_bottom_nav.dart';
 import '../widgets/admin_ui.dart';
 import '../widgets/url_image.dart';
@@ -643,7 +644,7 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
     final subCtrl = TextEditingController(text: existing?['subtitle'] as String? ?? '');
     final imgCtrl = TextEditingController(text: existing?['imageUrl'] as String? ?? '');
 
-    await showModalBottomSheet(
+    await showAdminSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: AdminColors.surface,
@@ -783,7 +784,7 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
 
   Future<void> _sharePost(Map<String, dynamic> post) async {
     final title = post['title'] as String? ?? 'Makala';
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAdminDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AdminColors.surface,

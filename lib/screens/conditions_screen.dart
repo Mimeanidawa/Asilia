@@ -8,6 +8,7 @@ import '../services/mwalimu_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/app_refresh.dart';
+import '../utils/disease_extractor.dart';
 import '../utils/responsive.dart';
 import '../widgets/condition_icon_widget.dart';
 import '../widgets/herb_image.dart';
@@ -379,7 +380,13 @@ class _ConditionSheet extends StatelessWidget {
                   InkWell(
                     onTap: () {
                       final product = context.read<DawaOrderService>().getProductForCondition(condition);
-                      OrderProductSheet.show(context, product);
+                      if (product != null) {
+                        OrderProductSheet.show(context, product);
+                      } else {
+                        context.read<AppProvider>().openMwalimuWithDraft(
+                              DiseaseExtractor.formatMwalimuInquiry(condition.name),
+                            );
+                      }
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

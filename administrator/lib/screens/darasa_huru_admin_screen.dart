@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/daily_lesson.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
+import '../widgets/admin_blur.dart';
 import '../widgets/admin_ui.dart';
 import '../widgets/url_image.dart';
 
@@ -119,7 +120,7 @@ class DarasaHuruAdminScreen extends StatelessWidget {
     AdminProvider provider,
     DailyLesson lesson,
   ) {
-    showDialog(
+    showAdminDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AdminColors.surface,
@@ -170,7 +171,7 @@ class DarasaHuruAdminScreen extends StatelessWidget {
     AdminProvider provider, {
     DailyLesson? existing,
   }) {
-    showModalBottomSheet(
+    showAdminSheet(
       context: context,
       backgroundColor: AdminColors.surface,
       shape: const RoundedRectangleBorder(
