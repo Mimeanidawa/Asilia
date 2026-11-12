@@ -7,6 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/content_models.dart';
 import 'api_client.dart';
 
+// Top-level so they can run in a background isolate via compute().
+// The content cache holds every article body (can be several MB); decoding or
+// encoding it on the UI thread freezes the app and can trigger ANRs.
+Map<String, dynamic> _decodeJsonMap(String raw) =>
+    jsonDecode(raw) as Map<String, dynamic>;
+
+String _encodeJson(Object value) => jsonEncode(value);
+
 class ContentService extends ChangeNotifier {
   ContentService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -429,7 +437,7 @@ class ContentService extends ChangeNotifier {
     if (cached == null) return false;
 
     try {
-      final data = jsonDecode(cached) as Map<String, dynamic>;
+      final data = await compute(_decodeJsonMap, cached);
       carousels = (data['carousels'] as List? ?? [])
           .map((e) => CarouselSlide.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -457,7 +465,7 @@ class ContentService extends ChangeNotifier {
 
   Future<void> _saveCache() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('da_content_cache_v5', jsonEncode({
+    final snapshot = <String, dynamic>{
       'carousels': carousels.map((c) => {
             'id': c.id, 'title': c.title, 'subtitle': c.subtitle,
             'imageUrl': c.imageUrl, 'linkSection': c.linkSection,
@@ -467,7 +475,9 @@ class ContentService extends ChangeNotifier {
       'chaguaMada': chaguaMadaPosts.map(_postToCache).toList(),
       'vyakulaMatunda': vyakulaMatundaPosts.map(_postToCache).toList(),
       'jifunze': jifunzePosts.map(_postToCache).toList(),
-    }));
+    };
+    final encoded = await compute(_encodeJson, snapshot);
+    await prefs.setString('da_content_cache_v5', encoded);
   }
 
   Map<String, dynamic> _postToCache(ContentPost p) => {

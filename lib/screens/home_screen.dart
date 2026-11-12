@@ -581,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (featured.isNotEmpty) ...[
           SliverToBoxAdapter(
             child: SectionHeader(
-              title: 'Dawa Asili Teule',
+              title: 'Dawa Asili',
               subtitle: 'Mimea na tiba maarufu kwa afya yako',
               padding: const EdgeInsets.fromLTRB(_kGutter + 2, 22, _kGutter, 12),
               actionLabel: 'Zote',

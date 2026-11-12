@@ -80,9 +80,14 @@ class ContentPost {
     }
   }
 
+  /// Parsing an article body to find its first image is expensive; do it once
+  /// per post instead of on every card build (can freeze the UI thread).
+  static final Expando<String> _displayImageCache =
+      Expando<String>('ContentPost.displayImageUrl');
+
   String get displayImageUrl {
     if (imageUrl.trim().isNotEmpty) return imageUrl;
-    return firstImageFromContent(content);
+    return _displayImageCache[this] ??= firstImageFromContent(content);
   }
 
   ContentPost copyWith({String? content, bool? hasAccess, String? imageUrl}) => ContentPost(

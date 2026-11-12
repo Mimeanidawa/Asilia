@@ -96,7 +96,17 @@ class _AsiliaAppState extends State<AsiliaApp> {
 
     // Ads warm in the background; the first usable frame should never wait
     // on the ad SDK or network.
-    unawaited(_adsService.preload());
+    // The Mobile Ads SDK init (WebView + class verification) blocks the main
+    // thread for hundreds of ms, so delay it until the home screen has settled
+    // to avoid input-dispatch ANRs on slower phones.
+    unawaited(
+      Future<void>.delayed(
+        const Duration(seconds: 3),
+        () async {
+          if (mounted) await _adsService.preload();
+        },
+      ),
+    );
     unawaited(_bootstrapBackground());
   }
 

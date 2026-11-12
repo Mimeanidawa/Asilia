@@ -58,6 +58,7 @@ class FeaturedAsiliGrid extends StatelessWidget {
                   height: cardH,
                   child: _FeaturedCard(
                     post: post,
+                    cardWidth: cardW,
                     imageHeight: imageH,
                     textHeight: _textHeight,
                     onTap: () => onOpen(post),
@@ -74,12 +75,14 @@ class FeaturedAsiliGrid extends StatelessWidget {
 class _FeaturedCard extends StatelessWidget {
   const _FeaturedCard({
     required this.post,
+    required this.cardWidth,
     required this.imageHeight,
     required this.textHeight,
     required this.onTap,
   });
 
   final ContentPost post;
+  final double cardWidth;
   final double imageHeight;
   final double textHeight;
   final VoidCallback onTap;
@@ -113,7 +116,9 @@ class _FeaturedCard extends StatelessWidget {
                   HerbImage(
                     url: post.displayImageUrl,
                     borderRadius: 0,
-                    fullWidth: true,
+                    // Explicit width so the image decodes at card size, not
+                    // full-screen size (saves a lot of memory in the grid).
+                    width: cardWidth,
                     height: imageHeight,
                     fit: BoxFit.cover,
                     fallbackLabel: title,
@@ -427,7 +432,7 @@ class _ProductCard extends StatelessWidget {
                   HerbImage(
                     url: p.imageUrl,
                     borderRadius: 0,
-                    fullWidth: true,
+                    width: DawaProductShelf.cardWidth,
                     height: DawaProductShelf.imageHeight,
                     fit: BoxFit.cover,
                   ),

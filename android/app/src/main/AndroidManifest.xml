@@ -50,6 +50,12 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/ic_launcher_background" />
+        <!-- Banner ads (native platform views) render blank-but-tappable on many
+             real devices with Impeller's Vulkan backend. OpenGLES is what the
+             emulator uses, and ads display correctly there. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.ImpellerBackend"
+            android:value="opengles" />
         <!-- AdMob app ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

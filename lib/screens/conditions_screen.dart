@@ -311,7 +311,8 @@ class _ConditionSheet extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
+                      Expanded(
+                        child: Row(
                         children: [
                           Container(
                             width: 44,
@@ -326,11 +327,14 @@ class _ConditionSheet extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Column(
+                          Expanded(
+                            child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 condition.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
@@ -348,7 +352,9 @@ class _ConditionSheet extends StatelessWidget {
                               ),
                             ],
                           ),
+                          ),
                         ],
+                      ),
                       ),
                       IconButton(
                         onPressed: onClose,

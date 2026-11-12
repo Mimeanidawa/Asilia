@@ -9,6 +9,10 @@ import 'api_client.dart';
 const _storageKey = 'da_darasa_lessons_v2';
 const _lastSyncKey = 'da_darasa_last_sync';
 
+// Top-level for compute(): keeps large JSON work off the UI thread (ANR risk).
+List<dynamic> _decodeJsonList(String raw) => jsonDecode(raw) as List;
+String _encodeJsonValue(Object value) => jsonEncode(value);
+
 class LessonService extends ChangeNotifier {
   LessonService({ApiClient? apiClient}) : _api = apiClient ?? ApiClient();
 
@@ -70,7 +74,7 @@ class LessonService extends ChangeNotifier {
     final raw = prefs.getString(_storageKey);
 
     if (raw != null) {
-      final list = jsonDecode(raw) as List;
+      final list = await compute(_decodeJsonList, raw);
       _lessons = list
           .map((e) => DailyLesson.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -79,10 +83,11 @@ class LessonService extends ChangeNotifier {
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _storageKey,
-      jsonEncode(_lessons.map((l) => l.toJson()).toList()),
+    final encoded = await compute(
+      _encodeJsonValue,
+      _lessons.map((l) => l.toJson()).toList(),
     );
+    await prefs.setString(_storageKey, encoded);
   }
 
   DailyLesson? get todayLesson {
