@@ -97,6 +97,8 @@ class DashboardStats {
     required this.premiumConversionRate,
     required this.activeToday,
     required this.churnRate,
+    this.paymentsToday = 0,
+    this.paymentCount = 0,
   });
 
   final int totalUsers;
@@ -111,6 +113,62 @@ class DashboardStats {
   final double premiumConversionRate;
   final int activeToday;
   final double churnRate;
+  final int paymentsToday;
+  final int paymentCount;
+}
+
+class AdminPayment {
+  const AdminPayment({
+    required this.id,
+    required this.source,
+    required this.kind,
+    required this.amount,
+    required this.title,
+    required this.status,
+    required this.customerName,
+    required this.paidAt,
+    this.phone = '',
+    this.reference = '',
+    this.provider = 'sonicpesa',
+    this.channel = '',
+  });
+
+  final String id;
+  final String source; // payment | order
+  final String kind; // premium | content | product
+  final int amount;
+  final String title;
+  final String status;
+  final String customerName;
+  final DateTime paidAt;
+  final String phone;
+  final String reference;
+  final String provider;
+  final String channel;
+
+  bool get isPaid => status == 'success' || status == 'paid';
+  bool get isPending => status == 'pending';
+  bool get isFailed => status == 'failed';
+
+  String get kindLabel {
+    switch (kind) {
+      case 'premium':
+        return 'Premium';
+      case 'content':
+        return 'Makala';
+      case 'product':
+        return 'Dawa';
+      default:
+        return 'Malipo';
+    }
+  }
+
+  String get statusLabel {
+    if (isPaid) return 'Imelipwa';
+    if (isPending) return 'Inasubiri';
+    if (isFailed) return 'Imeshindwa';
+    return status;
+  }
 }
 
 class AdminNotification {

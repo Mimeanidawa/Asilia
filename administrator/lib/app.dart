@@ -15,6 +15,7 @@ import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/admin_products_screen.dart';
 import 'screens/admin_orders_screen.dart';
+import 'screens/admin_payments_screen.dart';
 import 'screens/prospects_screen.dart';
 import 'screens/users_screen.dart';
 import 'theme/admin_colors.dart';
@@ -72,6 +73,7 @@ class _AppShellState extends State<_AppShell> with WidgetsBindingObserver {
     final provider = context.read<AdminProvider>();
     if (provider.isLoggedIn) {
       unawaited(provider.refreshPushRegistration());
+      unawaited(provider.refreshLive(force: true));
     }
   }
 
@@ -163,6 +165,8 @@ class _MainShell extends StatelessWidget {
         screen = const AdminProductsScreen();
       case AdminScreen.orders:
         screen = const AdminOrdersScreen();
+      case AdminScreen.payments:
+        screen = const AdminPaymentsScreen();
     }
 
     return AdminBackground(

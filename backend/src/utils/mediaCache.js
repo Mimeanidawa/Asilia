@@ -163,6 +163,30 @@ async function storeMedia(sourceUrl, buffer, contentType) {
   return rows[0];
 }
 
+/** Store raw bytes from an admin/user upload (no remote fetch). */
+export async function storeUploadedMedia(buffer, contentType = 'image/jpeg') {
+  if (!buffer || !Buffer.isBuffer(buffer) || buffer.length < 32) {
+    throw new Error('empty_image');
+  }
+  if (buffer.length > MAX_BYTES) {
+    throw new Error('too_large');
+  }
+  const type = String(contentType || 'image/jpeg').split(';')[0].toLowerCase();
+  if (!type.startsWith('image/')) {
+    throw new Error('not_image');
+  }
+  const id = randomUUID();
+  const sourceUrl = `upload://chat/${id}`;
+  const saved = await storeMedia(sourceUrl, buffer, type);
+  return {
+    id: saved.id,
+    contentType: saved.content_type,
+    byteSize: saved.byte_size,
+    sourceUrl: saved.source_url,
+    path: mediaPublicPath(saved.id),
+  };
+}
+
 /**
  * Download an image (trying Postimages candidates) and cache it.
  * @returns {Promise<{id, contentType, byteSize, sourceUrl, buffer?} | null>}

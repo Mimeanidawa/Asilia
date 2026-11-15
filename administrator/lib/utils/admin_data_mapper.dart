@@ -65,7 +65,27 @@ class AdminDataMapper {
         premiumConversionRate: (json['premiumConversionRate'] as num?)?.toDouble() ?? 0,
         activeToday: json['activeToday'] as int? ?? 0,
         churnRate: (json['churnRate'] as num?)?.toDouble() ?? 0,
+        paymentsToday: _asInt(json['paymentsToday']),
+        paymentCount: _asInt(json['paymentCount']),
       );
+
+  static AdminPayment paymentFromJson(Map<String, dynamic> json) => AdminPayment(
+        id: json['id']?.toString() ?? '',
+        source: json['source'] as String? ?? 'payment',
+        kind: json['kind'] as String? ?? 'payment',
+        amount: _asInt(json['amount']),
+        title: json['title'] as String? ?? '',
+        status: json['status'] as String? ?? 'pending',
+        customerName: json['customerName'] as String? ?? 'Mteja',
+        paidAt: _parseDate(json['paidAt'] ?? json['createdAt']),
+        phone: json['phone'] as String? ?? '',
+        reference: json['reference'] as String? ?? '',
+        provider: json['provider'] as String? ?? 'sonicpesa',
+        channel: json['channel'] as String? ?? '',
+      );
+
+  static List<AdminPayment> paymentsFromJson(List? list) =>
+      (list ?? []).whereType<Map>().map((e) => paymentFromJson(Map<String, dynamic>.from(e))).toList();
 
   static List<MonthlyMetric> metricsFromJson(List list) => list
       .map((e) => MonthlyMetric(

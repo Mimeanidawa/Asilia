@@ -4,6 +4,7 @@ import {
   getCachedMediaById,
   ingestImageUrl,
   mediaPublicPath,
+  storeUploadedMedia,
 } from '../utils/mediaCache.js';
 import { resolveImageUrl, normalizeImageUrl, tidyImageUrl } from '../utils/resolveImageUrl.js';
 import { publicApiBase } from '../utils/publicUrl.js';
@@ -136,6 +137,47 @@ router.get('/resolve', async (req, res) => {
   } catch (err) {
     console.warn('image resolve failed:', target, err.message);
     return res.status(500).json({ error: 'Imeshindwa kutatua URL', url: target });
+  }
+});
+
+/** Admin: upload raw image (base64) for chat / content. */
+router.post('/upload', requireAdmin, async (req, res) => {
+  try {
+    const { data, contentType } = req.body || {};
+    const raw = typeof data === 'string' ? data.trim() : '';
+    if (!raw) {
+      return res.status(400).json({ error: 'Picha inahitajika' });
+    }
+
+    const base64 = raw.includes('base64,') ? raw.split('base64,').pop() : raw;
+    let buffer;
+    try {
+      buffer = Buffer.from(base64, 'base64');
+    } catch {
+      return res.status(400).json({ error: 'Picha si sahihi' });
+    }
+
+    const saved = await storeUploadedMedia(buffer, contentType || 'image/jpeg');
+    const base = publicApiBase(req);
+    const path = saved.path;
+    const url = base ? `${base}${path}` : path;
+
+    res.status(201).json({
+      ok: true,
+      mediaId: saved.id,
+      path,
+      url,
+      contentType: saved.contentType,
+      byteSize: saved.byteSize,
+    });
+  } catch (err) {
+    console.error('POST /images/upload:', err);
+    const msg = err.message === 'too_large'
+      ? 'Picha ni kubwa mno'
+      : err.message === 'not_image' || err.message === 'empty_image'
+        ? 'Faili si picha sahihi'
+        : 'Imeshindwa kupakia picha';
+    res.status(400).json({ error: msg });
   }
 });
 

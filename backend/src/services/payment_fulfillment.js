@@ -1,9 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getPool } from '../db.js';
+import { sendAdminPaymentNotification } from './firebase.js';
 
 export async function fulfillPaymentOrder(orderRow) {
   const db = getPool();
   const client = await db.connect();
+  let fulfilledOrder = null;
+  let result = { fulfilled: false };
+
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
@@ -14,7 +18,8 @@ export async function fulfillPaymentOrder(orderRow) {
     if (!order) throw new Error('Payment order not found');
     if (order.status === 'success') {
       await client.query('COMMIT');
-      return { alreadyFulfilled: true };
+      result = { alreadyFulfilled: true };
+      return result;
     }
 
     if (order.type === 'premium') {
@@ -39,11 +44,31 @@ export async function fulfillPaymentOrder(orderRow) {
       [order.id],
     );
     await client.query('COMMIT');
-    return { fulfilled: true };
+    fulfilledOrder = order;
+    result = { fulfilled: true };
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
   } finally {
     client.release();
   }
+
+  if (fulfilledOrder) {
+    try {
+      const { rows: users } = await db.query(
+        'SELECT full_name FROM users WHERE id = $1',
+        [fulfilledOrder.user_id],
+      );
+      await sendAdminPaymentNotification({
+        amount: fulfilledOrder.amount,
+        customerName: users[0]?.full_name || fulfilledOrder.phone,
+        kind: fulfilledOrder.type === 'premium' ? 'premium' : 'content',
+        title: fulfilledOrder.title,
+      });
+    } catch (err) {
+      console.error('Admin payment notify failed:', err.message);
+    }
+  }
+
+  return result;
 }

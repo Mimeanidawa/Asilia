@@ -49,7 +49,18 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
       FROM users
     `);
 
+    // Unified revenue: successful STK payments + paid product orders.
+    // Content unlocks also land in user_purchases; payment_orders is the ledger.
     const { rows: revenueCounts } = await db.query(`
+      WITH all_revenue AS (
+        SELECT amount::int AS amount, created_at
+        FROM payment_orders
+        WHERE status = 'success'
+        UNION ALL
+        SELECT total_amount::int AS amount, COALESCE(updated_at, created_at) AS created_at
+        FROM product_orders
+        WHERE payment_status = 'paid'
+      )
       SELECT
         COALESCE(SUM(amount), 0)::int AS total,
         COALESCE(SUM(amount) FILTER (
@@ -65,8 +76,10 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
         COALESCE(SUM(amount) FILTER (
           WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
             AND created_at < CURRENT_DATE
-        ), 0)::int AS yesterday
-      FROM user_purchases
+        ), 0)::int AS yesterday,
+        COUNT(*)::int AS payment_count,
+        COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int AS payments_today
+      FROM all_revenue
     `);
 
     const { rows: userGrowthRows } = await db.query(`
@@ -80,10 +93,19 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
     `);
 
     const { rows: revenueRows } = await db.query(`
+      WITH all_revenue AS (
+        SELECT amount::int AS amount, created_at
+        FROM payment_orders
+        WHERE status = 'success'
+        UNION ALL
+        SELECT total_amount::int AS amount, COALESCE(updated_at, created_at) AS created_at
+        FROM product_orders
+        WHERE payment_status = 'paid'
+      )
       SELECT
         to_char(date_trunc('month', created_at), 'YYYY-MM') AS month_key,
         COALESCE(SUM(amount), 0)::int AS value
-      FROM user_purchases
+      FROM all_revenue
       WHERE created_at >= date_trunc('month', NOW()) - INTERVAL '11 months'
       GROUP BY 1
       ORDER BY 1
@@ -106,12 +128,37 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
       LIMIT 15
     `);
 
-    const { rows: purchaseActivity } = await db.query(`
-      SELECT p.id, p.created_at, p.amount, u.full_name
-      FROM user_purchases p
-      JOIN users u ON u.id = p.user_id
-      ORDER BY p.created_at DESC
-      LIMIT 15
+    const { rows: paymentActivity } = await db.query(`
+      SELECT
+        po.id,
+        po.created_at,
+        po.updated_at,
+        po.amount,
+        po.type,
+        po.title,
+        po.status,
+        COALESCE(u.full_name, po.phone, 'Mteja') AS full_name
+      FROM payment_orders po
+      LEFT JOIN users u ON u.id = po.user_id
+      WHERE po.status = 'success'
+      ORDER BY COALESCE(po.updated_at, po.created_at) DESC
+      LIMIT 25
+    `);
+
+    const { rows: orderActivity } = await db.query(`
+      SELECT
+        o.id,
+        o.created_at,
+        o.updated_at,
+        o.total_amount,
+        o.product_title,
+        o.receipt_number,
+        o.customer_name,
+        o.payment_status
+      FROM product_orders o
+      WHERE o.payment_status = 'paid'
+      ORDER BY COALESCE(o.updated_at, o.created_at) DESC
+      LIMIT 25
     `);
 
     const { rows: chatActivity } = await db.query(`
@@ -127,6 +174,42 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
       WHERE m.sender_type = 'user'
       ORDER BY m.created_at DESC
       LIMIT 15
+    `);
+
+    const { rows: recentPayments } = await db.query(`
+      (
+        SELECT
+          po.id,
+          'payment'::text AS source,
+          po.type AS kind,
+          po.amount::int AS amount,
+          po.title,
+          po.status,
+          po.phone,
+          po.reference,
+          COALESCE(u.full_name, po.phone, 'Mteja') AS customer_name,
+          COALESCE(po.updated_at, po.created_at) AS paid_at
+        FROM payment_orders po
+        LEFT JOIN users u ON u.id = po.user_id
+        WHERE po.status IN ('success', 'pending', 'failed')
+      )
+      UNION ALL
+      (
+        SELECT
+          o.id,
+          'order'::text AS source,
+          'product'::text AS kind,
+          o.total_amount::int AS amount,
+          o.product_title AS title,
+          o.payment_status AS status,
+          o.customer_phone AS phone,
+          o.receipt_number AS reference,
+          o.customer_name,
+          COALESCE(o.updated_at, o.created_at) AS paid_at
+        FROM product_orders o
+      )
+      ORDER BY paid_at DESC
+      LIMIT 40
     `);
 
     const total = userCounts[0].total;
@@ -145,12 +228,23 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
         userName: r.full_name,
         timestamp: r.created_at,
       })),
-      ...purchaseActivity.map((r) => ({
-        id: `purchase-${r.id}`,
-        type: 'premium',
-        description: `Content purchase — TZS ${r.amount.toLocaleString()}`,
+      ...paymentActivity.map((r) => ({
+        id: `payment-${r.id}`,
+        type: r.type === 'premium' ? 'premium' : 'purchase',
+        description: r.type === 'premium'
+          ? `Premium payment — TZS ${Number(r.amount).toLocaleString()}`
+          : `Content purchase — TZS ${Number(r.amount).toLocaleString()}`,
         userName: r.full_name,
-        timestamp: r.created_at,
+        preview: r.title || null,
+        timestamp: r.updated_at || r.created_at,
+      })),
+      ...orderActivity.map((r) => ({
+        id: `order-${r.id}`,
+        type: 'order',
+        description: `Dawa order paid — TZS ${Number(r.total_amount).toLocaleString()}`,
+        userName: r.customer_name,
+        preview: r.product_title || r.receipt_number || null,
+        timestamp: r.updated_at || r.created_at,
       })),
       ...chatActivity.map((r) => ({
         id: `chat-${r.id}`,
@@ -165,7 +259,7 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
       })),
     ]
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, 25);
+      .slice(0, 30);
 
     res.json({
       stats: {
@@ -175,6 +269,8 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
         monthlyRevenue,
         todayRevenue,
         totalRevenue,
+        paymentsToday: revenueCounts[0].payments_today,
+        paymentCount: revenueCounts[0].payment_count,
         userGrowthRate: pctChange(userCounts[0].new_this_month, userCounts[0].new_last_month),
         revenueGrowthRate: pctChange(revenueCounts[0].monthly, revenueCounts[0].last_month),
         todayRevenueGrowthRate: pctChange(revenueCounts[0].today, revenueCounts[0].yesterday),
@@ -186,10 +282,112 @@ router.get('/dashboard', requireAdmin, async (_req, res) => {
       revenueData: buildMonthlySeries(revenueRows),
       premiumGrowth: buildMonthlySeries(premiumRows),
       recentActivities: activities,
+      recentPayments: recentPayments.map((r) => ({
+        id: r.id,
+        source: r.source,
+        kind: r.kind,
+        amount: Number(r.amount) || 0,
+        title: r.title || '',
+        status: r.status,
+        phone: r.phone || '',
+        reference: r.reference || '',
+        customerName: r.customer_name || 'Mteja',
+        paidAt: r.paid_at,
+      })),
+      serverTime: new Date().toISOString(),
     });
   } catch (err) {
     console.error('GET /admin/dashboard:', err);
     res.status(500).json({ error: 'Imeshindwa kupata takwimu' });
+  }
+});
+
+// GET /admin/payments — full unified payment + order history
+router.get('/payments', requireAdmin, async (req, res) => {
+  try {
+    const db = getPool();
+    const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+    // Default high enough to return full history; allow up to 10k.
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 5000, 1), 10000);
+
+    const params = [];
+    let statusClause = '';
+    if (status === 'paid' || status === 'success') {
+      statusClause = `WHERE status IN ('success', 'paid')`;
+    } else if (status && status !== 'all') {
+      params.push(status);
+      statusClause = `WHERE status = $1`;
+    }
+    params.push(limit);
+    const limitParam = `$${params.length}`;
+
+    const { rows } = await db.query(
+      `
+      SELECT * FROM (
+        SELECT
+          po.id,
+          'payment'::text AS source,
+          po.type AS kind,
+          po.amount::int AS amount,
+          po.title,
+          po.status,
+          po.phone,
+          po.reference,
+          po.provider,
+          po.channel,
+          COALESCE(u.full_name, po.phone, 'Mteja') AS customer_name,
+          COALESCE(po.updated_at, po.created_at) AS paid_at,
+          po.created_at
+        FROM payment_orders po
+        LEFT JOIN users u ON u.id = po.user_id
+        UNION ALL
+        SELECT
+          o.id,
+          'order'::text AS source,
+          'product'::text AS kind,
+          o.total_amount::int AS amount,
+          o.product_title AS title,
+          o.payment_status AS status,
+          o.customer_phone AS phone,
+          o.receipt_number AS reference,
+          COALESCE(o.provider, 'sonicpesa') AS provider,
+          NULL::text AS channel,
+          o.customer_name,
+          COALESCE(o.updated_at, o.created_at) AS paid_at,
+          o.created_at
+        FROM product_orders o
+      ) AS all_payments
+      ${statusClause}
+      ORDER BY paid_at DESC
+      LIMIT ${limitParam}
+      `,
+      params,
+    );
+
+    const payments = rows.map((r) => ({
+      id: r.id,
+      source: r.source,
+      kind: r.kind,
+      amount: Number(r.amount) || 0,
+      title: r.title || '',
+      status: r.status,
+      phone: r.phone || '',
+      reference: r.reference || '',
+      provider: r.provider || 'sonicpesa',
+      channel: r.channel || '',
+      customerName: r.customer_name || 'Mteja',
+      paidAt: r.paid_at,
+      createdAt: r.created_at,
+    }));
+
+    res.json({
+      payments,
+      total: payments.length,
+      serverTime: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('GET /admin/payments:', err);
+    res.status(500).json({ error: 'Imeshindwa kupata historia ya malipo' });
   }
 });
 

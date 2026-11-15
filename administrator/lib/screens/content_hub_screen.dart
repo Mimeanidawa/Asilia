@@ -362,6 +362,34 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
 
   List<String> get _sectionCategories => AdminContentSections.categoriesFor(_section);
 
+  int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  String _compactCount(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(n >= 10000 ? 0 : 1)}k';
+    return '$n';
+  }
+
+  String _formatViewCount(Map<String, dynamic> p) {
+    final unique = _asInt(p['uniqueViewers']);
+    final views = _asInt(p['viewCount']);
+    final n = unique > 0 ? unique : views;
+    return _compactCount(n);
+  }
+
+  String _formatViewDetail(Map<String, dynamic> p) {
+    final unique = _asInt(p['uniqueViewers']);
+    final views = _asInt(p['viewCount']);
+    if (unique <= 0 && views <= 0) return 'Hakuna wasomaji bado';
+    if (unique > 0) return '$unique wasomaji · $views views';
+    return '$views views';
+  }
+
   Widget _buildPostCard(Map<String, dynamic> p, int index) {
     final cat = p['category'] as String? ?? '';
     final catLabel = cat.isEmpty
@@ -464,6 +492,11 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                                 isPublished ? AdminColors.success : AdminColors.textMuted,
                                 icon: isPublished ? Icons.public_rounded : Icons.edit_note_rounded,
                               ),
+                              _buildBadge(
+                                _formatViewCount(p),
+                                AdminColors.purple,
+                                icon: Icons.visibility_rounded,
+                              ),
                             ],
                           ),
                         ],
@@ -476,28 +509,25 @@ class _ContentHubScreenState extends State<ContentHubScreen> with SingleTickerPr
                 const Divider(color: AdminColors.divider, height: 1),
                 const SizedBox(height: 8),
 
-                // Bottom row: Visibility status indicator + Action buttons
+                // Bottom row: views + Action buttons
                 Row(
                   children: [
-                    // Status dot & text
                     Expanded(
                       child: Row(
                         children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: isPublished ? AdminColors.emerald : AdminColors.textDim,
-                            ),
+                          Icon(
+                            Icons.remove_red_eye_outlined,
+                            size: 14,
+                            color: AdminColors.purple.withValues(alpha: 0.9),
                           ),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 5),
                           Flexible(
                             child: Text(
-                              isPublished ? 'Inaonekana kwa watumiaji' : 'Imefichwa (Rasimu)',
+                              _formatViewDetail(p),
                               style: GoogleFonts.plusJakartaSans(
-                                color: AdminColors.textDim,
+                                color: AdminColors.textSecondary,
                                 fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),

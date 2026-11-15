@@ -187,6 +187,24 @@ export async function initDb() {
       ON payment_orders (sonic_order_id);
   `);
 
+  // Makala view analytics
+  await db.query(`
+    ALTER TABLE content_posts ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS content_post_views (
+      content_id TEXT NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+      viewer_key TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_viewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (content_id, viewer_key)
+    )
+  `);
+  await db.query(`
+    CREATE INDEX IF NOT EXISTS idx_content_post_views_content
+      ON content_post_views (content_id, last_viewed_at DESC)
+  `);
+
   // Provider-neutral payment identifiers (retain SonicPesa columns for old orders)
   await db.query(`
     ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'sonicpesa';

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../models/admin_models.dart';
@@ -35,7 +37,9 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
   bool _loadingInbox = true;
   bool _loadingMessages = false;
   bool _sending = false;
+  bool _uploadingImage = false;
   bool _savingProspect = false;
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -80,43 +84,52 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
   }
 
   Future<void> _openConversation(String convId) async {
+    // Clear previous thread immediately so it never flashes while loading.
     setState(() {
       _selectedConvId = convId;
+      _messages = [];
       _loadingMessages = true;
+      _replyCtrl.clear();
     });
+    final openedFor = convId;
     final svc = context.read<AdminProvider>().contentService;
     try {
       await svc.markConversationRead(convId);
-      _messages = await svc.fetchMessages(convId);
+      final msgs = await svc.fetchMessages(convId);
+      if (!mounted || _selectedConvId != openedFor) return;
+      setState(() {
+        _messages = msgs;
+        _loadingMessages = false;
+      });
+      _scrollMessagesToEnd();
       await context.read<AdminProvider>().refreshMwalimuUnread(silent: true);
       await _loadConversations(silent: true);
-      if (mounted) {
-        final opened = _conversations.cast<Map<String, dynamic>?>().firstWhere(
-              (c) => c?['id']?.toString() == convId,
-              orElse: () => null,
-            );
-        final userId = opened?['userId']?.toString();
-        final provider = context.read<AdminProvider>();
-        if (userId != null &&
-            userId.isNotEmpty &&
-            provider.users.every((u) => u.id != userId)) {
-          unawaited(provider.refreshData());
-        }
+      if (!mounted || _selectedConvId != openedFor) return;
+      final opened = _conversations.cast<Map<String, dynamic>?>().firstWhere(
+            (c) => c?['id']?.toString() == convId,
+            orElse: () => null,
+          );
+      final userId = opened?['userId']?.toString();
+      final provider = context.read<AdminProvider>();
+      if (userId != null &&
+          userId.isNotEmpty &&
+          provider.users.every((u) => u.id != userId)) {
+        unawaited(provider.refreshData());
       }
-    } catch (_) {}
-    if (mounted) {
-      setState(() => _loadingMessages = false);
-      _scrollMessagesToEnd();
+    } catch (_) {
+      if (mounted && _selectedConvId == openedFor) {
+        setState(() => _loadingMessages = false);
+      }
     }
   }
 
   Future<void> _reloadMessages({bool silent = false}) async {
     final id = _selectedConvId;
-    if (id == null) return;
+    if (id == null || _loadingMessages) return;
     try {
       final msgs =
           await context.read<AdminProvider>().contentService.fetchMessages(id);
-      if (!mounted) return;
+      if (!mounted || _selectedConvId != id) return;
       final pending = _messages.where((m) => m['pending'] == true).toList();
       final grew = msgs.length + pending.length > _messages.length;
       setState(() => _messages = [...msgs, ...pending]);
@@ -143,6 +156,9 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
 
   String _previewMessage(String? raw) {
     final text = raw ?? '';
+    if (text.contains('[IMAGE:')) {
+      return '📷 Picha';
+    }
     if (text.contains('[MAKALA:')) {
       return '📄 Makala imeshirikiwa';
     }
@@ -258,165 +274,205 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
   }
 
   Widget _buildChats() {
-    final inbox = context.watch<AdminProvider>().mwalimuInbox;
-
     return RefreshIndicator(
       color: AdminColors.emerald,
       onRefresh: () async {
         await _loadConversations();
         await _load();
       },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (inbox.isNotEmpty) ...[
-            Text(
-              'Ujumbe mpya',
-              style: GoogleFonts.inter(
-                color: AdminColors.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...inbox.take(5).map((item) {
-              return Card(
-                color: AdminColors.emerald.withValues(alpha: 0.08),
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  leading: const Icon(Icons.mark_email_unread_rounded,
-                      color: AdminColors.emerald),
-                  title: Text(
-                    item['userName'] as String? ?? 'Mtumiaji',
-                    style: GoogleFonts.inter(
-                      color: AdminColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: Text(
-                    item['preview'] as String? ?? 'New message from user',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                        color: AdminColors.textDim, fontSize: 12),
-                  ),
-                  onTap: () {
-                    final id = item['conversationId'] as String?;
-                    if (id != null) _openConversation(id);
-                  },
-                ),
-              );
-            }),
-            const SizedBox(height: 12),
-            Text(
-              'Mazungumzo yote',
-              style: GoogleFonts.inter(
-                color: AdminColors.textPrimary,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (_loadingInbox && _conversations.isEmpty)
-            const _InboxLoading()
-          else if (_conversations.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 48),
-              child: Center(
-                child: Text(
-                  'Hakuna maswali bado',
-                  style: GoogleFonts.inter(color: AdminColors.textDim),
-                ),
-              ),
+      child: _loadingInbox && _conversations.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [_InboxLoading()],
             )
-          else
-            ..._conversations.map(_conversationTile),
-        ],
-      ),
+          : _conversations.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(
+                      height: MediaQuery.sizeOf(context).height * 0.45,
+                      child: Center(
+                        child: Text(
+                          'Hakuna maswali bado',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AdminColors.textDim,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : ListView.separated(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 120),
+                  itemCount: _conversations.length,
+                  separatorBuilder: (_, __) => Divider(
+                    height: 1,
+                    thickness: 1,
+                    indent: 76,
+                    color: AdminColors.cardBorder.withValues(alpha: 0.55),
+                  ),
+                  itemBuilder: (_, i) => _conversationTile(_conversations[i]),
+                ),
     );
   }
 
   Widget _conversationTile(Map<String, dynamic> c) {
     final unread = (c['unreadCount'] as int?) ?? 0;
     final hasUnread = unread > 0 || c['hasUnread'] == true;
-    return Card(
+    final name = (c['userName'] as String?)?.trim().isNotEmpty == true
+        ? (c['userName'] as String).trim()
+        : (c['isGuest'] == true ? 'Mgeni' : 'Mtumiaji');
+    final preview = c['isGuest'] == true
+        ? 'Mgeni · ${_previewMessage(c['lastMessage'] as String?)}'
+        : _previewMessage(c['lastMessage'] as String?);
+    final timeLabel = _formatListTime(c['updatedAt'] ?? c['lastMessageAt'] ?? c['createdAt']);
+
+    return Material(
       color: hasUnread
-          ? AdminColors.emerald.withValues(alpha: 0.1)
-          : AdminColors.surface,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: ListTile(
-          leading: Stack(
-            clipBehavior: Clip.none,
+          ? AdminColors.emerald.withValues(alpha: 0.06)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: () => _openConversation(c['id'] as String),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              CircleAvatar(
-                backgroundColor: AdminColors.emerald.withValues(alpha: 0.2),
-                child: Text(
-                  (c['isGuest'] == true
-                      ? 'M'
-                      : (c['userName'] as String? ?? 'U'))[0],
-                  style: const TextStyle(color: AdminColors.emerald),
-                ),
-              ),
-              if (hasUnread)
-                Positioned(
-                  right: -2,
-                  top: -2,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: AdminColors.error,
-                      borderRadius: BorderRadius.circular(8),
+                      color: AdminColors.emerald.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
                     ),
+                    alignment: Alignment.center,
                     child: Text(
-                      unread > 9 ? '9+' : '$unread',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
+                      name[0].toUpperCase(),
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.emerald,
                         fontWeight: FontWeight.w800,
+                        fontSize: 18,
                       ),
                     ),
                   ),
+                      if (hasUnread)
+                    Positioned(
+                      right: -1,
+                      top: -1,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: AdminColors.rose,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: AdminColors.bg, width: 1.5),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          unread > 9 ? '9+' : '${unread == 0 ? 1 : unread}',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: AdminColors.textPrimary,
+                              fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (timeLabel.isNotEmpty)
+                          Text(
+                            timeLabel,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: hasUnread
+                                  ? AdminColors.emerald
+                                  : AdminColors.textDim,
+                              fontSize: 11,
+                              fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            preview,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: hasUnread
+                                  ? AdminColors.textSecondary
+                                  : AdminColors.textMuted,
+                              fontSize: 13,
+                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                        if (c['isPremium'] == true) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.star_rounded, color: AdminColors.amber, size: 14),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
+              ),
             ],
           ),
-          title: Text(
-            c['userName'] as String? ?? '',
-            style: GoogleFonts.inter(
-              color: AdminColors.textPrimary,
-              fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
-            ),
-          ),
-          subtitle: Text(
-            c['isGuest'] == true
-                ? 'Mgeni · ${_previewMessage(c['lastMessage'] as String?)}'
-                : _previewMessage(c['lastMessage'] as String?),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: hasUnread ? AdminColors.textPrimary : AdminColors.textDim,
-              fontSize: 12,
-              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-          trailing: c['isPremium'] == true
-              ? const Icon(Icons.star, color: AdminColors.amber, size: 16)
-              : c['isGuest'] == true
-                  ? Icon(Icons.person_outline,
-                      color: AdminColors.textDim.withValues(alpha: 0.6),
-                      size: 18)
-                  : hasUnread
-                      ? const Icon(Icons.circle,
-                          color: AdminColors.emerald, size: 10)
-                      : null,
-          onTap: () => _openConversation(c['id'] as String),
         ),
       ),
     );
+  }
+
+  String _formatListTime(dynamic raw) {
+    if (raw == null) return '';
+    final dt = raw is DateTime
+        ? raw
+        : DateTime.tryParse(raw.toString());
+    if (dt == null) return '';
+    final local = dt.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(local.year, local.month, local.day);
+    if (day == today) {
+      final h = local.hour.toString().padLeft(2, '0');
+      final m = local.minute.toString().padLeft(2, '0');
+      return '$h:$m';
+    }
+    if (day == today.subtract(const Duration(days: 1))) return 'Jana';
+    if (now.difference(local).inDays < 7) {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return days[local.weekday - 1];
+    }
+    return '${local.day}/${local.month}';
   }
 
   double _replyBarBottomInset(BuildContext context) {
@@ -449,6 +505,120 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
 
   Future<void> _sendReply() async {
     await _deliver(_replyCtrl.text.trim(), clearField: true);
+  }
+
+  Future<void> _pickAndSendImage() async {
+    if (_selectedConvId == null || _uploadingImage || _sending) return;
+
+    final source = await showAdminSheet<ImageSource>(
+      context: context,
+      backgroundColor: AdminColors.surface,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AdminColors.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                'Tuma picha',
+                style: GoogleFonts.plusJakartaSans(
+                  color: AdminColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: AdminColors.emerald),
+                title: Text('Kutoka gallery', style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_rounded, color: AdminColors.blue),
+                title: Text('Piga picha', style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+
+    try {
+      final file = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 70,
+      );
+      if (file == null || !mounted) return;
+
+      setState(() => _uploadingImage = true);
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) {
+        throw Exception('Picha haina data');
+      }
+      // Keep payload under typical proxy limits (~4–6MB).
+      if (bytes.length > 5 * 1024 * 1024) {
+        throw Exception('Picha ni kubwa mno. Chagua picha ndogo.');
+      }
+      final b64 = base64Encode(bytes);
+      final mime = (file.mimeType?.startsWith('image/') == true)
+          ? file.mimeType!
+          : 'image/jpeg';
+
+      debugPrint('Uploading chat image (${bytes.length} bytes, $mime)…');
+      final uploaded = await context
+          .read<AdminProvider>()
+          .contentService
+          .uploadChatImage(base64Data: b64, contentType: mime);
+      if (!mounted) return;
+
+      final url = (uploaded['url'] as String?)?.trim().isNotEmpty == true
+          ? (uploaded['url'] as String).trim()
+          : (uploaded['path'] as String?)?.trim() ?? '';
+      if (url.isEmpty) {
+        throw Exception('Seva haikurudisha URL ya picha');
+      }
+
+      final caption = _replyCtrl.text.trim();
+      final body = caption.isEmpty ? '[IMAGE:$url]' : '[IMAGE:$url]\n$caption';
+      _replyCtrl.clear();
+      final sent = await _deliver(body);
+      if (!sent && mounted) {
+        throw Exception('Picha imepakuliwa lakini haijatumwa. Jaribu tena.');
+      }
+    } catch (e) {
+      debugPrint('Chat image send failed: $e');
+      if (!mounted) return;
+      final msg = e.toString()
+          .replaceFirst('Exception: ', '')
+          .replaceFirst('ApiException: ', '');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg.contains('haijasasishwa')
+                ? 'Seva haijasasishwa bado. Deploy backend mpya kisha ujaribu tena.'
+                : msg,
+            style: GoogleFonts.plusJakartaSans(),
+          ),
+          backgroundColor: AdminColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingImage = false);
+    }
   }
 
   Future<bool> _deliver(String text, {bool clearField = false}) async {
@@ -647,16 +817,21 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
                   child: ListView.builder(
                     controller: _messageScroll,
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
                     itemCount: _messages.length,
                     itemBuilder: (_, i) {
                       final m = _messages[i];
                       final isAdmin = m['senderType'] == 'admin';
+                      final prev = i > 0 ? _messages[i - 1] : null;
+                      final sameSender = prev != null &&
+                          prev['senderType'] == m['senderType'];
                       return _AdminBubble(
                         isAdmin: isAdmin,
                         content: m['content'] as String? ?? '',
+                        createdAt: m['createdAt'],
                         sending: m['pending'] == true,
                         failed: m['failed'] == true,
+                        grouped: sameSender,
                       );
                     },
                   ),
@@ -680,32 +855,71 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: _pickAndShareArticle,
-                    icon: const Icon(Icons.article_outlined, size: 18),
-                    label: Text(
-                      'Shiriki makala',
-                      style: GoogleFonts.inter(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _pickAndShareArticle,
+                        icon: const Icon(Icons.article_outlined, size: 18),
+                        label: Text(
+                          'Makala',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AdminColors.emerald,
+                          side: BorderSide(
+                            color: AdminColors.emerald.withValues(alpha: 0.45),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AdminColors.emerald,
-                      side: BorderSide(
-                        color: AdminColors.emerald.withValues(alpha: 0.45),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: (_uploadingImage || _sending) ? null : _pickAndSendImage,
+                        icon: _uploadingImage
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AdminColors.amber,
+                                ),
+                              )
+                            : const Icon(Icons.image_rounded, size: 18),
+                        label: Text(
+                          _uploadingImage ? 'Inapakia…' : 'Picha',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AdminColors.amber,
+                          side: BorderSide(
+                            color: AdminColors.amber.withValues(alpha: 0.45),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -717,11 +931,13 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
                         minLines: 1,
                         maxLines: 4,
                         textInputAction: TextInputAction.newline,
-                        style: GoogleFonts.inter(color: AdminColors.textPrimary),
+                        style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary),
                         decoration: InputDecoration(
-                          hintText: 'Andika jibu lako hapa...',
-                          hintStyle:
-                              GoogleFonts.inter(color: AdminColors.textDim),
+                          hintText: 'Andika jibu… (au caption ya picha)',
+                          hintStyle: GoogleFonts.plusJakartaSans(
+                            color: AdminColors.textDim,
+                            fontSize: 13,
+                          ),
                           filled: true,
                           fillColor: AdminColors.card,
                           contentPadding: const EdgeInsets.symmetric(
@@ -755,7 +971,7 @@ class _MwalimuAdminScreenState extends State<MwalimuAdminScreen> {
                       color: AdminColors.emerald,
                       borderRadius: BorderRadius.circular(14),
                       child: InkWell(
-                        onTap: _sendReply,
+                        onTap: (_sending || _uploadingImage) ? null : _sendReply,
                         borderRadius: BorderRadius.circular(14),
                         child: SizedBox(
                           width: 48,
@@ -939,68 +1155,130 @@ class _AdminBubble extends StatelessWidget {
   const _AdminBubble({
     required this.isAdmin,
     required this.content,
+    this.createdAt,
     this.sending = false,
     this.failed = false,
+    this.grouped = false,
   });
 
   final bool isAdmin;
   final String content;
+  final dynamic createdAt;
   final bool sending;
   final bool failed;
+  final bool grouped;
+
+  String get _timeLabel {
+    if (createdAt == null) return '';
+    final dt = createdAt is DateTime
+        ? createdAt as DateTime
+        : DateTime.tryParse(createdAt.toString());
+    if (dt == null) return '';
+    final local = dt.toLocal();
+    final h = local.hour.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
 
   @override
   Widget build(BuildContext context) {
     final maxWidth = MediaQuery.sizeOf(context).width * 0.78;
+    final radius = BorderRadius.only(
+      topLeft: Radius.circular(isAdmin || !grouped ? 18 : 10),
+      topRight: Radius.circular(!isAdmin || !grouped ? 18 : 10),
+      bottomLeft: Radius.circular(isAdmin ? 18 : 6),
+      bottomRight: Radius.circular(isAdmin ? 6 : 18),
+    );
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(
+        top: grouped ? 3 : 10,
+        bottom: 2,
+        left: isAdmin ? 40 : 0,
+        right: isAdmin ? 0 : 40,
+      ),
       child: Align(
         alignment: isAdmin ? Alignment.centerRight : Alignment.centerLeft,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
+          constraints: BoxConstraints(maxWidth: maxWidth, minWidth: 56),
           child: Column(
             crossAxisAlignment:
                 isAdmin ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
                 decoration: BoxDecoration(
                   color: isAdmin
-                      ? AdminColors.emerald.withValues(alpha: sending ? 0.28 : 0.2)
-                      : AdminColors.surface,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(16),
-                    topRight: const Radius.circular(16),
-                    bottomLeft: Radius.circular(isAdmin ? 16 : 4),
-                    bottomRight: Radius.circular(isAdmin ? 4 : 16),
-                  ),
+                      ? (sending
+                          ? AdminColors.emerald.withValues(alpha: 0.22)
+                          : const Color(0xFF0F2A20))
+                      : AdminColors.card,
+                  borderRadius: radius,
                   border: Border.all(
                     color: isAdmin
-                        ? AdminColors.emerald.withValues(alpha: 0.28)
-                        : AdminColors.cardBorder,
+                        ? AdminColors.emerald.withValues(alpha: 0.35)
+                        : AdminColors.cardBorder.withValues(alpha: 0.8),
                   ),
                 ),
-                child: MakalaMessageContent(
-                  content: content,
-                  compact: true,
-                  textStyle: GoogleFonts.inter(
-                    color: AdminColors.textPrimary,
-                    fontSize: 13.5,
-                    height: 1.4,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MakalaMessageContent(
+                      content: content,
+                      compact: true,
+                      textStyle: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.textPrimary,
+                        fontSize: 14,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (_timeLabel.isNotEmpty || sending || failed) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (failed)
+                            Text(
+                              'Imeshindwa',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.error,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
+                          else if (sending)
+                            Text(
+                              'Inatuma…',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textMuted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          else
+                            Text(
+                              _timeLabel,
+                              style: GoogleFonts.plusJakartaSans(
+                                color: AdminColors.textDim,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          if (isAdmin && !sending && !failed) ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.done_all_rounded,
+                              size: 13,
+                              color: AdminColors.emerald.withValues(alpha: 0.7),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              if (sending || failed)
-                Padding(
-                  padding: const EdgeInsets.only(top: 3, left: 4, right: 4),
-                  child: Text(
-                    failed ? 'Imeshindwa kutuma' : 'Inatuma...',
-                    style: GoogleFonts.inter(
-                      color: failed ? AdminColors.error : AdminColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),

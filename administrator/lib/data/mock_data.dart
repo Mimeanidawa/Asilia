@@ -17,6 +17,8 @@ class MockData {
     premiumConversionRate: 0,
     activeToday: 0,
     churnRate: 0,
+    paymentsToday: 0,
+    paymentCount: 0,
   );
 
   static const List<MonthlyMetric> userGrowth = [];
@@ -25,5 +27,6 @@ class MockData {
   static const List<AdminUser> users = [];
   static const List<AdminNotification> notifications = [];
   static const List<RecentActivity> recentActivities = [];
+  static const List<AdminPayment> recentPayments = [];
   static const List<ContentItem> contentItems = [];
 }

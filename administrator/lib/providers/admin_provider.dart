@@ -16,7 +16,7 @@ import '../utils/admin_data_mapper.dart';
 
 import '../models/product_order_models.dart';
 
-enum AdminScreen { dashboard, users, prospects, analytics, notifications, content, darasaHuru, mwalimu, settings, products, orders }
+enum AdminScreen { dashboard, users, prospects, analytics, notifications, content, darasaHuru, mwalimu, settings, products, orders, payments }
 
 class AdminProvider extends ChangeNotifier {
   AdminProvider({
@@ -68,11 +68,16 @@ class AdminProvider extends ChangeNotifier {
   late List<MonthlyMetric> _revenueData;
   late List<MonthlyMetric> _premiumGrowth;
   late List<RecentActivity> _recentActivities;
+  List<AdminPayment> _recentPayments = [];
+  List<AdminPayment> _payments = [];
+  DateTime? _lastLiveSyncAt;
+  bool _liveSyncing = false;
 
   int _mwalimuUnreadCount = 0;
   int _mwalimuConversationsWithUnread = 0;
   List<Map<String, dynamic>> _mwalimuInbox = [];
   Timer? _mwalimuPollTimer;
+  Timer? _livePollTimer;
   VoidCallback? onMwalimuInboxUpdated;
 
   String _userSearchQuery = '';
@@ -93,6 +98,10 @@ class AdminProvider extends ChangeNotifier {
   List<MonthlyMetric> get revenueData => _revenueData;
   List<MonthlyMetric> get premiumGrowth => _premiumGrowth;
   List<RecentActivity> get recentActivities => _recentActivities;
+  List<AdminPayment> get recentPayments => List.unmodifiable(_recentPayments);
+  List<AdminPayment> get payments => List.unmodifiable(_payments);
+  DateTime? get lastLiveSyncAt => _lastLiveSyncAt;
+  bool get liveSyncing => _liveSyncing;
   List<AdminNotification> get notifications => _notifications;
   List<ContentItem> get contentItems => _contentItems;
   List<DailyLesson> get lessons => _lessonService.lessons;
@@ -146,6 +155,8 @@ class AdminProvider extends ChangeNotifier {
     _revenueData = MockData.revenueData;
     _premiumGrowth = MockData.premiumGrowth;
     _recentActivities = MockData.recentActivities;
+    _recentPayments = List.from(MockData.recentPayments);
+    _payments = List.from(MockData.recentPayments);
   }
 
   void _setAuthTokens(String? token) {
@@ -160,7 +171,11 @@ class AdminProvider extends ChangeNotifier {
     unawaited(logout());
   }
 
-  Future<void> _loadDashboardData() async {
+  Future<void> _loadDashboardData({
+    bool includeUsers = true,
+    bool includeNotifications = true,
+    bool includeMwalimu = true,
+  }) async {
     if (_authToken == null) return;
 
     try {
@@ -172,33 +187,103 @@ class AdminProvider extends ChangeNotifier {
       _revenueData = AdminDataMapper.metricsFromJson(dashboard['revenueData'] as List);
       _premiumGrowth = AdminDataMapper.metricsFromJson(dashboard['premiumGrowth'] as List);
       _recentActivities = AdminDataMapper.activitiesFromJson(dashboard['recentActivities'] as List);
+      _recentPayments = AdminDataMapper.paymentsFromJson(dashboard['recentPayments'] as List?);
+      // Never shrink full Malipo history with the short dashboard preview.
+      if (_payments.isEmpty) {
+        _payments = List.from(_recentPayments);
+      }
+      _lastLiveSyncAt = DateTime.now();
     } catch (e) {
       debugPrint('Failed to load dashboard analytics: $e');
     }
 
-    try {
-      final rawUsers = await _contentService
-          .fetchUsers()
-          .timeout(const Duration(seconds: 8));
-      _users = rawUsers.map(AdminDataMapper.userFromJson).toList();
-    } catch (e) {
-      debugPrint('Failed to load users: $e');
+    if (includeUsers) {
+      try {
+        final rawUsers = await _contentService
+            .fetchUsers()
+            .timeout(const Duration(seconds: 8));
+        _users = rawUsers.map(AdminDataMapper.userFromJson).toList();
+      } catch (e) {
+        debugPrint('Failed to load users: $e');
+      }
     }
 
-    try {
-      final rawNotifs = await _contentService
-          .fetchNotificationHistory()
-          .timeout(const Duration(seconds: 8));
-      _notifications = rawNotifs.map(AdminNotification.fromJson).toList();
-    } catch (_) {
-      // Keep existing notification list if history endpoint is unavailable.
+    if (includeNotifications) {
+      try {
+        final rawNotifs = await _contentService
+            .fetchNotificationHistory()
+            .timeout(const Duration(seconds: 8));
+        _notifications = rawNotifs.map(AdminNotification.fromJson).toList();
+      } catch (_) {
+        // Keep existing notification list if history endpoint is unavailable.
+      }
     }
 
-    try {
-      await refreshMwalimuUnread(silent: true).timeout(const Duration(seconds: 8));
-    } catch (_) {}
+    if (includeMwalimu) {
+      try {
+        await refreshMwalimuUnread(silent: true).timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
 
     notifyListeners();
+  }
+
+  /// Lightweight live sync — dashboard + payments (+ orders when that screen is open).
+  Future<void> refreshLive({bool force = false}) async {
+    if (!_isLoggedIn || _authToken == null || _liveSyncing) return;
+    if (!force &&
+        _lastLiveSyncAt != null &&
+        DateTime.now().difference(_lastLiveSyncAt!) < const Duration(seconds: 8)) {
+      return;
+    }
+
+    _liveSyncing = true;
+    try {
+      await Future.wait([
+        _loadDashboardData(
+          includeUsers: false,
+          includeNotifications: false,
+          includeMwalimu: false,
+        ),
+        fetchAdminPayments(silent: true),
+        if (_activeScreen == AdminScreen.orders) fetchAdminOrders(silent: true),
+      ]);
+    } catch (e) {
+      debugPrint('Live refresh failed: $e');
+    } finally {
+      _liveSyncing = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchAdminPayments({String? status, bool silent = false}) async {
+    if (_authToken == null || !_isLoggedIn) return;
+    try {
+      final res = await _analyticsService
+          .fetchPayments(status: status, limit: 5000)
+          .timeout(const Duration(seconds: 15));
+      if (res['payments'] is List) {
+        _payments = AdminDataMapper.paymentsFromJson(res['payments'] as List);
+        // Keep dashboard preview short; Malipo always uses full `_payments`.
+        _recentPayments = _payments.take(20).toList();
+        _lastLiveSyncAt = DateTime.now();
+        if (!silent) notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching admin payments: $e');
+    }
+  }
+
+  void _startLivePolling() {
+    _livePollTimer?.cancel();
+    _livePollTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      unawaited(refreshLive());
+    });
+  }
+
+  void _stopLivePolling() {
+    _livePollTimer?.cancel();
+    _livePollTimer = null;
   }
 
   Future<void> refreshMwalimuUnread({bool silent = false}) async {
@@ -278,6 +363,8 @@ class AdminProvider extends ChangeNotifier {
       ]);
     } catch (_) {}
     _startMwalimuPolling();
+    _startLivePolling();
+    unawaited(fetchAdminPayments(silent: true));
     unawaited(_initPush());
   }
 
@@ -324,7 +411,8 @@ class AdminProvider extends ChangeNotifier {
 
   Future<void> _initPush() async {
     try {
-      _push.onTap = () => setScreen(AdminScreen.mwalimu);
+      _push.onTap = _handlePushTap;
+      _push.onPaymentEvent = () => unawaited(refreshLive(force: true));
       await _push.init(authToken: _authToken).timeout(const Duration(seconds: 5));
       _push.syncBaselineUnread(_mwalimuUnreadCount);
     } catch (e) {
@@ -332,10 +420,19 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  void _handlePushTap([String? type]) {
+    if (type == 'admin_payment') {
+      setScreen(AdminScreen.payments);
+      return;
+    }
+    setScreen(AdminScreen.mwalimu);
+  }
+
   Future<void> refreshPushRegistration() async {
     if (!_isLoggedIn || _authToken == null) return;
     await _push.refreshRegistration(force: true);
     await refreshMwalimuUnread(silent: true);
+    await refreshLive(force: true);
   }
 
   Future<bool> login(String email, String password) async {
@@ -374,6 +471,7 @@ class AdminProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _stopMwalimuPolling();
+    _stopLivePolling();
     _isLoggedIn = false;
     _authToken = null;
     _adminName = null;
@@ -400,16 +498,23 @@ class AdminProvider extends ChangeNotifier {
         refreshData();
         break;
       case AdminScreen.dashboard:
+      case AdminScreen.analytics:
+      case AdminScreen.payments:
+        unawaited(refreshLive(force: true));
+        break;
       case AdminScreen.users:
       case AdminScreen.prospects:
-      case AdminScreen.analytics:
       case AdminScreen.notifications:
       case AdminScreen.settings:
         refreshData();
         break;
       case AdminScreen.content:
+        break;
       case AdminScreen.products:
+        unawaited(fetchAdminProducts());
+        break;
       case AdminScreen.orders:
+        unawaited(fetchAdminOrders());
         break;
       case AdminScreen.mwalimu:
         refreshMwalimuUnread();
@@ -695,9 +800,11 @@ class AdminProvider extends ChangeNotifier {
     return false;
   }
 
-  Future<void> fetchAdminOrders({String? status}) async {
-    _ordersLoading = true;
-    notifyListeners();
+  Future<void> fetchAdminOrders({String? status, bool silent = false}) async {
+    if (!silent) {
+      _ordersLoading = true;
+      notifyListeners();
+    }
     try {
       final path = status != null ? '/api/admin/orders?status=$status' : '/api/admin/orders';
       final res = await _api.get(path, token: _authToken);
@@ -709,7 +816,7 @@ class AdminProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching admin orders: $e');
     } finally {
-      _ordersLoading = false;
+      if (!silent) _ordersLoading = false;
       notifyListeners();
     }
   }

@@ -29,36 +29,59 @@ class MakalaArticlePart extends MakalaMessagePart {
   final String? shareUrl;
 }
 
+class MakalaImagePart extends MakalaMessagePart {
+  const MakalaImagePart(this.url);
+  final String url;
+}
+
 class MakalaMessageParser {
-  static final RegExp _tag = RegExp(
+  static final RegExp _articleTag = RegExp(
     r'\[MAKALA:([^|\]]+)\|([^|\]]+)(?:\|([^\]]*))?\]',
   );
+  static final RegExp _imageTag = RegExp(r'\[IMAGE:([^\]]+)\]');
   static final RegExp _urlLine = RegExp(r'^https?://[^\s]+/makala/[^\s]+$');
 
   static List<MakalaMessagePart> parse(String input) {
     final parts = <MakalaMessagePart>[];
-    var cursor = 0;
-    String? linkedUrl;
+    final matches = <({int start, int end, MakalaMessagePart part})>[];
 
-    for (final m in _tag.allMatches(input)) {
-      if (m.start > cursor) {
-        _appendText(parts, input.substring(cursor, m.start));
+    for (final m in _imageTag.allMatches(input)) {
+      final url = (m.group(1) ?? '').trim();
+      if (url.isNotEmpty) {
+        matches.add((start: m.start, end: m.end, part: MakalaImagePart(url)));
       }
+    }
+    for (final m in _articleTag.allMatches(input)) {
       final id = (m.group(1) ?? '').trim();
       final title = (m.group(2) ?? 'Makala').trim();
       final imageUrl = (m.group(3) ?? '').trim();
       if (id.isNotEmpty) {
-        parts.add(
-          MakalaArticlePart(
+        matches.add((
+          start: m.start,
+          end: m.end,
+          part: MakalaArticlePart(
             id: id,
             title: title,
             imageUrl: imageUrl.isEmpty ? null : imageUrl,
             shareUrl: MakalaShare.publicUrl(id),
           ),
-        );
-        linkedUrl = MakalaShare.publicUrl(id);
+        ));
       }
-      cursor = m.end;
+    }
+
+    matches.sort((a, b) => a.start.compareTo(b.start));
+
+    var cursor = 0;
+    String? linkedUrl;
+    for (final item in matches) {
+      if (item.start > cursor) {
+        _appendText(parts, input.substring(cursor, item.start));
+      }
+      parts.add(item.part);
+      if (item.part is MakalaArticlePart) {
+        linkedUrl = MakalaShare.publicUrl((item.part as MakalaArticlePart).id);
+      }
+      cursor = item.end;
     }
 
     if (cursor < input.length) {
@@ -99,51 +122,46 @@ class MakalaShareCard extends StatelessWidget {
   final MakalaArticlePart part;
   final bool compact;
 
-  void _copyLink(BuildContext context) {
-    final url = part.shareUrl ?? MakalaShare.publicUrl(part.id);
-    Clipboard.setData(ClipboardData(text: url));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Kiungo kimenakiliwa', style: GoogleFonts.inter()),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final hasImage = part.imageUrl != null && part.imageUrl!.isNotEmpty;
 
     return Material(
-      color: AdminColors.card,
+      color: AdminColors.emerald.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _copyLink(context),
+        borderRadius: BorderRadius.circular(14),
+        onTap: () async {
+          final url = part.shareUrl ?? MakalaShare.publicUrl(part.id);
+          await Clipboard.setData(ClipboardData(text: url));
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
           children: [
             if (hasImage)
               AspectRatio(
-                aspectRatio: 16 / 9,
+                aspectRatio: compact ? 16 / 9 : 1.6,
                 child: UrlImage(
                   url: part.imageUrl!,
-                  borderRadius: 0,
                   fit: BoxFit.cover,
                 ),
               ),
             Padding(
-              padding: EdgeInsets.all(compact ? 10 : 12),
+              padding: EdgeInsets.fromLTRB(
+                compact ? 10 : 12,
+                compact ? 8 : 10,
+                compact ? 10 : 12,
+                compact ? 8 : 10,
+              ),
               child: Row(
                 children: [
                   if (!hasImage)
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: AdminColors.emerald.withValues(alpha: 0.15),
+                        color: AdminColors.emerald.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -197,6 +215,32 @@ class MakalaShareCard extends StatelessWidget {
   }
 }
 
+class MakalaChatImage extends StatelessWidget {
+  const MakalaChatImage({super.key, required this.url, this.compact = false});
+
+  final String url;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: compact ? 220 : 280,
+          maxHeight: compact ? 220 : 320,
+        ),
+        child: UrlImage(
+          url: url,
+          fit: BoxFit.cover,
+          width: compact ? 220 : 280,
+          height: compact ? 180 : 240,
+        ),
+      ),
+    );
+  }
+}
+
 class MakalaMessageContent extends StatelessWidget {
   const MakalaMessageContent({
     super.key,
@@ -212,9 +256,9 @@ class MakalaMessageContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = MakalaMessageParser.parse(content);
-    final hasArticle = parts.any((p) => p is MakalaArticlePart);
+    final hasRich = parts.any((p) => p is MakalaArticlePart || p is MakalaImagePart);
 
-    if (!hasArticle) {
+    if (!hasRich) {
       return Text(content, style: textStyle);
     }
 
@@ -227,6 +271,11 @@ class MakalaMessageContent extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(part.text, style: textStyle),
+            ),
+          if (part is MakalaImagePart)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: MakalaChatImage(url: part.url, compact: compact),
             ),
           if (part is MakalaArticlePart)
             Padding(

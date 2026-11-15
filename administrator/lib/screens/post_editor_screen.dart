@@ -41,7 +41,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
   bool _isPremium = false;
   bool _isPublished = false;
   bool _preview = false;
-  bool _metaExpanded = false;
   bool _titleValid = false;
 
   @override
@@ -138,10 +137,6 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
     };
   }
 
-  void _insertBlockAfter(int index, ContentBlock block) {
-    setState(() => _blocks.insert(index + 1, block));
-  }
-
   void _addBlock(ContentBlock block) {
     setState(() => _blocks.add(block));
   }
@@ -167,74 +162,289 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sectionLabel = AdminContentSections.sectionLabel(widget.section);
+
     return AdminBackground(
       child: Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        flexibleSpace: const AdminBarBlur(),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AdminColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          widget.existing == null ? 'Makala Mpya' : 'Hifadhi Makala',
-          style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 17),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () => setState(() => _preview = !_preview),
-            icon: Icon(_preview ? Icons.edit_rounded : Icons.visibility_rounded, size: 18, color: AdminColors.emerald),
-            label: Text(
-              _preview ? 'Hifadhi' : 'Onyesho',
-              style: GoogleFonts.inter(color: AdminColors.emerald, fontWeight: FontWeight.w600),
-            ),
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          flexibleSpace: const AdminBarBlur(),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close_rounded, color: AdminColors.textPrimary),
+            onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: _titleValid ? () => Navigator.pop(context, buildPayload()) : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: AdminColors.emerald,
-              disabledBackgroundColor: AdminColors.cardBorder,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-            ),
-            child: Text('Hifadhi', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.existing == null ? 'Makala mpya' : 'Hariri makala',
+                style: GoogleFonts.plusJakartaSans(
+                  color: AdminColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                ),
+              ),
+              Text(
+                sectionLabel,
+                style: GoogleFonts.plusJakartaSans(
+                  color: AdminColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              children: [
-                _buildMetaSection(),
-                const SizedBox(height: 20),
-                if (_preview)
-                  _PreviewCard(
-                    title: _titleCtrl.text,
-                    subtitle: _subtitleCtrl.text,
-                    coverUrl: _coverCtrl.text,
-                    blocks: _blocks,
-                  )
-                else
-                  _buildBlockEditor(),
+          actions: [
+            IconButton(
+              tooltip: _preview ? 'Hariri' : 'Onyesho',
+              onPressed: () => setState(() => _preview = !_preview),
+              icon: Icon(
+                _preview ? Icons.edit_rounded : Icons.visibility_outlined,
+                color: AdminColors.emerald,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton(
+                onPressed: _titleValid ? () => Navigator.pop(context, buildPayload()) : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AdminColors.emerald,
+                  disabledBackgroundColor: AdminColors.cardBorder,
+                  foregroundColor: const Color(0xFF052E16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  'Hifadhi',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton: _preview
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: _showAddBlockSheet,
+                backgroundColor: AdminColors.emerald,
+                foregroundColor: const Color(0xFF052E16),
+                icon: const Icon(Icons.add_rounded),
+                label: Text(
+                  'Ongeza',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
+                ),
+              ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+          children: [
+            if (_preview)
+              _PreviewCard(
+                title: _titleCtrl.text,
+                subtitle: _subtitleCtrl.text,
+                coverUrl: _coverCtrl.text,
+                blocks: _blocks,
+              )
+            else ...[
+              // Title — always first, always visible
+              TextField(
+                controller: _titleCtrl,
+                style: GoogleFonts.plusJakartaSans(
+                  color: AdminColors.textPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                  letterSpacing: -0.6,
+                ),
+                maxLines: 3,
+                minLines: 1,
+                decoration: InputDecoration(
+                  hintText: 'Kichwa cha makala…',
+                  hintStyle: GoogleFonts.plusJakartaSans(
+                    color: AdminColors.textDim,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              TextField(
+                controller: _subtitleCtrl,
+                style: GoogleFonts.plusJakartaSans(
+                  color: AdminColors.textSecondary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Maneno ya chini (hiari)',
+                  hintStyle: GoogleFonts.plusJakartaSans(
+                    color: AdminColors.textDim,
+                    fontSize: 15,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.only(bottom: 8),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildCategoryChips(),
+              const SizedBox(height: 16),
+              _buildCoverField(),
+              const SizedBox(height: 16),
+              _buildPublishRow(),
+              if (_isPremium) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _priceCtrl,
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary),
+                  decoration: _softDeco('Bei (TZS)', hint: '2000'),
+                ),
               ],
-            ),
-          ),
-          if (!_preview) _buildAddToolbar(),
-        ],
-      ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _excerptCtrl,
+                maxLines: 2,
+                style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary, fontSize: 13),
+                decoration: _softDeco('Muhtasari (hiari)', hint: 'Muhtasari mfupi…'),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Text(
+                    'Maudhui',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AdminColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${_blocks.length} vipengele',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AdminColors.textDim,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ReorderableListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                buildDefaultDragHandles: false,
+                onReorder: _moveBlock,
+                itemCount: _blocks.length,
+                itemBuilder: (ctx, i) {
+                  final block = _blocks[i];
+                  return Padding(
+                    key: ValueKey(block.id),
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _BlockEditorCard(
+                      index: i,
+                      block: block,
+                      onChanged: (b) => _updateBlock(i, b),
+                      onDelete: () => _removeBlock(i),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _showAddBlockSheet,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(
+                  'Ongeza kipengele',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AdminColors.emerald,
+                  side: BorderSide(color: AdminColors.emerald.withValues(alpha: 0.4)),
+                  minimumSize: const Size(double.infinity, 48),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMetaSection() {
+  Widget _buildCategoryChips() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _categoryOptions.map((c) {
+        final selected = _category == c;
+        final label = AdminContentSections.categoryLabel(c, section: widget.section);
+        return GestureDetector(
+          onTap: () => setState(() => _category = c),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? AdminColors.emeraldGlow : AdminColors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected
+                    ? AdminColors.emerald.withValues(alpha: 0.55)
+                    : AdminColors.cardBorder,
+              ),
+            ),
+            child: Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                color: selected ? AdminColors.emerald : AdminColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildCoverField() {
+    final cover = _coverCtrl.text.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (cover.isNotEmpty) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: UrlImage(
+              url: cover,
+              height: 160,
+              width: double.infinity,
+              borderRadius: 16,
+            ),
+          ),
+          const SizedBox(height: 10),
+        ],
+        TextField(
+          controller: _coverCtrl,
+          onChanged: (_) => setState(() {}),
+          keyboardType: TextInputType.url,
+          style: GoogleFonts.plusJakartaSans(color: AdminColors.textPrimary, fontSize: 13),
+          decoration: _softDeco(
+            'Picha ya jalada (URL)',
+            hint: 'https://i.ibb.co/...',
+            prefix: Icons.image_outlined,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPublishRow() {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
         color: AdminColors.card,
         borderRadius: BorderRadius.circular(16),
@@ -242,252 +452,141 @@ class _PostEditorScreenState extends State<PostEditorScreen> {
       ),
       child: Column(
         children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => setState(() => _metaExpanded = !_metaExpanded),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.tune_rounded, color: AdminColors.emerald, size: 18),
-                    const SizedBox(width: 10),
-                    Text('Maelezo ya Makala', style: GoogleFonts.inter(color: AdminColors.textPrimary, fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    Icon(_metaExpanded ? Icons.expand_less : Icons.expand_more, color: AdminColors.textDim),
-                  ],
-                ),
-              ),
-            ),
+          _ToggleRow(
+            title: 'Chapisha',
+            subtitle: 'Ionekane kwa watumiaji',
+            value: _isPublished,
+            onChanged: (v) => setState(() => _isPublished = v),
           ),
-          if (_metaExpanded) ...[
-            const Divider(height: 1, color: AdminColors.cardBorder),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  DropdownButtonFormField<String>(
-                    value: _categoryOptions.contains(_category) ? _category : _categoryOptions.first,
-                    dropdownColor: AdminColors.surface,
-                    decoration: _inputDeco('Aina'),
-                    items: _categoryOptions
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c,
-                            child: Text(
-                              AdminContentSections.categoryLabel(c, section: widget.section),
-                              style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _category = v!),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _titleCtrl,
-                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                    decoration: _inputDeco('Kichwa cha makala *', hint: 'Mfano: Faida za Moringa'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _subtitleCtrl,
-                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                    decoration: _inputDeco('Maneno ya chini', hint: 'Mfano: Matumizi ya kila siku'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _excerptCtrl,
-                    maxLines: 2,
-                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                    decoration: _inputDeco('Muhtasari (hiari)', hint: 'Muhtasari mfupi wa makala...'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _coverCtrl,
-                    onChanged: (_) => setState(() {}),
-                    keyboardType: TextInputType.url,
-                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                    decoration: _inputDeco(
-                      'URL ya picha ya jalada (i.ibb.co/... au i.postimg.cc/...)',
-                      hint: 'https://i.ibb.co/...',
-                    ),
-                  ),
-                  if (_coverCtrl.text.trim().isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    UrlImage(
-                      url: _coverCtrl.text.trim(),
-                      height: 120,
-                      width: double.infinity,
-                      borderRadius: 12,
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _priceCtrl,
-                    keyboardType: TextInputType.number,
-                    style: GoogleFonts.inter(color: AdminColors.textPrimary),
-                    decoration: _inputDeco('Bei (TZS)', hint: '2000'),
-                  ),
-                  _ToggleRow(
-                    title: 'Premium',
-                    value: _isPremium,
-                    onChanged: (v) => setState(() => _isPremium = v),
-                  ),
-                  _ToggleRow(
-                    title: 'Chapisha mara moja',
-                    value: _isPublished,
-                    onChanged: (v) => setState(() => _isPublished = v),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          Divider(height: 1, color: AdminColors.cardBorder.withValues(alpha: 0.7)),
+          _ToggleRow(
+            title: 'Premium',
+            subtitle: 'Inahitaji malipo',
+            value: _isPremium,
+            onChanged: (v) => setState(() => _isPremium = v),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildBlockEditor() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Maudhui ya Makala',
-          style: GoogleFonts.inter(color: AdminColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Ongeza aya, vichwa vya rangi, picha, video na ujumbe — buruta kupanga upya',
-          style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11),
-        ),
-        const SizedBox(height: 14),
-        _threadInsertBar(-1),
-        ReorderableListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          buildDefaultDragHandles: false,
-          onReorder: _moveBlock,
-          itemCount: _blocks.length,
-          itemBuilder: (ctx, i) {
-            final block = _blocks[i];
-            return Column(
-              key: ValueKey(block.id),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+  Future<void> _showAddBlockSheet() async {
+    final choice = await showAdminSheet<ContentBlock>(
+      context: context,
+      backgroundColor: AdminColors.surface,
+      builder: (ctx) {
+        final items = <(ContentBlock, IconData, String, String)>[
+          (ContentBlock.paragraph(''), Icons.notes_rounded, 'Aya', 'Andika maandishi'),
+          (ContentBlock.heading('', level: 2), Icons.title_rounded, 'Kichwa', 'Kichwa cha sehemu'),
+          (ContentBlock(type: ContentBlockType.image), Icons.image_rounded, 'Picha', 'Weka URL ya picha'),
+          (ContentBlock(type: ContentBlockType.video), Icons.videocam_rounded, 'Video', 'YouTube au video URL'),
+          (ContentBlock.list(), Icons.list_rounded, 'Orodha', 'Vipengele vilivyoorodheshwa'),
+          (ContentBlock.callout(''), Icons.lightbulb_outline_rounded, 'Ujumbe', 'Kidokezo au tahadhari'),
+          (ContentBlock(type: ContentBlockType.quote), Icons.format_quote_rounded, 'Nukuu', 'Maneno yaliyonukuliwa'),
+          (ContentBlock.tag(''), Icons.tag_rounded, 'Lebo', 'Hashtag / lebo'),
+          (ContentBlock(type: ContentBlockType.audio), Icons.mic_rounded, 'Sauti', 'Faili la sauti'),
+          (ContentBlock(type: ContentBlockType.divider), Icons.horizontal_rule_rounded, 'Mstari', 'Mgawanyo'),
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                _BlockEditorCard(
-                  index: i,
-                  block: block,
-                  onChanged: (b) => _updateBlock(i, b),
-                  onDelete: () => _removeBlock(i),
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: AdminColors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-                _threadInsertBar(i),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Ongeza kipengele',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AdminColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(ctx).height * 0.55,
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => Divider(
+                      height: 1,
+                      color: AdminColors.cardBorder.withValues(alpha: 0.6),
+                    ),
+                    itemBuilder: (_, i) {
+                      final item = items[i];
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        leading: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AdminColors.emerald.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(item.$2, color: AdminColors.emerald, size: 20),
+                        ),
+                        title: Text(
+                          item.$3,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AdminColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item.$4,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: AdminColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(ctx, item.$1),
+                      );
+                    },
+                  ),
+                ),
               ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _threadInsertBar(int afterIndex) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 6,
-        runSpacing: 4,
-        children: [
-          _insertBtn(Icons.notes_outlined, 'Aya', () => _insertBlockAfter(afterIndex, ContentBlock.paragraph(''))),
-          _insertBtn(Icons.title_rounded, 'Kichwa', () => _insertBlockAfter(afterIndex, ContentBlock.heading('', level: 2))),
-          _insertBtn(Icons.chat_bubble_outline_rounded, 'Ujumbe', () => _insertBlockAfter(afterIndex, ContentBlock.callout(''))),
-          _insertBtn(Icons.image_outlined, 'Picha', () => _insertBlockAfter(afterIndex, ContentBlock(type: ContentBlockType.image))),
-          _insertBtn(Icons.videocam_outlined, 'Video', () => _insertBlockAfter(afterIndex, ContentBlock(type: ContentBlockType.video))),
-          _insertBtn(Icons.list_rounded, 'Orodha', () => _insertBlockAfter(afterIndex, ContentBlock.list())),
-          _insertBtn(Icons.tag_rounded, 'Lebo', () => _insertBlockAfter(afterIndex, ContentBlock.tag(''))),
-        ],
-      ),
-    );
-  }
-
-  Widget _insertBtn(IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.25)),
-          borderRadius: BorderRadius.circular(20),
-          color: AdminColors.emeraldGlow.withValues(alpha: 0.5),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: AdminColors.emerald),
-            const SizedBox(width: 4),
-            Text(label, style: GoogleFonts.inter(fontSize: 10, color: AdminColors.emerald, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddToolbar() {
-    final items = [
-      (ContentBlock.paragraph(''), Icons.notes_rounded, 'Aya'),
-      (ContentBlock.heading('', level: 1), Icons.looks_one_rounded, 'H1'),
-      (ContentBlock.heading('', level: 2), Icons.title_rounded, 'H2'),
-      (ContentBlock.callout(''), Icons.chat_bubble_outline_rounded, 'Ujumbe'),
-      (ContentBlock(type: ContentBlockType.image), Icons.image_rounded, 'Picha'),
-      (ContentBlock(type: ContentBlockType.video), Icons.videocam_rounded, 'Video'),
-      (ContentBlock(type: ContentBlockType.audio), Icons.mic_rounded, 'Sauti'),
-      (ContentBlock.tag(''), Icons.tag_rounded, 'Lebo'),
-      (ContentBlock(type: ContentBlockType.quote), Icons.format_quote_rounded, 'Nukuu'),
-      (ContentBlock.list(), Icons.list_rounded, 'Orodha'),
-      (ContentBlock(type: ContentBlockType.divider), Icons.horizontal_rule_rounded, 'Mstari'),
-    ];
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: AdminColors.surface,
-        border: Border(top: BorderSide(color: AdminColors.cardBorder)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: items.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ActionChip(
-                  avatar: Icon(item.$2, size: 16, color: AdminColors.emerald),
-                  label: Text(item.$3, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
-                  backgroundColor: AdminColors.emeraldGlow,
-                  side: BorderSide(color: AdminColors.emerald.withValues(alpha: 0.3)),
-                  onPressed: () => _addBlock(item.$1),
-                ),
-              );
-            }).toList(),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
+    if (choice != null) _addBlock(choice);
   }
 
-  InputDecoration _inputDeco(String label, {String? hint}) => InputDecoration(
+  InputDecoration _softDeco(String label, {String? hint, IconData? prefix}) => InputDecoration(
         labelText: label,
         hintText: hint,
-        hintStyle: GoogleFonts.inter(color: AdminColors.textDim.withValues(alpha: 0.7), fontSize: 13),
-        labelStyle: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 13),
+        prefixIcon: prefix != null ? Icon(prefix, size: 18, color: AdminColors.textMuted) : null,
+        hintStyle: GoogleFonts.plusJakartaSans(color: AdminColors.textDim, fontSize: 13),
+        labelStyle: GoogleFonts.plusJakartaSans(color: AdminColors.textMuted, fontSize: 13),
         filled: true,
-        fillColor: AdminColors.bg,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminColors.cardBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminColors.cardBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AdminColors.emerald)),
+        fillColor: AdminColors.card,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AdminColors.cardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AdminColors.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: AdminColors.emerald.withValues(alpha: 0.7), width: 1.4),
+        ),
       );
 }
 
@@ -577,30 +676,33 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
   Widget build(BuildContext context) {
     final b = _block;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: AdminColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AdminColors.cardBorder),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8, offset: const Offset(0, 2)),
-        ],
+        border: Border.all(color: AdminColors.cardBorder.withValues(alpha: 0.85)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 4, 0),
+            padding: const EdgeInsets.fromLTRB(10, 6, 4, 0),
             child: Row(
               children: [
                 ReorderableDragStartListener(
                   index: widget.index,
                   child: const Icon(Icons.drag_indicator_rounded, color: AdminColors.textDim, size: 20),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Icon(_iconFor(b.type), size: 15, color: AdminColors.emerald),
                 const SizedBox(width: 6),
-                Text(_labelFor(b.type), style: GoogleFonts.inter(color: AdminColors.textDim, fontSize: 11, fontWeight: FontWeight.w700)),
+                Text(
+                  _labelFor(b.type),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AdminColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const Spacer(),
                 IconButton(
                   icon: const Icon(Icons.delete_outline_rounded, color: AdminColors.error, size: 18),
@@ -611,7 +713,7 @@ class _BlockEditorCardState extends State<_BlockEditorCard> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
             child: _buildFields(b),
           ),
         ],

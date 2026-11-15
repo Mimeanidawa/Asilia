@@ -3,12 +3,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../models/admin_models.dart';
 import '../providers/admin_provider.dart';
 import '../theme/admin_colors.dart';
 import '../utils/tzs_format.dart';
 import '../widgets/admin_ui.dart';
-import '../widgets/stat_card.dart';
+import 'admin_payments_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -18,28 +17,29 @@ class DashboardScreen extends StatelessWidget {
     final provider = context.watch<AdminProvider>();
     final stats = provider.stats;
     final fmt = NumberFormat.compact();
+    final payments = provider.recentPayments.take(8).toList();
+    final syncLabel = provider.lastLiveSyncAt == null
+        ? 'Inapakia…'
+        : provider.liveSyncing
+            ? 'Inasasisha…'
+            : 'Live · ${_ago(provider.lastLiveSyncAt!)}';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: RefreshIndicator(
         color: AdminColors.emerald,
         backgroundColor: AdminColors.card,
-        onRefresh: provider.refreshData,
+        onRefresh: () => provider.refreshLive(force: true),
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             AdminPageHeader(
-              title: 'Dashboard',
-              subtitle: DateFormat('EEEE, MMMM d').format(DateTime.now()),
+              title: 'Asilia',
+              subtitle: DateFormat('EEEE, d MMM').format(DateTime.now()),
               actions: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AdminColors.emeraldGlow,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.25)),
-                  ),
-                  child: const Icon(Icons.eco_rounded, color: AdminColors.emerald, size: 20),
+                AdminStatusBadge(
+                  label: syncLabel,
+                  pulse: !provider.liveSyncing && provider.lastLiveSyncAt != null,
                 ),
               ],
             ),
@@ -59,203 +59,121 @@ class DashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                   ],
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.25,
-                    children: [
-                      StatCard(
-                        label: 'Total Users',
-                        value: fmt.format(stats.totalUsers),
-                        icon: Icons.people_rounded,
-                        accentColor: AdminColors.emerald,
-                        trend: '+${stats.userGrowthRate}%',
-                        trendPositive: true,
-                        delay: Duration.zero,
-                      ),
-                      StatCard(
-                        label: "Today's Revenue",
-                        value: TzsFormat.compact(stats.todayRevenue),
-                        icon: Icons.payments_rounded,
-                        accentColor: AdminColors.amber,
-                        trend: '${stats.todayRevenueGrowthRate >= 0 ? '+' : ''}${stats.todayRevenueGrowthRate.toStringAsFixed(1)}%',
-                        trendPositive: stats.todayRevenueGrowthRate >= 0,
-                        subtitle: 'vs yesterday',
-                        delay: const Duration(milliseconds: 60),
-                      ),
-                      StatCard(
-                        label: 'Premium Users',
-                        value: fmt.format(stats.premiumUsers),
-                        icon: Icons.workspace_premium_rounded,
-                        accentColor: AdminColors.purple,
-                        subtitle: '${stats.premiumConversionRate}% conversion',
-                        delay: const Duration(milliseconds: 120),
-                      ),
-                      StatCard(
-                        label: 'Active Today',
-                        value: fmt.format(stats.activeToday),
-                        icon: Icons.bolt_rounded,
-                        accentColor: AdminColors.blue,
-                        subtitle: 'Live users',
-                        delay: const Duration(milliseconds: 180),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: MiniStatCard(
-                          label: 'Free Users',
-                          value: fmt.format(stats.freeUsers),
-                          icon: Icons.person_outline_rounded,
-                          color: AdminColors.blue,
-                          delay: const Duration(milliseconds: 240),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: MiniStatCard(
-                          label: 'Total Revenue',
-                          value: TzsFormat.compact(stats.totalRevenue),
-                          icon: Icons.account_balance_wallet_rounded,
-                          color: AdminColors.amber,
-                          delay: const Duration(milliseconds: 280),
-                        ),
-                      ),
-                    ],
-                  ),
+
+                  // Revenue hero
+                  _RevenueHero(
+                    today: stats.todayRevenue,
+                    total: stats.totalRevenue,
+                    paymentsToday: stats.paymentsToday,
+                    growth: stats.todayRevenueGrowthRate,
+                    onTap: () => provider.setScreen(AdminScreen.payments),
+                  ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
+
                   const SizedBox(height: 12),
+
+                  // Compact metrics
                   Row(
                     children: [
                       Expanded(
-                        child: MiniStatCard(
-                          label: 'Churn Rate',
-                          value: '${stats.churnRate}%',
-                          icon: Icons.trending_down_rounded,
-                          color: AdminColors.error,
-                          delay: const Duration(milliseconds: 320),
+                        child: _MetricTile(
+                          label: 'Watumiaji',
+                          value: fmt.format(stats.totalUsers),
+                          icon: Icons.people_rounded,
+                          color: AdminColors.emerald,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: MiniStatCard(
-                          label: 'Conversion',
-                          value: '${stats.premiumConversionRate}%',
-                          icon: Icons.upgrade_rounded,
+                        child: _MetricTile(
+                          label: 'Premium',
+                          value: fmt.format(stats.premiumUsers),
+                          icon: Icons.workspace_premium_rounded,
                           color: AdminColors.purple,
-                          delay: const Duration(milliseconds: 360),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _MetricTile(
+                          label: 'Hai leo',
+                          value: fmt.format(stats.activeToday),
+                          icon: Icons.bolt_rounded,
+                          color: AdminColors.blue,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  const AdminSectionTitle(
-                    title: 'Usimamizi wa Haraka',
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AdminSurface(
-                          onTap: () => provider.setScreen(AdminScreen.products),
-                          accentColor: AdminColors.emerald,
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AdminColors.emerald.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.medication_liquid_rounded, color: AdminColors.emerald, size: 22),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Dawa & Bidhaa',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Unda & dhibiti dawa',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.55),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
+
+                  const SizedBox(height: 22),
+
+                  AdminSectionTitle(
+                    title: 'Malipo ya hivi karibuni',
+                    trailing: TextButton(
+                      onPressed: () => provider.setScreen(AdminScreen.payments),
+                      child: Text(
+                        'Yote',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: AdminColors.emerald,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: AdminSurface(
-                          onTap: () => provider.setScreen(AdminScreen.orders),
-                          accentColor: AdminColors.amber,
-                          padding: const EdgeInsets.all(14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AdminColors.amber.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(Icons.receipt_long_rounded, color: AdminColors.amber, size: 22),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Maagizo ya Dawa',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Stakabadhi & usafirishaji',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.55),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 28),
-                  const AdminSectionTitle(
-                    title: 'Recent Activity',
-                    trailing: AdminStatusBadge(label: 'Live', pulse: true),
-                  ),
-                  if (provider.recentActivities.isEmpty)
-                    AdminEmptyState(
-                      icon: Icons.history_rounded,
-                      title: 'No recent activity',
-                      subtitle: 'User actions will appear here',
+
+                  if (payments.isEmpty)
+                    const AdminEmptyState(
+                      icon: Icons.payments_outlined,
+                      title: 'Hakuna malipo bado',
+                      subtitle: 'Malipo ya Premium, makala na dawa yataonekana papo hapo',
                     )
                   else
-                    ...provider.recentActivities.asMap().entries.map((e) {
+                    ...payments.asMap().entries.map((e) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: _ActivityTile(
-                          activity: e.value,
-                          delay: Duration(milliseconds: 400 + e.key * 50),
-                        ),
+                        child: PaymentHistoryTile(payment: e.value)
+                            .animate(delay: (40 * e.key).ms)
+                            .fadeIn(duration: 280.ms)
+                            .slideX(begin: 0.03, end: 0),
                       );
                     }),
+
+                  const SizedBox(height: 18),
+
+                  const AdminSectionTitle(title: 'Haraka'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _QuickAction(
+                          title: 'Dawa',
+                          subtitle: 'Bidhaa',
+                          icon: Icons.medication_liquid_rounded,
+                          color: AdminColors.emerald,
+                          onTap: () => provider.setScreen(AdminScreen.products),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _QuickAction(
+                          title: 'Oda',
+                          subtitle: 'Usafirishaji',
+                          icon: Icons.local_shipping_rounded,
+                          color: AdminColors.rose,
+                          onTap: () => provider.setScreen(AdminScreen.orders),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _QuickAction(
+                          title: 'Malipo',
+                          subtitle: 'Historia',
+                          icon: Icons.receipt_long_rounded,
+                          color: AdminColors.amber,
+                          onTap: () => provider.setScreen(AdminScreen.payments),
+                        ),
+                      ),
+                    ],
+                  ),
+
                 ]),
               ),
             ),
@@ -264,125 +182,233 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
+
+  String _ago(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 45) return 'sasa';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    return DateFormat('HH:mm').format(dt);
+  }
 }
 
-class _ActivityTile extends StatelessWidget {
-  const _ActivityTile({required this.activity, this.delay = Duration.zero});
-  final RecentActivity activity;
-  final Duration delay;
+class _RevenueHero extends StatelessWidget {
+  const _RevenueHero({
+    required this.today,
+    required this.total,
+    required this.paymentsToday,
+    required this.growth,
+    required this.onTap,
+  });
+
+  final double today;
+  final double total;
+  final int paymentsToday;
+  final double growth;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final icon = _icon(activity.type);
-    final color = _color(activity.type);
-    final timeAgo = _timeAgo(activity.timestamp);
-
-    return Animate(
-      delay: delay,
-      effects: const [
-        FadeEffect(duration: Duration(milliseconds: 350)),
-        SlideEffect(begin: Offset(0.04, 0), end: Offset.zero, duration: Duration(milliseconds: 350)),
-      ],
-      child: AdminSurface(
-        onTap: activity.type == 'mwalimu'
-            ? () => context.read<AdminProvider>().setScreen(AdminScreen.mwalimu)
-            : null,
-        accentColor: color,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(icon, color: color, size: 16),
+    final growthPositive = growth >= 0;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF0B1F17), Color(0xFF121212)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    activity.description,
-                    style: GoogleFonts.plusJakartaSans(
-                      color: AdminColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  if (activity.userName != null)
+            border: Border.all(color: AdminColors.emerald.withValues(alpha: 0.28)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
                     Text(
-                      activity.preview != null && activity.preview!.isNotEmpty
-                          ? '${activity.userName} · ${activity.preview}'
-                          : activity.userName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      'Mapato ya leo',
                       style: GoogleFonts.plusJakartaSans(
                         color: AdminColors.textMuted,
-                        fontSize: 11,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                ],
-              ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (growthPositive ? AdminColors.emerald : AdminColors.error)
+                            .withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${growthPositive ? '+' : ''}${growth.toStringAsFixed(0)}%',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: growthPositive ? AdminColors.emerald : AdminColors.error,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  TzsFormat.compact(today),
+                  style: GoogleFonts.plusJakartaSans(
+                    color: AdminColors.textPrimary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      '$paymentsToday malipo leo',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.emerald,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      '·',
+                      style: TextStyle(color: AdminColors.textDim),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Jumla ${TzsFormat.compact(total)}',
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AdminColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      color: AdminColors.emerald.withValues(alpha: 0.8),
+                      size: 18,
+                    ),
+                  ],
+                ),
+              ],
             ),
-            Text(
-              timeAgo,
-              style: GoogleFonts.plusJakartaSans(
-                color: AdminColors.textDim,
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  IconData _icon(String type) {
-    switch (type) {
-      case 'premium':
-        return Icons.star_rounded;
-      case 'user':
-        return Icons.person_add_rounded;
-      case 'notification':
-        return Icons.notifications_rounded;
-      case 'ban':
-        return Icons.block_rounded;
-      case 'content':
-        return Icons.article_rounded;
-      case 'mwalimu':
-        return Icons.chat_bubble_rounded;
-      default:
-        return Icons.circle_rounded;
-    }
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: AdminColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AdminColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: GoogleFonts.plusJakartaSans(
+              color: AdminColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              color: AdminColors.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
 
-  Color _color(String type) {
-    switch (type) {
-      case 'premium':
-        return AdminColors.amber;
-      case 'user':
-        return AdminColors.emerald;
-      case 'notification':
-        return AdminColors.blue;
-      case 'ban':
-        return AdminColors.error;
-      case 'content':
-        return AdminColors.purple;
-      case 'mwalimu':
-        return AdminColors.emerald;
-      default:
-        return AdminColors.textMuted;
-    }
-  }
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
-  String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
-    if (diff.inHours < 24) return '${diff.inHours}h';
-    return '${diff.inDays}d';
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdminSurface(
+      onTap: onTap,
+      accentColor: color,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            subtitle,
+            style: GoogleFonts.plusJakartaSans(
+              color: Colors.white.withValues(alpha: 0.5),
+              fontSize: 10,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

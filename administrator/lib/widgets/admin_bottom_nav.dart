@@ -356,6 +356,14 @@ class _MoreMenuSheet extends StatelessWidget {
                   onTap: () => onSelect(AdminScreen.orders),
                 ),
                 _MoreTile(
+                  icon: Icons.payments_rounded,
+                  label: 'Malipo',
+                  subtitle: 'Premium, makala & dawa — live',
+                  color: AdminColors.amber,
+                  active: current == AdminScreen.payments,
+                  onTap: () => onSelect(AdminScreen.payments),
+                ),
+                _MoreTile(
                   icon: Icons.bookmark_added_rounded,
                   label: 'Prospects',
                   subtitle: 'Promised to buy later',

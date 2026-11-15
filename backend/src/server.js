@@ -29,7 +29,7 @@ app.use(cors({
   origin: corsOrigins === '*' ? true : corsOrigins.split(',').map((o) => o.trim()),
 }));
 app.use(express.json({
-  limit: '2mb',
+  limit: '12mb',
   verify: (req, _res, buffer) => {
     req.rawBody = Buffer.from(buffer);
   },

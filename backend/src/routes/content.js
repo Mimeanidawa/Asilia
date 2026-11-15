@@ -48,11 +48,40 @@ function rowToPost(row, { includeContent = true } = {}) {
     isPublished: row.is_published,
     sortOrder: row.sort_order,
     readTimeMinutes: row.read_time_minutes,
+    viewCount: Number(row.view_count) || 0,
+    uniqueViewers: Number(row.unique_viewers) || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
   if (includeContent) post.content = normalizeContentImageUrls(row.content);
   return post;
+}
+
+function viewerKeyFromRequest(req) {
+  const userId = req.user?.sub;
+  if (userId) return `user:${userId}`;
+  const guest = String(req.get('x-guest-session') || req.query.guestSession || '')
+    .trim()
+    .slice(0, 80);
+  if (guest) return `guest:${guest}`;
+  const ip = String(req.ip || req.socket?.remoteAddress || 'unknown').slice(0, 64);
+  return `ip:${ip}`;
+}
+
+/** Record a makala open: bump total views + unique reader (idempotent per viewer). */
+async function recordPostView(db, contentId, viewerKey) {
+  if (!contentId || !viewerKey) return;
+  await db.query(
+    `INSERT INTO content_post_views (content_id, viewer_key, created_at, last_viewed_at)
+     VALUES ($1, $2, NOW(), NOW())
+     ON CONFLICT (content_id, viewer_key)
+     DO UPDATE SET last_viewed_at = NOW()`,
+    [contentId, viewerKey],
+  );
+  await db.query(
+    `UPDATE content_posts SET view_count = view_count + 1, updated_at = updated_at WHERE id = $1`,
+    [contentId],
+  );
 }
 
 // Public: list published posts (optionally filter by section/category)
@@ -360,6 +389,11 @@ router.get('/:id', optionalUser, async (req, res) => {
       post.content = post.excerpt + '\n\n[Lipia TZS ' + post.price + ' ili kusoma makala kamili]';
     }
 
+    // Count this open for admin analytics (do not block response).
+    recordPostView(db, post.id, viewerKeyFromRequest(req)).catch((err) => {
+      console.warn('recordPostView failed:', err.message);
+    });
+
     res.json({ post });
   } catch (err) {
     res.status(500).json({ error: 'Imeshindwa kupata maudhui' });
@@ -376,19 +410,29 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
 
     if (section) {
       params.push(section);
-      where += ` AND section = $${params.length}`;
+      where += ` AND p.section = $${params.length}`;
     }
     if (category) {
       params.push(category);
-      where += ` AND category = $${params.length}`;
+      where += ` AND p.category = $${params.length}`;
     }
 
     const { rows } = await db.query(
-      `SELECT * FROM content_posts ${where} ORDER BY sort_order ASC, created_at DESC`,
+      `SELECT p.*,
+              COALESCE(v.unique_viewers, 0)::int AS unique_viewers
+       FROM content_posts p
+       LEFT JOIN (
+         SELECT content_id, COUNT(*)::int AS unique_viewers
+         FROM content_post_views
+         GROUP BY content_id
+       ) v ON v.content_id = p.id
+       ${where}
+       ORDER BY p.sort_order ASC, p.created_at DESC`,
       params,
     );
     res.json({ posts: rows.map((r) => rowToPost(r)) });
   } catch (err) {
+    console.error('GET /content/admin/all:', err);
     res.status(500).json({ error: 'Imeshindwa kupata maudhui' });
   }
 });

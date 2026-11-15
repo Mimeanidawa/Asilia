@@ -224,25 +224,7 @@ export async function sendMwalimuReplyNotification({ userId, preview }) {
   });
 }
 
-/** Status-bar alert for admins — never include the user's message text. */
-export async function sendAdminNewUserMessageNotification({ userName } = {}) {
-  const title = 'Ujumbe mpya';
-  const who = userName?.trim() ? userName.trim() : 'mtumiaji';
-  const body = `New message from ${who}`;
-  const data = {
-    type: 'admin_message',
-    title,
-    body,
-    click_action: 'FLUTTER_NOTIFICATION_CLICK',
-  };
-
-  const payload = {
-    title,
-    body,
-    data,
-    channelId: FCM_ADMIN_CHANNEL_ID,
-  };
-
+async function notifyAdminDevices(payload) {
   let tokenResult = { sent: false, reason: 'no_tokens' };
   let topicResult = { sent: false, reason: 'not_attempted' };
 
@@ -274,11 +256,77 @@ export async function sendAdminNewUserMessageNotification({ userName } = {}) {
   }
 
   const sent = tokenResult.sent || topicResult.sent;
-  if (!sent) {
-    console.warn('Admin new-message push not delivered', { tokenResult, topicResult });
-  }
-
   return { sent, tokens: tokenResult, topic: topicResult };
+}
+
+/** Status-bar alert for admins — never include the user's message text. */
+export async function sendAdminNewUserMessageNotification({ userName } = {}) {
+  const title = 'Ujumbe mpya';
+  const who = userName?.trim() ? userName.trim() : 'mtumiaji';
+  const body = `New message from ${who}`;
+  const data = {
+    type: 'admin_message',
+    title,
+    body,
+    click_action: 'FLUTTER_NOTIFICATION_CLICK',
+  };
+
+  const payload = {
+    title,
+    body,
+    data,
+    channelId: FCM_ADMIN_CHANNEL_ID,
+  };
+
+  const result = await notifyAdminDevices(payload);
+  if (!result.sent) {
+    console.warn('Admin new-message push not delivered', result);
+  }
+  return result;
+}
+
+/** Live alert when a user payment succeeds (premium, content, or product order). */
+export async function sendAdminPaymentNotification({
+  amount,
+  customerName,
+  kind = 'payment',
+  title: itemTitle,
+} = {}) {
+  const who = customerName?.trim() ? customerName.trim() : 'Mteja';
+  const amountLabel = Number(amount || 0).toLocaleString('en-TZ');
+  const kindLabel =
+    kind === 'premium'
+      ? 'Premium'
+      : kind === 'product' || kind === 'order'
+        ? 'Oda ya dawa'
+        : kind === 'content'
+          ? 'Makala'
+          : 'Malipo';
+  const title = 'Malipo yamepokelewa';
+  const body = itemTitle?.trim()
+    ? `${kindLabel}: TZS ${amountLabel} — ${who} · ${itemTitle.trim()}`
+    : `${kindLabel}: TZS ${amountLabel} — ${who}`;
+  const data = {
+    type: 'admin_payment',
+    title,
+    body,
+    kind: String(kind || 'payment'),
+    amount: String(amount || 0),
+    click_action: 'FLUTTER_NOTIFICATION_CLICK',
+  };
+
+  const payload = {
+    title,
+    body,
+    data,
+    channelId: FCM_ADMIN_CHANNEL_ID,
+  };
+
+  const result = await notifyAdminDevices(payload);
+  if (!result.sent) {
+    console.warn('Admin payment push not delivered', result);
+  }
+  return result;
 }
 
 export async function sendBroadcastNotification({

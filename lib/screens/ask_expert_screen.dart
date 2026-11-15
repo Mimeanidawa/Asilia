@@ -599,9 +599,7 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parts = !isUser
-        ? _SharedArticleTagParser.parse(content)
-        : const <_MessagePart>[];
+    final parts = _SharedArticleTagParser.parse(content);
     final maxWidth = MediaQuery.sizeOf(context).width * 0.78;
 
     return Padding(
@@ -691,7 +689,8 @@ class _Bubble extends StatelessWidget {
       height: 1.45,
     );
 
-    if (isUser || parts.isEmpty) {
+    final hasRich = parts.any((p) => p is _ArticlePart || p is _ImagePart);
+    if (!hasRich) {
       return Text(content, style: textStyle);
     }
 
@@ -703,6 +702,37 @@ class _Bubble extends StatelessWidget {
           if (parts[i] is _TextPart &&
               (parts[i] as _TextPart).text.trim().isNotEmpty)
             Text((parts[i] as _TextPart).text, style: textStyle),
+          if (parts[i] is _ImagePart)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: ImageUrl.display((parts[i] as _ImagePart).url),
+                  fit: BoxFit.cover,
+                  width: 220,
+                  height: 180,
+                  placeholder: (_, __) => Container(
+                    width: 220,
+                    height: 180,
+                    color: AppColors.emerald50,
+                    alignment: Alignment.center,
+                    child: const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    width: 220,
+                    height: 180,
+                    color: AppColors.emerald50,
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.broken_image_outlined),
+                  ),
+                ),
+              ),
+            ),
           if (parts[i] is _ArticlePart)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -727,6 +757,11 @@ class _TextPart extends _MessagePart {
   final String text;
 }
 
+class _ImagePart extends _MessagePart {
+  const _ImagePart(this.url);
+  final String url;
+}
+
 class _ArticlePart extends _MessagePart {
   const _ArticlePart({
     required this.id,
@@ -742,31 +777,48 @@ class _SharedArticleTagParser {
   static final RegExp _pattern = RegExp(
     r'\[MAKALA:([^|\]]+)\|([^|\]]+)(?:\|([^\]]*))?\]',
   );
+  static final RegExp _imageTag = RegExp(r'\[IMAGE:([^\]]+)\]');
   static final RegExp _urlLine = RegExp(r'^https?://[^\s]+/makala/[^\s]+$');
 
   static List<_MessagePart> parse(String input) {
     final parts = <_MessagePart>[];
-    var cursor = 0;
-    String? linkedUrl;
+    final matches = <({int start, int end, _MessagePart part})>[];
 
-    for (final m in _pattern.allMatches(input)) {
-      if (m.start > cursor) {
-        _appendText(parts, input.substring(cursor, m.start));
+    for (final m in _imageTag.allMatches(input)) {
+      final url = (m.group(1) ?? '').trim();
+      if (url.isNotEmpty) {
+        matches.add((start: m.start, end: m.end, part: _ImagePart(url)));
       }
+    }
+    for (final m in _pattern.allMatches(input)) {
       final id = (m.group(1) ?? '').trim();
       final title = (m.group(2) ?? 'Makala').trim();
       final imageUrl = (m.group(3) ?? '').trim();
       if (id.isNotEmpty) {
-        parts.add(
-          _ArticlePart(
+        matches.add((
+          start: m.start,
+          end: m.end,
+          part: _ArticlePart(
             id: id,
             title: title,
             imageUrl: imageUrl.isEmpty ? null : imageUrl,
           ),
-        );
-        linkedUrl = '/makala/$id';
+        ));
       }
-      cursor = m.end;
+    }
+    matches.sort((a, b) => a.start.compareTo(b.start));
+
+    var cursor = 0;
+    String? linkedUrl;
+    for (final item in matches) {
+      if (item.start > cursor) {
+        _appendText(parts, input.substring(cursor, item.start));
+      }
+      parts.add(item.part);
+      if (item.part is _ArticlePart) {
+        linkedUrl = '/makala/${(item.part as _ArticlePart).id}';
+      }
+      cursor = item.end;
     }
 
     if (cursor < input.length) {

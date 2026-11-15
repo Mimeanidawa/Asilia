@@ -16,6 +16,7 @@ import {
   verifySonicWebhook,
 } from '../services/sonicpesa.js';
 import { fulfillPaymentOrder } from '../services/payment_fulfillment.js';
+import { sendAdminPaymentNotification } from '../services/firebase.js';
 
 const router = Router();
 
@@ -352,6 +353,7 @@ export async function handleSonicPesaWebhook(req, res) {
           [pOrder.id],
         );
       } else if (normalizedStatus === 'success') {
+        const wasUnpaid = pOrder.payment_status !== 'paid';
         await db.query(
           `UPDATE product_orders
            SET payment_status = 'paid',
@@ -361,6 +363,16 @@ export async function handleSonicPesaWebhook(req, res) {
            WHERE id = $1`,
           [pOrder.id, sonicTransactionId(payload) || providerOrderId],
         );
+        if (wasUnpaid) {
+          sendAdminPaymentNotification({
+            amount: pOrder.total_amount,
+            customerName: pOrder.customer_name,
+            kind: 'product',
+            title: pOrder.product_title,
+          }).catch((err) => {
+            console.error('Admin product-order notify failed:', err.message);
+          });
+        }
       }
       return res.json({ ok: true, productOrder: true });
     }

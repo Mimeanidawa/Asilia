@@ -73,5 +73,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Asilia Admin inahitaji kamera kutuma picha kwa watumiaji.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Asilia Admin inahitaji gallery kutuma picha kwa watumiaji.</string>
 </dict>
 </plist>

@@ -10,14 +10,29 @@ import '../config/admin_config.dart';
 import '../firebase_options.dart';
 import 'api_client.dart';
 
-typedef AdminPushTapHandler = void Function();
+typedef AdminPushTapHandler = void Function([String? type]);
+typedef AdminPaymentEventHandler = void Function();
 
 const adminChannelId = 'asilia_admin';
 const adminChannelName = 'Maswali — Admin';
 
 AdminPushTapHandler? _globalTapHandler;
+AdminPaymentEventHandler? _globalPaymentHandler;
 bool _fcmBootstrapped = false;
 bool _topicSubscribed = false;
+
+String? _messageType(RemoteMessage message) {
+  final raw = message.data['type'];
+  return raw is String && raw.isNotEmpty ? raw : null;
+}
+
+void _dispatchMessage(RemoteMessage message) {
+  final type = _messageType(message);
+  if (type == 'admin_payment') {
+    _globalPaymentHandler?.call();
+  }
+  _globalTapHandler?.call(type);
+}
 
 Future<void> _ensureAdminFirebase() async {
   if (!DefaultFirebaseOptions.isSupported) return;
@@ -84,7 +99,19 @@ Future<FlutterLocalNotificationsPlugin?> _pluginWithChannel() async {
     final local = FlutterLocalNotificationsPlugin();
     await local.initialize(
       settings: _adminInitSettings(),
-      onDidReceiveNotificationResponse: (_) => _globalTapHandler?.call(),
+      onDidReceiveNotificationResponse: (response) {
+        String? type;
+        try {
+          final payload = response.payload;
+          if (payload != null && payload.isNotEmpty) {
+            final decoded = jsonDecode(payload);
+            if (decoded is Map && decoded['type'] is String) {
+              type = decoded['type'] as String;
+            }
+          }
+        } catch (_) {}
+        _globalTapHandler?.call(type);
+      },
     );
     await _ensureAndroidChannel(local);
     if (!kIsWeb && Platform.isAndroid) {
@@ -109,6 +136,7 @@ String _safeAlertBody(String body) {
 Future<void> showAdminLocalAlert({
   required String title,
   required String body,
+  String type = 'admin_message',
   FlutterLocalNotificationsPlugin? plugin,
 }) async {
   final local = plugin ?? await _pluginWithChannel();
@@ -120,7 +148,7 @@ Future<void> showAdminLocalAlert({
       title: title.trim().isEmpty ? 'Ujumbe mpya' : title.trim(),
       body: _safeAlertBody(body),
       notificationDetails: _adminNotificationDetails(),
-      payload: jsonEncode({'type': 'admin_message'}),
+      payload: jsonEncode({'type': type}),
     );
   } catch (e) {
     debugPrint('Admin local alert failed: $e');
@@ -140,12 +168,13 @@ Future<void> adminFirebaseMessagingBackgroundHandler(RemoteMessage message) asyn
   // Ensure channel exists in the background isolate (required on some Android builds).
   await _pluginWithChannel();
 
+  final type = _messageType(message) ?? 'admin_message';
   final title = message.notification?.title ??
       message.data['title'] as String? ??
-      'Ujumbe mpya';
+      (type == 'admin_payment' ? 'Malipo yamepokelewa' : 'Ujumbe mpya');
   final body = message.notification?.body ??
       message.data['body'] as String? ??
-      'New message from user';
+      (type == 'admin_payment' ? 'Malipo mapya yamepokelewa' : 'New message from user');
 
   // When the app is killed, Android usually shows notification-payload messages
   // automatically. Still show a local alert as a fallback on OEMs that skip it.
@@ -154,7 +183,7 @@ Future<void> adminFirebaseMessagingBackgroundHandler(RemoteMessage message) asyn
   }
 
   try {
-    await showAdminLocalAlert(title: title, body: body);
+    await showAdminLocalAlert(title: title, body: body, type: type);
   } catch (e) {
     debugPrint('Admin background local alert failed: $e');
   }
@@ -214,20 +243,24 @@ Future<void> bootstrapAdminNotifications() async {
     await _subscribeAdminTopic(messaging);
 
     FirebaseMessaging.onMessage.listen((message) async {
+      final type = _messageType(message) ?? 'admin_message';
+      if (type == 'admin_payment') {
+        _globalPaymentHandler?.call();
+      }
       final title = message.notification?.title ??
           message.data['title'] as String? ??
-          'Ujumbe mpya';
+          (type == 'admin_payment' ? 'Malipo yamepokelewa' : 'Ujumbe mpya');
       final body = message.notification?.body ??
           message.data['body'] as String? ??
-          'New message from user';
-      await showAdminLocalAlert(title: title, body: body);
+          (type == 'admin_payment' ? 'Malipo mapya yamepokelewa' : 'New message from user');
+      await showAdminLocalAlert(title: title, body: body, type: type);
     });
 
-    FirebaseMessaging.onMessageOpenedApp.listen((_) => _globalTapHandler?.call());
+    FirebaseMessaging.onMessageOpenedApp.listen(_dispatchMessage);
 
     final initial = await messaging.getInitialMessage();
     if (initial != null) {
-      _globalTapHandler?.call();
+      _dispatchMessage(initial);
     }
 
     _fcmBootstrapped = true;
@@ -252,10 +285,12 @@ class AdminNotificationService {
   String? _lastRegisteredToken;
   int _lastKnownUnread = 0;
   AdminPushTapHandler? onTap;
+  AdminPaymentEventHandler? onPaymentEvent;
 
   Future<void> init({String? authToken}) async {
     _authToken = authToken;
-    _globalTapHandler = () => onTap?.call();
+    _globalTapHandler = ([type]) => onTap?.call(type);
+    _globalPaymentHandler = () => onPaymentEvent?.call();
 
     await bootstrapAdminNotifications();
 
@@ -339,7 +374,19 @@ class AdminNotificationService {
     try {
       await _local.initialize(
         settings: _adminInitSettings(),
-        onDidReceiveNotificationResponse: (_) => onTap?.call(),
+        onDidReceiveNotificationResponse: (response) {
+          String? type;
+          try {
+            final payload = response.payload;
+            if (payload != null && payload.isNotEmpty) {
+              final decoded = jsonDecode(payload);
+              if (decoded is Map && decoded['type'] is String) {
+                type = decoded['type'] as String;
+              }
+            }
+          } catch (_) {}
+          onTap?.call(type);
+        },
       );
       await _ensureAndroidChannel(_local);
       if (!kIsWeb && Platform.isAndroid) {
@@ -381,15 +428,16 @@ class AdminNotificationService {
   Future<void> showStatusBarAlert({
     required String title,
     required String body,
+    String type = 'admin_message',
   }) async {
     if (!_localReady) {
       await _initLocal();
     }
     if (!_localReady) {
-      await showAdminLocalAlert(title: title, body: body);
+      await showAdminLocalAlert(title: title, body: body, type: type);
       return;
     }
-    await showAdminLocalAlert(title: title, body: body, plugin: _local);
+    await showAdminLocalAlert(title: title, body: body, type: type, plugin: _local);
   }
 
   void syncBaselineUnread(int unread) {

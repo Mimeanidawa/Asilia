@@ -97,6 +97,26 @@ class AdminContentService {
         body: {'content': content}, token: _token);
   }
 
+  Future<Map<String, dynamic>> uploadChatImage({
+    required String base64Data,
+    String contentType = 'image/jpeg',
+  }) async {
+    final body = {
+      'data': base64Data,
+      'contentType': contentType,
+    };
+    try {
+      // Preferred path (images router).
+      return await _api.post('/api/images/upload', body: body, token: _token);
+    } on ApiException catch (e) {
+      // Fallback for older chat upload route.
+      if (e.statusCode == 404) {
+        return _api.post('/api/chat/admin/upload-image', body: body, token: _token);
+      }
+      rethrow;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchUsers() async {
     final data = await _api.get('/api/users/admin/all', token: _token);
     return List<Map<String, dynamic>>.from(data['users'] as List);

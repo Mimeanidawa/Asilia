@@ -4,6 +4,8 @@ import { getPool } from '../db.js';
 import { requireUser } from '../middleware/userAuth.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { sendMwalimuReplyNotification, sendAdminNewUserMessageNotification } from '../services/firebase.js';
+import { storeUploadedMedia } from '../utils/mediaCache.js';
+import { publicApiBase } from '../utils/publicUrl.js';
 
 const router = Router();
 
@@ -498,6 +500,47 @@ router.post('/admin/conversations/:id/read', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: upload chat image (base64) → cached /api/media/:id
+router.post('/admin/upload-image', requireAdmin, async (req, res) => {
+  try {
+    const { data, contentType } = req.body || {};
+    const raw = typeof data === 'string' ? data.trim() : '';
+    if (!raw) {
+      return res.status(400).json({ error: 'Picha inahitajika' });
+    }
+
+    const base64 = raw.includes('base64,') ? raw.split('base64,').pop() : raw;
+    let buffer;
+    try {
+      buffer = Buffer.from(base64, 'base64');
+    } catch {
+      return res.status(400).json({ error: 'Picha si sahihi' });
+    }
+
+    const saved = await storeUploadedMedia(buffer, contentType || 'image/jpeg');
+    const base = publicApiBase(req);
+    const path = saved.path;
+    const url = base ? `${base}${path}` : path;
+
+    res.status(201).json({
+      ok: true,
+      mediaId: saved.id,
+      path,
+      url,
+      contentType: saved.contentType,
+      byteSize: saved.byteSize,
+    });
+  } catch (err) {
+    console.error('POST /chat/admin/upload-image:', err);
+    const msg = err.message === 'too_large'
+      ? 'Picha ni kubwa mno'
+      : err.message === 'not_image'
+        ? 'Faili si picha'
+        : 'Imeshindwa kupakia picha';
+    res.status(400).json({ error: msg });
+  }
+});
+
 // Admin: reply
 router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => {
   try {
@@ -506,11 +549,12 @@ router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => 
 
     const db = getPool();
     const msgId = uuidv4();
+    const body = content.trim();
 
     await db.query(
       `INSERT INTO chat_messages (id, conversation_id, sender_type, content, is_read_by_admin)
        VALUES ($1,$2,$3,$4,TRUE)`,
-      [msgId, req.params.id, 'admin', content.trim()],
+      [msgId, req.params.id, 'admin', body],
     );
 
     // Opening/replying implies admin has seen the thread.
@@ -537,9 +581,10 @@ router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => 
     let notification = null;
     if (userId) {
       try {
+        const preview = /\[IMAGE:/i.test(body) ? '📷 Picha mpya kutoka Mwalimu' : body;
         notification = await sendMwalimuReplyNotification({
           userId,
-          preview: content.trim(),
+          preview,
         });
       } catch (_) {}
     }
@@ -548,7 +593,7 @@ router.post('/admin/conversations/:id/reply', requireAdmin, async (req, res) => 
       message: {
         id: msgId,
         senderType: 'admin',
-        content: content.trim(),
+        content: body,
         createdAt: new Date().toISOString(),
       },
       notification,

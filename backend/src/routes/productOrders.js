@@ -11,8 +11,21 @@ import {
   toLocalPhone,
   normalizePhone,
 } from '../services/sonicpesa.js';
+import { sendAdminPaymentNotification } from '../services/firebase.js';
 
 const router = Router();
+
+function notifyProductPayment(order) {
+  if (!order) return;
+  sendAdminPaymentNotification({
+    amount: order.total_amount,
+    customerName: order.customer_name,
+    kind: 'product',
+    title: order.product_title,
+  }).catch((err) => {
+    console.error('Admin product payment notify failed:', err.message);
+  });
+}
 
 function mapOrderRow(r) {
   return {
@@ -376,6 +389,7 @@ router.get('/:id/payment-status', async (req, res) => {
              WHERE id = $1 RETURNING *`,
             [order.id, transId],
           );
+          notifyProductPayment(updated[0] || order);
           return res.json({
             success: true,
             status: 'paid',
@@ -426,6 +440,12 @@ router.post('/:id/confirm-payment', async (req, res) => {
     const { id } = req.params;
     const { paymentReference } = req.body;
 
+    const { rows: before } = await db.query(
+      `SELECT payment_status FROM product_orders WHERE id = $1 OR receipt_number = $1 LIMIT 1`,
+      [id],
+    );
+    const wasUnpaid = before[0] && before[0].payment_status !== 'paid';
+
     const { rows } = await db.query(
       `UPDATE product_orders
        SET payment_status = 'paid',
@@ -440,6 +460,8 @@ router.post('/:id/confirm-payment', async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Agizo halikupatikana' });
     }
+
+    if (wasUnpaid) notifyProductPayment(rows[0]);
 
     res.json({
       success: true,
